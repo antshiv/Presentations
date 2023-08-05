@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>Intro to ZEPHYR RTOS</title>
+
+	<link rel="stylesheet" href="dist/reset.css">
+	<link rel="stylesheet" href="dist/reveal.css">
+	<link rel="stylesheet" href="dist/theme/black.css">
+
+	<!-- Theme used for syntax highlighted code -->
+	<link rel="stylesheet" href="plugin/highlight/monokai.css">
+</head>
+
+<body>
+	<div class="reveal">
+		<div class="slides">
+			<section>
+				<img src="assets/zephyr.webp" alt="reveal.js logo"
+					style="height: 180px; margin: 0 auto 4rem auto; background: transparent;" class="demo-logo">
+				<h1> Zephyr RTOS</h1>
+			</section>
+			<section>
+				<h3>Why?</h3>
+				<ul>
+					<li class="fragment">
+						The zephyr RTOS is a small, scalable open-source RTOS for connected, resource-constrained
+						devices
+						supporting multiple architectures and released under the Apache License 2.0.
+					</li>
+					<li class="fragment">
+						It also supports multiple hardware architectures like ARM, x86, ARC, NIOS II, RISCV, XTENSA,
+						etc.
+					</li>
+					<li class="fragment">
+						Apart from that, it also supports multiple boards from different vendors like Nordic, ST, NXP,
+						etc.
+					</li>
+				</ul>
+			</section>
+			<section>
+				<h2>Folder Structure</h2>
+				<pre><code data-trim data-noescape>
+					├── CMakeLists.txt
+					├── Kconfig
+					|── boards
+					│   ├── nrf5340dk_nrf5340_cpuapp.overlay
+					│   ├── nrf5340_cpuapp_common-pinctrl.overlay
+					|── src
+					|   ├── drivers
+					|   |   ├── GPIO
+					|   |   |── PWM
+					|   |   |── SPI	
+					│   ├── main.c
+					├── prj.conf
+					├── README.md
+					</code></pre>
+			</section>
+			<section>
+				<h2>Device Tree</h2>
+				<p class="fragment">Zephyr RTOS uses Device Tree to configure the hardware. Device Tree is a data
+					structure that
+					describes
+					the hardware components of a particular MCU so that the kernel can use and
+					manage those components, including the clock, the memory, the peripherals pins and ports.</p>
+			</section>
+			<section>
+				<h3>Features of the device Tree </h3>
+				<ul>
+					<li class="fragment">
+						Abstracts application from the hardware
+					</li>
+					<li class="fragment">
+						Allows for easy porting of applications to different hardware
+					</li>
+					<li class="fragment">
+						Allows for easy reuse of code
+					</li>
+					<li class="fragment">
+						Keeps the code clean and readable
+					</li>
+				</ul>
+			</section>
+			<section>
+				Eg: Device Tree for nrf5340dk_nrf5340_cpuapp.overlay
+			</section>
+			<section>
+				<h3>Some handy notes</h3>
+				<ul>
+					<li class="fragment">An overlay file in your repository will overwrites the default configuration of
+						the device tree.</li>
+					<li class="fragment">A .dtsi file means it is an include file</li>
+					<li class="fragment">Placing the overlay file under <b>'boards'</b> directory will be automatically
+						picked by the zephyr device tree compiler
+					</li>
+					<li class="fragment">Note: The file name must match the default .dts file of the board support with
+						the extension .overlay</li>
+				</ul>
+			</section>
+			<section>
+				<h2>CMakeLists</h2>
+				<p>To compile different source files in different directories we need to add the source files to the
+					CMakeLists.txt
+				<pre><code data-trim data-noescape>
+					target_sources(app PRIVATE src/main.c)
+					target_sources(app PRIVATE src/drivers/GPIO/gpio.c)
+					target_sources(app PRIVATE src/drivers/PWM/pwm.c)
+					target_sources(app PRIVATE src/drivers/SPI/spi.c)
+					</code></pre>
+				</p>
+			</section>
+			<section>
+				<h2>prj.conf</h2>
+				<p class="fragment">prj.conf is a configuration file that is used to configure the kernel and the
+					application. It is a text file that contains a list of key-value pairs. The key is the name of the
+					configuration option and the value is the value of the configuration option.</p>
+				<pre class="fragment"><code data-trim data-noescape>
+					e.g. CONFIG_GPIO=y
+					</code></pre>
+			</section>
+			<section>
+				<h2>Threads and mulit-processing</h2>
+				<p class="fragment">Zephyr RTOS uses threads to run multiple tasks simultaneously. Threads are
+					lightweight processes that share the same memory space and can be scheduled to run on the same CPU
+					core. </p>
+			</section>
+			<section>
+				<h3>Threads</h3>
+				<p>Example of thread initialization in zephyr RTOS</p>
+				<pre class="fragment"><code data-trim data-noescape>
+					K_THREAD_DEFINE(thread_id, stack_size, thread_function, arg1, arg2, arg3, priority, options, delay);
+					</code></pre>
+				<pre class="fragment">
+						<code data-trim data-noescape>
+							//thread_id: name of the thread
+							//stack_size: size of the stack
+							//thread_function: function to be executed by the thread
+							//arg1, arg2, arg3: arguments to be passed to the thread function
+							//priority: priority of the thread
+							//options: options for the thread
+							//delay: delay before the thread starts
+						</code>
+					</pre>
+				<pre class="fragment">
+						<code data-trim data-noescape>
+							//Example
+							K_THREAD_DEFINE(thread_id, 1024, thread_function, NULL, NULL, NULL, 5, 0, 0);
+						</code>
+					</pre>
+			</section>
+			<section>
+				<h3>printk - The life line for debugging</h3>
+				<p class="fragment">
+					To print messages to the console, we use the printk function. It is similar to the printf function
+					in C. The printk function is thread-safe and can be called from any thread.
+					It is a super handy function for debugging.
+				</p>
+			</section>
+			<section>
+				<h4>Details I did not cover:</h4>
+				<ul>
+					<li>
+						West build system
+					</li>
+					<li>
+						Device Tree Compiler
+					</li>
+					<li>
+						KConfig
+					</li>
+				</ul>
+			</section>
+		</div>
+	</div>
+
+
+	<script src="dist/reveal.js"></script>
+	<script src="plugin/notes/notes.js"></script>
+	<script src="plugin/markdown/markdown.js"></script>
+	<script src="plugin/highlight/highlight.js"></script>
+	<script>
+		// More info about initialization & config:
+		// - https://revealjs.com/initialization/
+		// - https://revealjs.com/config/
+		Reveal.initialize({
+			hash: true,
+
+			// Learn about plugins: https://revealjs.com/plugins/
+			plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
+		});
+	</script>
+</body>
+
+</html>
