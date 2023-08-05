@@ -1,7 +1,7 @@
 # Presentations
 
 ## Description
-This repository contains presentations that are shown at the [AntShiv](https://www.youtube.com/channel/UCTHcIBTO5_Ly3GXAk_UccTQ) youtube channel. 
+This repository contains presentations that are shown at the [Antshiv Robotics](https://www.youtube.com/channel/UCTHcIBTO5_Ly3GXAk_UccTQ) youtube channel. 
 
 ## How the presentations are created
 The presentations are created using [Reveal.js](https://revealjs.com/). The presentations are written in HTML and CSS.
