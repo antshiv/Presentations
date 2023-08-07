@@ -14,15 +14,18 @@ const HorizontalMovement = {
 	RIGHT: -1,
 };
 
+const ForceDirection = {
+	UP: 1,
+	DOWN: -1,
+};
+
 console.log('script loaded');
-const quadcopter = new Image();
-quadcopter.src = "assets/quadcopter/2048w/quadcopter.png";
+quadcopter_path = "assets/quadcopter/2048w/quadcopter.png";
+quadcopter_front_path = "assets/quadcopter/2048w/quadcopter_front.png";
+propeller_path = "assets/propellers/2048w/propeller.png";
+quadcopter_chassis_path = "assets/quadcopter/2048w/chassis.png";
+propeller_circle_path = "assets/propellers/2048w/propeller_circle.png";
 
-const quadcopter_front = new Image();
-quadcopter_front.src = "assets/quadcopter/2048w/quadcopter_front.png";
-
-const propeller = new Image();
-propeller.src = "assets/propellers/2048w/propeller.png";
 
 function populateCanvas(canvas_id, image, RotationDirectionLocal = null, LinearMovementLocal = null, HorizontalMovementLocal = null) {
 	var canvas = document.getElementById(canvas_id);
@@ -77,7 +80,7 @@ function populateCanvas(canvas_id, image, RotationDirectionLocal = null, LinearM
 		};
 
 		// Function to draw the image at the current position
-		function drawImage(scaledWidth, scaledHeight, yLocal) {
+		function drawUpdatedPosition(scaledWidth, scaledHeight, yLocal) {
 			context.clearRect(0, 0, canvas.width, canvas.height);
 			
 			// Save the current context state
@@ -106,7 +109,7 @@ function populateCanvas(canvas_id, image, RotationDirectionLocal = null, LinearM
 				direction *= -1; // Reverse the direction when reaching the canvas boundaries
 			}
 
-			drawImage(scaledWidth ,scaledHeight, y); // Redraw the image with the updated position
+			drawUpdatedPosition(scaledWidth ,scaledHeight, y); // Redraw the image with the updated position
 			requestAnimationFrame(updatePosition);
 
 		}
