@@ -38,7 +38,7 @@ function populateCanvas(canvas_id, image, RotationDirectionLocal = null, LinearM
 		console.log('context not found');
 		return;
 	}
-	
+
 	image.onload = function (event) {
 		const centerX = canvas.width / 2;
 		const centerY = canvas.height / 2;
@@ -74,7 +74,7 @@ function populateCanvas(canvas_id, image, RotationDirectionLocal = null, LinearM
 
 			// Draw the image with the top-left corner at the center
 			context.drawImage(image, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
-			
+
 			// Restore the original context state
 			context.restore();
 		};
@@ -82,14 +82,14 @@ function populateCanvas(canvas_id, image, RotationDirectionLocal = null, LinearM
 		// Function to draw the image at the current position
 		function drawUpdatedPosition(scaledWidth, scaledHeight, yLocal) {
 			context.clearRect(0, 0, canvas.width, canvas.height);
-			
+
 			// Save the current context state
 			context.save();
 			context.translate(centerX, centerY);
-			
+
 			// Set the transform origin to the center of the image
 			// range is -canvan.height /2 to scaledHeight / 2
-			context.drawImage(image, -scaledWidth/2, yLocal , scaledWidth, scaledHeight);
+			context.drawImage(image, -scaledWidth / 2, yLocal, scaledWidth, scaledHeight);
 			context.restore();
 		}
 
@@ -100,16 +100,16 @@ function populateCanvas(canvas_id, image, RotationDirectionLocal = null, LinearM
 			const scaleFactor = 0.2; // Scale factor to half the size
 			const scaledWidth = image.width * scaleFactor;
 			const scaledHeight = image.height * scaleFactor;
-			
+
 			// Change the image's position based on the direction
 			y += 2 * direction; // Change the movement speed here (2 pixels per frame in this example)
-			
+
 			// Check if the image has reached the top or bottom of the canvas
-			if (y <= -canvas.height/2 || y  >= scaledHeight / 2) {
+			if (y <= -canvas.height / 2 || y >= scaledHeight / 2) {
 				direction *= -1; // Reverse the direction when reaching the canvas boundaries
 			}
 
-			drawUpdatedPosition(scaledWidth ,scaledHeight, y); // Redraw the image with the updated position
+			drawUpdatedPosition(scaledWidth, scaledHeight, y); // Redraw the image with the updated position
 			requestAnimationFrame(updatePosition);
 
 		}
@@ -134,5 +134,83 @@ function populateCanvas(canvas_id, image, RotationDirectionLocal = null, LinearM
 		console.log('image.onerror: Most likely path is not correct');
 	};
 };
+
+function drawAnimateQuadcopter(canvas_id) {
+	const canvas = document.getElementById(canvas_id);
+	const context = canvas.getContext("2d");
+	let chassisImage = new Image();
+	chassisImage.src = quadcopter_chassis_path;
+	let propellerImage = new Image();
+	propellerImage.src = propeller_circle_path;
+	proppellerWidthHeight = 100;
+	let rotationAngle = 0;
+
+	const centerX = canvas.width / 2;
+	const centerY = canvas.height / 2;
+
+	// Set the transform origin to the center of the image
+	context.rotate((-1 * Math.PI) / 179); // Convert degrees to radians
+
+	const scaleFactor = 0.12; // Scale factor to half the size
+	const scaledWidth = chassisImage.width * scaleFactor;
+	const scaledHeight = chassisImage.height * scaleFactor;
+
+	const propellerScaleFactor = 0.07; // Scale factor to half the size
+	const scaledWidthPropeller = propellerImage.width * propellerScaleFactor;
+	const scaledHeightPropeller = propellerImage.height * propellerScaleFactor;
+	context.drawImage(chassisImage, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+
+
+	// Function to draw the motor chassis with propellers
+	function drawMotorChassis(image, x, y, height, width, rotationDirection) {
+		context.save();
+		//context.translate(x, y);
+		context.translate(centerX + x, centerY + y);
+		context.rotate((rotationDirection * Math.PI) / 180); // Convert degrees to radians
+
+		// Draw the chassis image at position (100, 150)
+
+		// Draw the propeller images at their respective positions
+		if (propellerImage.complete) {
+			//context.drawImage(propellerImage, - scaledWidthPropeller /2 - (scaledWidth /2), -scaledHeightPropeller /2 - (scaledHeight /2 ), scaledWidthPropeller, scaledHeightPropeller);
+			//context.drawImage(propellerImage, - scaledWidthPropeller /2 - (scaledWidth /2), -scaledHeightPropeller /2 + (scaledHeight /2 ), scaledWidthPropeller, scaledHeightPropeller);
+			//context.drawImage(propellerImage, - scaledWidthPropeller /2 + (scaledWidth /2), -scaledHeightPropeller /2 - (scaledHeight /2 ), scaledWidthPropeller, scaledHeightPropeller);
+			//context.drawImage(propellerImage, - scaledWidthPropeller /2 + (scaledWidth /2), -scaledHeightPropeller /2 + (scaledHeight /2 ), scaledWidthPropeller, scaledHeightPropeller);
+			//context.drawImage(image, x,y, height, width);
+			context.drawImage(image, -width / 2, -height / 2, width, height);
+			//console.log("x: " + x + " y: " + y + " height: " + height + " width: " + width);
+		}
+		context.restore();
+	}
+
+	console.log("scaledWidthPropeller: " + scaledWidthPropeller);
+
+	function animate() {
+		// Increase the rotation angle each frame
+		rotationAngle -= 1;
+		// Draw everything on the canvas
+		context.clearRect(-20, 0, canvas.width + 500, canvas.height + 500);
+		context.save();
+		context.translate(centerX, centerY);
+		if (chassisImage.complete) {
+			//context.drawImage(chassisImage, 0, 0, canvas.width, canvas.width / aspectRatio);
+			context.drawImage(chassisImage, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+		}
+		context.restore();
+		drawMotorChassis(propellerImage, - (scaledWidth / 2), - (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, -rotationAngle);
+		drawMotorChassis(propellerImage, (scaledWidth / 2), - (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, rotationAngle);
+		drawMotorChassis(propellerImage, (scaledWidth / 2), (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, -rotationAngle);
+		drawMotorChassis(propellerImage, -(scaledWidth / 2), (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, rotationAngle);
+		//drawMotorChassis(propellerImage, -scaledWidthPropeller / 2 - (scaledWidth / 2), -scaledHeightPropeller / 2 + (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, -rotationAngle);
+		//drawMotorChassis(propellerImage, -scaledWidthPropeller / 2 + (scaledWidth / 2), -scaledHeightPropeller / 2 - (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, rotationAngle);
+		//drawMotorChassis(propellerImage, -scaledWidthPropeller / 2 + (scaledWidth / 2), -scaledHeightPropeller / 2 + (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, -rotationAngle);
+
+
+		// Call the animate function again before the next repaint
+		requestAnimationFrame(animate);
+	}
+	animate();
+
+}
 
 

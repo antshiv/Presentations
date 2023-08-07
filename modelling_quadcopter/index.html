@@ -77,7 +77,12 @@
 					<canvas id="myCanvas4" width="500" height="500" style="border:1px solid #000000;"></canvas>
 			</section>
 			<section>
+				<h2>Propeller rotation direction</h2>
 				<canvas id="myCanvas5" width="500" height="500" style="border:1px solid #000000;"></canvas>
+			</section>
+			<section>
+				<h2>Left / Right</h2>
+				<canvas id="myCanvas5" width="1350" height="500" style="border:1px solid #000000; margin-left:-200px;"></canvas>
 			</section>
 			<section>
 				<h2>The Lorenz Equations</h2>
@@ -129,90 +134,8 @@
 			populateCanvas('myCanvas2', canvas2, RotationDirection.COUNTERCLOCKWISE);
 			populateCanvas('myCanvas3', canvas3, null, 1);
 			populateCanvas('myCanvas4', canvas4, null, null);
+			drawAnimateQuadcopter('myCanvas5');
 		});
-
-		// Wait for the page to load before accessing the DOM elements
-		window.addEventListener("load", () => {
-			const canvas = document.getElementById("myCanvas5");
-			const context = canvas.getContext("2d");
-			let chassisImage = new Image();
-			chassisImage.src = quadcopter_chassis_path;
-			let propellerImage = new Image();
-			propellerImage.src = propeller_circle_path;
-			proppellerWidthHeight = 100;
-			let rotationAngle = 0;
-
-			const centerX = canvas.width / 2;
-			const centerY = canvas.height / 2;
-
-			// Set the transform origin to the center of the image
-			context.rotate((-1 * Math.PI) / 179); // Convert degrees to radians
-
-			const scaleFactor = 0.12; // Scale factor to half the size
-			const scaledWidth = chassisImage.width * scaleFactor;
-			const scaledHeight = chassisImage.height * scaleFactor;
-
-			const propellerScaleFactor = 0.07; // Scale factor to half the size
-			const scaledWidthPropeller = propellerImage.width * propellerScaleFactor;
-			const scaledHeightPropeller = propellerImage.height * propellerScaleFactor;
-			context.drawImage(chassisImage, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
-
-			console.log("scaledWidthPropeller: " + scaledWidthPropeller);
-
-			// Function to draw the motor chassis with propellers
-			function drawMotorChassis(image, x, y, height, width, rotationDirection) {
-				context.save();
-				console.log(x);
-				//context.translate(x, y);
-				context.translate(centerX + x, centerY + y);
-				context.rotate((rotationDirection * Math.PI) / 180); // Convert degrees to radians
-
-				// Draw the chassis image at position (100, 150)
-
-				// Draw the propeller images at their respective positions
-				if (propellerImage.complete) {
-					//context.drawImage(propellerImage, - scaledWidthPropeller /2 - (scaledWidth /2), -scaledHeightPropeller /2 - (scaledHeight /2 ), scaledWidthPropeller, scaledHeightPropeller);
-					//context.drawImage(propellerImage, - scaledWidthPropeller /2 - (scaledWidth /2), -scaledHeightPropeller /2 + (scaledHeight /2 ), scaledWidthPropeller, scaledHeightPropeller);
-					//context.drawImage(propellerImage, - scaledWidthPropeller /2 + (scaledWidth /2), -scaledHeightPropeller /2 - (scaledHeight /2 ), scaledWidthPropeller, scaledHeightPropeller);
-					//context.drawImage(propellerImage, - scaledWidthPropeller /2 + (scaledWidth /2), -scaledHeightPropeller /2 + (scaledHeight /2 ), scaledWidthPropeller, scaledHeightPropeller);
-					//context.drawImage(image, x,y, height, width);
-					context.drawImage(image, -width /2, -height/2, width, height);
-					//console.log("x: " + x + " y: " + y + " height: " + height + " width: " + width);
-				}
-				context.restore();
-			}
-
-			console.log("scaledWidthPropeller: " + scaledWidthPropeller);
-
-			function animate() {
-				console.log('animate()');
-				// Increase the rotation angle each frame
-				rotationAngle -= 1;
-				// Draw everything on the canvas
-				context.clearRect(-20, 0, canvas.width + 500, canvas.height + 500);
-				context.save();
-				context.translate(centerX, centerY);
-				if (chassisImage.complete) {
-					//context.drawImage(chassisImage, 0, 0, canvas.width, canvas.width / aspectRatio);
-					context.drawImage(chassisImage, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
-				}
-				context.restore();
-				drawMotorChassis(propellerImage, - (scaledWidth / 2), - (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, -rotationAngle);
-				drawMotorChassis(propellerImage,  (scaledWidth / 2), - (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, rotationAngle);
-				drawMotorChassis(propellerImage,  (scaledWidth / 2),  (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, -rotationAngle);
-				drawMotorChassis(propellerImage, -(scaledWidth / 2),  (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, rotationAngle);
-				//drawMotorChassis(propellerImage, -scaledWidthPropeller / 2 - (scaledWidth / 2), -scaledHeightPropeller / 2 + (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, -rotationAngle);
-				//drawMotorChassis(propellerImage, -scaledWidthPropeller / 2 + (scaledWidth / 2), -scaledHeightPropeller / 2 - (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, rotationAngle);
-				//drawMotorChassis(propellerImage, -scaledWidthPropeller / 2 + (scaledWidth / 2), -scaledHeightPropeller / 2 + (scaledHeight / 2), scaledWidthPropeller, scaledHeightPropeller, -rotationAngle);
-
-
-				// Call the animate function again before the next repaint
-				requestAnimationFrame(animate);
-			}
-			animate();
-
-		});
-
 
 	</script>
 
