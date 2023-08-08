@@ -66,30 +66,57 @@
 				</ul>
 			</section>
 			<section>
-				<div class="d-flex justify-content-space-between">
-					<canvas id="myCanvas1" width="500" height="500" style="border:1px solid #000000;"></canvas>
-					<canvas id="myCanvas2" width="500" height="500" style="border:1px solid #000000;"></canvas>
-				</div>
-			</section>
-			<section>
-				<div class="d-flex justify-content-space-between">
-					<canvas id="myCanvas3" width="500" height="500" style="border:1px solid #000000;"></canvas>
-					<canvas id="myCanvas4" width="500" height="500" style="border:1px solid #000000;"></canvas>
-			</section>
-			<section>
 				<h2>Propeller rotation direction</h2>
 				<canvas id="myCanvas5" width="500" height="500" style="border:1px solid #000000;"></canvas>
 			</section>
 			<section>
-				<h2>Left / Right</h2>
-				<canvas id="myCanvas5" width="1350" height="500" style="border:1px solid #000000; margin-left:-200px;"></canvas>
+				<h2>Imbalance causing rotation</h2>
+				<div class="">
+					<canvas id="myCanvas1" width="500" height="500" style="border:1px solid #000000;"></canvas>
+				<!--	<canvas id="myCanvas2" width="500" height="500" style="border:1px solid #000000;"></canvas> -->
+				</div>
 			</section>
 			<section>
-				<h2>The Lorenz Equations</h2>
+				<h2>Hovering / Lift Off</h2>
+				<div class="d-flex justify-content-space-between">
+					<canvas id="myCanvas3" width="500" height="500" style="border:1px solid #000000;"></canvas>
+					<ul>
+						<li class="fragment">
+							For the quadcopter to hover, the total thrust produced by the four rotors must be equal to
+							the weight of the quadcopter.
+						</li>
+						<li class="fragment">
+							To lift off, the total thrust produced by the four rotors must be greater than the weight
+							of the quadcopter.
+						</li>
+					</ul>
+			</section>
+			<section>
+				<h2>Left / Right</h2>
+				<div class="d-flex justify-content-space-between">
+				<canvas id="myCanvas6" width="850" height="500" style="border:1px solid #000000; margin-left:-200px;"></canvas>
+				<canvas id="myCanvas7" width="500" height="500" style="border:1px solid #000000;"></canvas>
+				</div>
+			</section>
+			<!-- <section>
+				<h2>Left / Right</h2>
+				<canvas id="myCanvas7" width="1350" height="500" style="border:1px solid #000000; margin-left:-200px;"></canvas>
+			</section> -->
+			<section>
 				\[\begin{aligned}
-				\dot{x} &amp; = \sigma(y-x) \\
-				\dot{y} &amp; = \rho x - y - xz \\
-				\dot{z} &amp; = -\beta z + xy
+				\text { Thrust } &=\frac{1}{2} \rho A C_{L} V^{2} \\
+				\text { Drag } &=\frac{1}{2} \rho A C_{D} V^{2} \\
+				\text { Lift } &=\frac{1}{2} \rho A C_{L} V^{2} \\
+				\text { Weight } &= m * g * h \\
+				\end{aligned} \]
+			</section>
+			<section>
+				<h2>The Equations</h2>
+				\[\begin{aligned}
+				m1=\frac{1}{2} \rho A C_{L} V^{2} \\
+				m2=\frac{1}{2} \rho A C_{D} V^{2} \\
+				m3=\frac{1}{2} \rho A C_{D} V^{2} \\
+				m4=\frac{1}{2} \rho A C_{L} V^{2} \\
 				\end{aligned} \]
 			</section>
 		</div>
@@ -134,7 +161,10 @@
 			populateCanvas('myCanvas2', canvas2, RotationDirection.COUNTERCLOCKWISE);
 			populateCanvas('myCanvas3', canvas3, null, 1);
 			populateCanvas('myCanvas4', canvas4, null, null);
-			drawAnimateQuadcopter('myCanvas5');
+			drawAnimateQuadcopter('myCanvas5', quadcopter_chassis_path , propeller_circle_path);
+			drawAnimateQuadcopter('myCanvas7', quadcopter_chassis_path , propeller_circle_path);
+			//QuadcopterAnimateleftRight('myCanvas7', quadcopter_front_path);
+			canvas6();
 		});
 
 	</script>

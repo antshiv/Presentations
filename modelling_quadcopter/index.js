@@ -135,13 +135,13 @@ function populateCanvas(canvas_id, image, RotationDirectionLocal = null, LinearM
 	};
 };
 
-function drawAnimateQuadcopter(canvas_id) {
+function drawAnimateQuadcopter(canvas_id, quadcopterImageSrc, propellerImageSrc) {
 	const canvas = document.getElementById(canvas_id);
 	const context = canvas.getContext("2d");
 	let chassisImage = new Image();
-	chassisImage.src = quadcopter_chassis_path;
+	chassisImage.src = quadcopterImageSrc;
 	let propellerImage = new Image();
-	propellerImage.src = propeller_circle_path;
+	propellerImage.src = propellerImageSrc;
 	proppellerWidthHeight = 100;
 	let rotationAngle = 0;
 
@@ -213,4 +213,133 @@ function drawAnimateQuadcopter(canvas_id) {
 
 }
 
+function QuadcopterAnimateleftRight(canvas_id, quadcopterImageSrc) {
+	const canvas = document.getElementById(canvas_id);
+	const context = canvas.getContext("2d");
+
+	const image = new Image();
+	image.src = quadcopterImageSrc;
+
+	//scale image
+	const scaleFactor = 0.12; // Scale factor to half the size
+	const scaledWidth = image.width * scaleFactor;
+	const scaledHeight = image.height * scaleFactor;
+
+	image.addEventListener("load", () => {
+		// Initial position of the image at the center of the canvas
+		let x = 0;
+		const y = (canvas.height - scaledHeight) / 2;
+		// Initial rotation angle (in degrees)
+		let rotationAngle = 45;
+		// Initial movement direction and speed
+		let direction = 1; // 1 for right, -1 for left
+		const speed = 2; // Change the movement speed here (2 pixels per frame in this example)
+
+		// Function to draw the rotated image at the given position and angle
+		function drawRotatedImage() {
+			context.clearRect(0, 0, canvas.width, canvas.height);
+
+			context.save();
+
+			// Set the transform origin to the center of the image
+			context.translate(x + scaledWidth/2, canvas.height / 2);
+			context.rotate((-45 * Math.PI) / 180); // Convert degrees to radians
+			//context.translate(x + scaledWidth/2, canvas.height/2 + scaledHeight / 2);
+			//context.rotate((rotationAngle * Math.PI) / 180); // Convert degrees to radians
+
+			// Draw the image with the top-left corner at the center
+			context.drawImage(image, -scaledWidth/2, -scaledHeight / 2, scaledWidth, scaledHeight);
+
+			context.restore();
+		}
+
+		// Function to update the image position
+		function updatePosition() {
+			x += (speed * direction);
+			// Check if the image has reached the left or right side of the canvas
+			if (x < 0) {
+				direction = 1; // Reverse the direction when reaching the canvas boundaries
+				rotationAngle = 45;
+				//rotationAngle *= -1; // Reverse the rotation direction
+				x = 0;
+			}
+			if ((x + scaledWidth) > (canvas.width)) {
+				direction = -1; // Reverse the direction when reaching the canvas boundaries
+				rotationAngle = -45;
+				//rotationAngle *= -1; // Reverse the rotation direction
+				x = canvas.width - scaledWidth;
+			}
+			drawRotatedImage(); // Redraw the image with the updated position
+			requestAnimationFrame(updatePosition);
+		}
+
+		// Start the animation
+		updatePosition();
+	});
+}
+
+function canvas6() {
+	const canvas = document.getElementById("myCanvas6");
+	const context = canvas.getContext("2d");
+	const image = new Image();
+
+	// Replace 'path_to_your_image' with the actual path to your image
+	image.src = quadcopter_front_path;
+
+		//scale image
+	const scaleFactor = 0.12; // Scale factor to half the size
+	const scaledWidth = image.width * scaleFactor;
+	const scaledHeight = image.height * scaleFactor;
+
+	// Wait for the image to load before drawing it on the canvas
+	image.addEventListener("load", () => {
+		// Initial position of the image at the center of the canvas
+		const y = (canvas.height - scaledHeight) / 2;
+
+		// Initial rotation angle (in degrees)
+		let rotationAngle = 45;
+
+		// Initial x position off-canvas to the left
+		let x = -scaledWidth;
+
+		// Initial movement direction and speed
+		let direction = 1; // 1 for right, -1 for left
+		const speed = 2; // Change the movement speed here (2 pixels per frame in this example)
+
+		// Function to draw the rotated image at the given position and angle
+		function drawRotatedImage() {
+			context.clearRect(0, 0, canvas.width, canvas.height);
+
+			context.save();
+
+			// Set the transform origin to the center of the image
+			context.translate(x + scaledWidth / 2, canvas.height / 2);
+			context.rotate((rotationAngle * Math.PI) / 180); // Convert degrees to radians
+
+			// Draw the image with the top-left corner at the center
+			context.drawImage(image, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+
+			context.restore();
+		}
+
+		// Function to update the image position
+		function updatePosition() {
+			x += speed * direction;
+
+			// Check if the image has reached the left or right side of the canvas
+			if (x < 0 || x >= canvas.width - scaledWidth) {
+				direction *= -1; // Reverse the direction when reaching the canvas boundaries
+				rotationAngle *= -1; // Reverse the rotation direction
+				x = Math.min(Math.max(x, 0), canvas.width - scaledWidth); // Clamp the x position to the canvas boundaries
+
+			}
+
+			drawRotatedImage(); // Redraw the image with the updated position
+			requestAnimationFrame(updatePosition);
+		}
+
+		// Start the animation
+		updatePosition();
+	});
+}
 
