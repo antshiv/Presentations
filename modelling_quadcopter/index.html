@@ -24,7 +24,7 @@
 	<div class="reveal">
 		<div class="slides">
 			<section>
-				<img src="assets/quadcopter/2048w/quadcopter.png" alt="reveal.js logo"
+				<img src="assets/quadcopter/SVG/quadcopter_illustration.svg"  alt="reveal.js logo"
 					style="height: 180px; margin: 0 auto 4rem auto; background: transparent;" class="demo-logo">
 				<h1>Modelling a Quadcopter</h1>
 			</section>
@@ -49,7 +49,7 @@
 			</section>
 			<section>
 				<img src="assets/propellers/2048w/propeller.png" alt="reveal.js logo"
-					style="height: 180px; margin: 0 auto 4rem auto; background: transparent;" class="demo-logo">
+					style="height: 380px; margin: 0 auto 4rem auto; background: transparent;" class="demo-logo">
 				<ul>
 					<li class="fragment">
 						Hover (up/down)
@@ -66,6 +66,13 @@
 				</ul>
 			</section>
 			<section>
+				<div class="d-flex align-items-center">
+					<img src="assets/quadcopter/2048w/quadcopter.png" alt="reveal.js logo"
+						style="max-height:calc(100vh - 200px); width:600px; margin: 0 auto 4rem auto; background: transparent;"
+						class="demo-logo">
+				</div>
+			</section>
+			<section>
 				<h2>Propeller rotation direction</h2>
 				<canvas id="myCanvas5" width="500" height="500" style="border:1px solid #000000;"></canvas>
 			</section>
@@ -73,7 +80,7 @@
 				<h2>Imbalance causing rotation</h2>
 				<div class="">
 					<canvas id="myCanvas1" width="500" height="500" style="border:1px solid #000000;"></canvas>
-				<!--	<canvas id="myCanvas2" width="500" height="500" style="border:1px solid #000000;"></canvas> -->
+					<!--	<canvas id="myCanvas2" width="500" height="500" style="border:1px solid #000000;"></canvas> -->
 				</div>
 			</section>
 			<section>
@@ -92,11 +99,84 @@
 					</ul>
 			</section>
 			<section>
+				\[ \begin{aligned}
+				\overrightarrow F  &=\begin{bmatrix}
+				0 \\
+				0 \\
+				u
+				\end{bmatrix} \\
+				\end{aligned} \]
+				\[ \begin{aligned}
+				u = \sum_{i=1}^{4} \tau_{M i} \\
+				\end{aligned} \]
+				where u is the thrust produced by the four rotors
+			</section>
+			<section>
 				<h2>Left / Right</h2>
 				<div class="d-flex justify-content-space-between">
-				<canvas id="myCanvas6" width="850" height="500" style="border:1px solid #000000; margin-left:-200px;"></canvas>
-				<canvas id="myCanvas7" width="500" height="500" style="border:1px solid #000000;"></canvas>
+					<canvas id="myCanvas6" width="850" height="500"
+						style="border:1px solid #000000; margin-left:-200px;"></canvas>
+					<canvas id="myCanvas7" width="500" height="500" style="border:1px solid #000000;"></canvas>
 				</div>
+			</section>
+			<section>
+				<h2>The generalized torque:</h2>
+				\[ \begin{aligned}
+				\overrightarrow \tau &=\begin{bmatrix}
+				\tau_{\phi} \\
+				\tau_{\theta} \\
+				\tau_{\psi}
+				\end{bmatrix} = \begin{bmatrix}
+				\sum_{i=1}^{4} \tau_{M i} \\
+				(f2 - f4) l \\
+				(f3 - f1) l
+				\end{bmatrix} \\
+				\end{aligned} \]
+				where τϕ, τθ, and τψ are the torques about the x, y, and z axes, respectively
+			</section>
+			<section>
+				\[ \begin{aligned}
+				\tau_{\phi} = K\tau (\omega_{1}^{2} + \omega_{3}^{2} - \omega_{2}^{2} - \omega_{4}^{2}) \\
+				\tau_{\theta} = l_k (\omega_{2}^{2} - \omega_{4}^{2}) \\
+				\tau_{\psi} = l_k (\omega_{3}^{2} - \omega_{1}^{2}) \\
+				\end{aligned} \]
+				are the generalized torques for yawing, pitching, and rolling, respectively
+			</section>
+			<section>
+					<h3>Distilling down to basic textbook math</h3>
+					<p>Each rotor may be thought of as a rigid disc rotating around the  axis 
+						Ez in the body fixed frame, with angular velocity ωi, where i = 1, 2, 3, 4.
+						The rotor's axis of rotation is ltself moving with the angular velocity of the frame. 
+						This leads to the following gyroscopic torques applied to the airframe:
+
+					</p>
+			</section>
+			<section>
+				<img src="assets/quadcopter/SVG/quadcopter_illustration.svg" alt="reveal.js logo"
+					style="height: 480px; margin: 0 auto 0rem auto; background: transparent;" class="demo-logo">
+			</section>
+			<section>
+				\[ \begin{aligned}
+				\text { Thrust } u &=\tau m1 + \tau m2 + \tau m3 + \tau m4 \\
+				\end{aligned} \]
+				where Tmi is the reaction torque of the ith motor due to shaft rotation and blades drag
+			</section>
+			<section>
+				\[ \begin{aligned}
+				\text Irot * \dot{\omega} &= \tau Mi - \tau_{drag} \\
+				\end{aligned} \]
+				<p>Motor torque is opposed by an aerodynamic drag</p>
+				where Irot is the moment of inertia of the rotor, ω is the angular velocity of the rotor, τdrag is the
+				drag torque of the rotor due to the blades drag
+			</section>
+			<section>
+				\[\begin{aligned}
+				\tau_{drag } &=\frac{1}{2} \rho A V^{2} \\
+				\omega = \frac{V}{r} \\
+				\tau_{drag} &= \frac{1}{2} \rho A r^{3} \omega^{2} \\
+				\tau_{drag} &= k_{drag} \omega^{2} \\
+				\end{aligned} \]
+				Kdrag is the drag coefficient of the rotor and it depends on the rotor geometry and the air density
 			</section>
 			<!-- <section>
 				<h2>Left / Right</h2>
@@ -104,20 +184,49 @@
 			</section> -->
 			<section>
 				\[\begin{aligned}
-				\text { Thrust } &=\frac{1}{2} \rho A C_{L} V^{2} \\
-				\text { Drag } &=\frac{1}{2} \rho A C_{D} V^{2} \\
-				\text { Lift } &=\frac{1}{2} \rho A C_{L} V^{2} \\
-				\text { Weight } &= m * g * h \\
+				q = \begin{bmatrix}
+				\dot{x} \\
+				\dot{y} \\
+				\dot{z} \\
+				\dot{\phi} \\
+				\dot{\theta} \\
+				\dot{\psi} \\
+				\end{bmatrix} = \begin{bmatrix}
+				u \\
+				v \\
+				w \\
+				p \\
+				q \\
+				r \\
+				\end{bmatrix} \\
 				\end{aligned} \]
 			</section>
 			<section>
-				<h2>The Equations</h2>
 				\[\begin{aligned}
-				m1=\frac{1}{2} \rho A C_{L} V^{2} \\
-				m2=\frac{1}{2} \rho A C_{D} V^{2} \\
-				m3=\frac{1}{2} \rho A C_{D} V^{2} \\
-				m4=\frac{1}{2} \rho A C_{L} V^{2} \\
+				\text { L } (\dot{q}, q) &= \frac{1}{2} m (u^{2} + v^{2} + w^{2}) \\
+				\text { + } \frac{1}{2} I_{xx} p^{2} + \frac{1}{2} I_{yy} q^{2}  \text { + } \frac{1}{2} I_{zz} r^{2} \\
+				\text { - } m g z \\
 				\end{aligned} \]
+				where L is the Lagrangian of the quadcopter, m is the mass of the quadcopter, Ixx, Iyy, and Izz are
+				the moments of inertia of the quadcopter about the x, y, and z axes, respectively
+			</section>
+			<section>
+				<h2>Rotation Matrix</h2>
+				A rotation matrix is a matrix used to perform a rotation to get the attitude of the quadcopter
+				with respect to the inertial frame. The rotation matrix is defined as follows:
+			</section>
+			<section style="margin-left:-150px; font-size:30px;">
+				\[ \begin{aligned}
+				R = \begin{bmatrix}
+				\cos \theta \cos \psi & \sin \phi \sin \theta \cos \psi - \cos \phi \sin \psi & \cos \phi \sin \theta
+				\cos \psi + \sin \phi \sin \psi \\
+				\cos \theta \sin \psi & \sin \phi \sin \theta \sin \psi + \cos \phi \cos \psi & \cos \phi \sin \theta
+				\sin \psi - \sin \phi \cos \psi \\
+				- \sin \theta & \sin \phi \cos \theta & \cos \phi \cos \theta \\
+				\end{bmatrix} \\
+				\end{aligned} \]
+				<p>Euler angles are used to describe the orientation of the quadcopter with respect to the inertial frame.</p>
+				<p>Other representations of the orientation of the quadcopter are the quaternion and the direction cosine.</p>
 			</section>
 		</div>
 	</div>
@@ -161,8 +270,8 @@
 			populateCanvas('myCanvas2', canvas2, RotationDirection.COUNTERCLOCKWISE);
 			populateCanvas('myCanvas3', canvas3, null, 1);
 			populateCanvas('myCanvas4', canvas4, null, null);
-			drawAnimateQuadcopter('myCanvas5', quadcopter_chassis_path , propeller_circle_path);
-			drawAnimateQuadcopter('myCanvas7', quadcopter_chassis_path , propeller_circle_path);
+			drawAnimateQuadcopter('myCanvas5', quadcopter_chassis_path, propeller_circle_path);
+			drawAnimateQuadcopter('myCanvas7', quadcopter_chassis_path, propeller_circle_path);
 			//QuadcopterAnimateleftRight('myCanvas7', quadcopter_front_path);
 			canvas6();
 		});

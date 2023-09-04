@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>Modelling a Quadcopter</title>
+
+	<link rel="stylesheet" href="../reveal.js/dist/reset.css">
+	<link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+	<link rel="stylesheet" href="../reveal.js/dist/theme/black.css">
+
+	<!-- Theme used for syntax highlighted code -->
+	<link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+
+	<script src="../reveal.js/plugin/math/math.js"></script>
+
+	<!-- get bootstrap from cdn -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+
+<body>
+	<div class="reveal">
+		<div class="slides">
+			<section>
+				<img src="assets/quadcopter/SVG/quadcopter_illustration.svg" alt="reveal.js logo"
+					style="height: 180px; margin: 0 auto 4rem auto; background: transparent;" class="demo-logo">
+				<h1>All about Hover</h1>
+			</section>
+			<section>
+				<ul>
+					<li class="fragment">What makes the quadcopter Hover?</li>
+					<li class="fragment"> How does the size of the propeller blade affect hover?</li>
+					<li class="fragment">How many blades do we need?</li>
+					<li class="fragment">How fast should the blades rotate to generate thrust?</li>
+					<li class="fragment">How efficient are your airfoil sections?</li>
+				</ul>
+			</section>
+			<section>
+				<h2>The mathematical theories that will help us answer these questions</h2>
+				<ul>
+					<li class="fragment">Momentum Theory</li>
+					<li class="fragment">Blade Element Theory</li>
+					<li class="fragment">Blade Element Momentum Theory</li>
+				</ul>
+			</section>
+			<section>
+				<h2>What is Momentum Theory?</h2>
+				<ul>
+					<li class="fragment">It is a theory that describes the flow field around a rotor in hover.</li>
+					<li class="fragment">It is based on the conservation of momentum.</li>
+					<li class="fragment">It is a simple theory that can be used to estimate the thrust and power
+						required to hover.</li>
+				</ul>
+			</section>
+			<section>
+				<img src="assets/quadcopter/SVG/quadcopter_wireframe.svg" alt="reveal.js logo"
+					style="margin: 0 auto 4rem auto; background: transparent;" class="demo-logo">
+			</section>
+			<section>
+				<img src="assets/quadcopter/2048w/terms-definitions-1.png" alt="reveal.js logo"
+					style="margin: 0 auto 4rem auto; background: transparent; width:720px;" class="demo-logo">
+			</section>
+			<Section>
+				<h2>Reality Simplification</h2>
+				<ul>
+					<li class="fragment">Flow is unsteady</li>
+					<li class="fragment">Flow is 3D</li>
+					<li class="fragment">Flow is compressible</li>
+					<li class="fragment">Flow is viscous</li>
+					<li class="fragment">Tip vortices</li>
+					<li class="fragment">Blockage effects</li>
+				</ul>
+			</Section>
+			<section>
+				<h2>Some assumptions to simplifiy calculations</h2>
+				<ul>
+					<li class="fragment">Flow is steady</li>
+					<li class="fragment">Flow is 1D</li>
+					<li class="fragment">Flow is incompressible - (Density Constant)</li>
+					<li class="fragment">Flow is inviscid</li>
+				</ul>
+			</section>
+			<Section>
+				<h3>Coming to terms</h3>
+				<div class="d-flex justify-content-between align-items-center">
+					<div>
+						<img src="assets/aerodynamics/SVG/coming_to_terms.svg" alt="reveal.js logo"
+							style="margin: 0 auto 4rem auto; background: transparent; width:500px;" class="demo-logo">
+					</div>
+					<div style="font-size:24px">
+						<table>
+							<thead>
+								<tr>
+									<th>Symbol</th>
+									<th>Meaning</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>
+										A
+									</td>
+									<td>
+										Area of the rotor / actuator disk
+									</td>
+								</tr>
+								<tr>
+									<td>
+										A<sub>∞</sub>
+									</td>
+									<td>
+										Area of the slip stream far below the disk
+									</td>
+								</tr>
+								<tr>
+									<td>
+										ρ
+									</td>
+									<td>
+										Density of the air
+									</td>
+								</tr>
+								<tr>
+									<td>
+										V<sub>i</sub>
+									</td>
+									<td>
+										Induced velocity at the rotor
+									</td>
+								</tr>
+								<tr>
+									<td>
+										w
+									</td>
+									<td>
+										Velocity far below the rotor
+									</td>
+								</tr>
+								<tr>
+									<td>
+										T
+									</td>
+									<td>
+										Thrust acting on the rotor
+									</td>
+								</tr>
+								<tr>
+									<td>
+										P
+									</td>
+									<td>
+										Power required to create thrust
+									</td>
+								</tr>
+								<tr>
+									<td>
+										DL
+									</td>
+									<td>
+										Disk Loading = T/A
+									</td>
+								</tr>
+								<tr>
+									<td>
+										PL
+									</td>
+									<td>
+										Power Loading = T/P
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+			<section>
+				<div style="font-size:32px">
+					\[ \begin{align}
+					A = \text{Area of actuator disk} \\
+					A_{\infty} = \text{Area of free stream} \\
+					\rho = \text{Density of Air} \\
+					V_{i} = \text{Induced velocity at disk} \\
+					w = \text{Velocity far below the disk} \\
+					T = \text{Thrust acting on disk} \\
+					P = \text{Power required to create thrust} \\
+					DL = \text{Disk Loading} = T/A \\
+					PL = \text{Power Loading} = T/P \\
+					\end{align} \]
+				</div>
+			</section>
+			<section>
+				<h3>conservation Laws</h3>
+				<ul>
+					<li class="fragment">Conservation of Mass</li>
+					<li class="fragment">Conservation of Momentum</li>
+					<li class="fragment">Conservation of Energy</li>
+				</ul>
+			</section>
+			<section>
+				<h3>Conservation of Mass</h3>
+				<img src="assets/aerodynamics/SVG/axis_disc_cross_section.svg" alt="reveal.js logo"
+					style="margin: 0 auto 4rem auto; background: transparent;" class="demo-logo">
+			</section>
+			<section>
+				<div class="d-flex align-items-center">
+					<div>
+						<img src="assets/aerodynamics/SVG/conservation_of_mass.svg" alt="reveal.js logo"
+							style="margin: 0 auto 4rem auto; background: transparent; width:720px;" class="demo-logo">
+					</div>
+					<div style="font-size:24px;">
+						Mass of the zone at (t = T)
+						\[ \begin{aligned}
+						\rho(\text{ Volume of 1 X Volume of 2}) \\
+						\end{aligned} \]
+						Mass of the zone at (t = T + 1)
+						\[ \begin{aligned}
+						\rho(\text{ Volume of 2 X Volume of 3}) \\
+						\end{aligned} \]
+						\[ \begin{aligned}
+						\rho(\text{Volume of 1}) = \rho(\text{Volume of 3}) \\
+						\end{aligned} \]
+						<div class=""
+							style="border:2px solid white; font-size:32px; padding: 10px 10px; font-weight:bold;">
+							AxVx = AyVy
+						</div>
+					</div>
+				</div>
+			</section>
+			<section>
+				<div class="d-flex align-items-center">
+					<div>
+						<img src="assets/aerodynamics/SVG/conservation_of_mass2.svg" alt="reveal.js logo"
+							style="margin: 0 auto 4rem auto; background: transparent; width:720px;" class="demo-logo">
+					</div>
+					<div style="font-size:24px;">
+						<table>
+							<thead>
+								<tr>
+									<th>Quantity</th>
+									<th>Magnitude</th>
+								</tr>
+							</thead>
+							<tr>
+								<td>
+									flow at station 2
+								</td>
+								<td>
+									\[ \begin{aligned}
+									\rho \text{A} V_{i} \\
+									\end{aligned} \]
+
+								</td>
+							</tr>
+							<tr>
+								<td>
+									flow at station 3
+								</td>
+								<td>
+									\[ \begin{aligned}
+									\rho A_{\infty} w \\
+									\end{aligned} \]
+								</td>
+							</tr>
+						</table>
+					</div>
+				</div>
+			</section>
+			<section>
+				<h3>Conservation of Momentum</h3>
+				<div class="d-flex align-items-center">
+					<div>
+						<img src="assets/aerodynamics/SVG/conservation_of_momentum.svg" alt="reveal.js logo"
+							style="margin: 0 auto 4rem auto; background: transparent; width:720px;" class="demo-logo">
+					</div>
+					<div style="font-size:24px;">
+						<table>
+							<thead>
+								<tr>
+									<th>Quantity</th>
+									<th>Magnitude</th>
+								</tr>
+							</thead>
+							<tr>
+								<td>
+									flow at station 2
+								</td>
+								<td>
+									0
+								</td>
+							</tr>
+							<tr>
+								<td>
+									flow at station 3
+								</td>
+								<td>
+									\[ \begin{aligned}
+									(\rho A_{\infty} w ) w \\
+									\end{aligned} \]
+								</td>
+							</tr>
+						</table>
+						<div>
+							<h4>
+								Newton's 2nd law:
+							</h4>
+							\[ \begin{aligned}
+							T = \rho A_{\infty} w^{2} - 0\\
+							\end{aligned} \]
+						</div>
+						<div>
+							<h4>Newton's 3rd Law:</h4>
+							\[ \begin{aligned}
+							\text{Force on air} = T \\
+							\end{aligned} \]
+						</div>
+					</div>
+				</div>
+			</section>
+			<section>
+				<h3>Conservation of Energy</h3>
+				<div class="d-flex align-items-center">
+					<div>
+						<img src="assets/aerodynamics/SVG/conservation_of_energy.svg" alt="reveal.js logo"
+							style="margin: 0 auto 4rem auto; background: transparent; width:720px;" class="demo-logo">
+					</div>
+					<div style="font-size:24px;">
+						<table>
+							<thead>
+								<tr>
+									<th>Quantity</th>
+									<th>Magnitude</th>
+								</tr>
+							</thead>
+							<tr>
+								<td>
+									K.E flow at station 2
+								</td>
+								<td>
+									0
+								</td>
+							</tr>
+							<tr>
+								<td>
+									K.E flow at station 3
+								</td>
+								<td>
+									\[ \begin{aligned}
+									1/2(\rho A_{\infty} w ) w^2 \\
+									\end{aligned} \]
+								</td>
+							</tr>
+						</table>
+						<div>
+							Rate of energy put into the flow = Rate of energy at station 3 - station 1
+						</div>
+					</div>
+				</div>
+			</section>
+			<section>
+				<table>
+					<thead>
+						<tr>
+							<th>Conservation Law</th>
+							<th>Equation</th>
+						</tr>
+					</thead>
+					<tr>
+						<td>
+							Mass
+						</td>
+						<td>
+							\[ \begin{aligned}
+							AV_i = A_{\infty}w \\
+							\end{aligned} \]
+						</td>
+					</tr>
+					<tr>
+						<td>
+							Momentum
+						</td>
+						<td>
+							\[ \begin{aligned}
+							T = \rho A_{\infty} w^{2} \\
+							\end{aligned} \]
+						</td>
+					</tr>
+					<tr>
+						<td>
+							Energy
+						</td>
+						<td>
+							\[ \begin{aligned}
+							TV_i = \frac{1}{2}(\rho A_{\infty} w ) w^2 \\
+							\end{aligned} \]
+						</td>
+					</tr>
+				</table>
+			</section>
+			<section>
+				<h4>Equation Manipulation</h4>
+				<div class="d-flex justify-content-between align-items-center">
+					<div style="font-size:12px;">
+						\[ \begin{aligned}
+						TV_i = \frac{1}{2}(\rho A_{\infty} w ) w^2 \\
+						T = \rho A_{\infty} w^{2} \\
+						(\rho A_{\infty} w^{2})V_i = \frac{1}{2}(\rho A_{\infty} w ) w^2 \\
+						w = 2 V_i \\
+						\\
+						AV_i = A_{\infty}( 2 V_i) \\
+						A_{\infty} = \frac{A}{2} \\
+						\\
+						T = \rho (\frac{A}{2}) (2 V_i)^{2} \\
+						T = 2 \rho A V_i^{2} \\
+						v_i = \sqrt{\frac{T}{2} \rho A} \\
+						V_i = \sqrt{\frac{D.L}{2 \rho A}} \\
+						\\
+						\\
+						P = TV_i \\
+						P = 2 \rho A V_i^{2} V_i \\
+						P = 2 \rho A V_i^{3} \\
+						P = \frac{T ^(\frac{3}{2})} { \sqrt{2 \rho A} }\\
+						\end{aligned} \]
+					</div>
+					<div>
+						<div class="fragment"
+							style="border:2px solid white; font-size:24px; padding:5px 10px; margin-bottom:5px; font-weight:bold;">
+							\[ \begin{aligned}
+							w = 2 V_i \\
+							\end{aligned} \]
+						</div>
+						<div class="fragment"
+							style="border:2px solid white; font-size:24px; padding:5px 10px;  margin-bottom:5px;  font-weight:bold;">
+							\[ \begin{aligned}
+							A_{\infty} = \frac{A}{2} \\
+							\end{aligned} \]
+						</div>
+						<div class="fragment"
+							style="border:2px solid white; font-size:24px; padding:5px 10px;  margin-bottom:5px;  font-weight:bold;">
+							\[ \begin{aligned}
+							v_i = \sqrt{T/2 \rho A} \\
+							\end{aligned} \]
+						</div>
+						<div class="fragment"
+							style="border:2px solid white; font-size:24px; padding:5px 10px; margin-bottom:5px;   font-weight:bold;">
+							\[ \begin{aligned}
+							V_i = \sqrt{D.L/2 \rho A} \\
+							\end{aligned} \]
+						</div>
+						<div class="fragment"
+							style="border:2px solid white; font-size:24px; padding:5px 10px; margin-bottom:5px;   font-weight:bold;">
+							\[ \begin{aligned}
+							P = T^(3/2) / \sqrt{2 \rho A} \\
+							\end{aligned} \]
+						</div>
+					</div>
+				</div>
+			</section>
+			<section>
+				<h4> Analysis </h4>
+				<table style="font-size:18px;">
+					<thead>
+						<tr>
+							<th>Equation</th>
+							<th>Insight</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr class="fragment">
+							<td>
+								\[ \begin{aligned}
+								w = 2 V_i \\
+								\end{aligned} \]
+							</td>
+							<td>
+								Induced velocity is twice the velocity of the rotor
+							</td>
+						</tr>
+						<tr class="fragment">
+							<td>
+								\[ \begin{aligned}
+								A_{\infty} = \frac{A}{2} \\
+								\end{aligned} \]
+							</td>
+							<td>
+								Area of the rotor is half the area of the actuator disk
+							</td>
+						</tr>
+						<tr class="fragment">
+							<td>
+								\[ \begin{aligned}
+								V_i = \sqrt{\frac{D.L}{2 \rho A}} \\
+								\end{aligned} \]
+							</td>
+							<td>
+								Induced velocity is proportional to the square root of disk loading
+							</td>
+						</tr>
+						<tr class="fragment">
+							<td>
+								\[ \begin{aligned}
+								PL = (V_i)^-1 = \sqrt{\frac{2 \rho A}{D.L}} \\
+								\end{aligned} \]
+							</td>
+							<td>
+								Power loading is inversely proportional to the square root of disk loading
+							</td>
+						</tr>
+						<tr class="fragment">
+							<td>
+								\[ \begin{aligned}
+								P = \frac{T^(\frac{3}{2})}{\sqrt{2 \rho A}} \\
+								\end{aligned} \]
+							</td>
+							<td>
+								Power required is proportional to the cube of thrust and inversely proportional to the
+								density
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+			<section>
+						<img src="assets/aerodynamics/2048w/VTOL_DiscLoad-LiftEfficiency.jpg" alt="reveal.js logo"
+							style="margin: 0 auto 4rem auto; background: transparent; width:500px;" class="demo-logo">
+				<table class="wikitable sortable jquery-tablesorter" style="font-size:16px;">
+					<caption>Disk loading comparison
+						Source: <a href="https://en.wikipedia.org/wiki/Disk_loading#Examples" title="Principles of Helicopter
+							Aerodynamics">Wikipedia: Disk Loading</a>
+					</caption>
+					<thead>
+						<tr>
+							<th class="headerSort" tabindex="0" role="columnheader button" title="Sort ascending">
+								Aircraft
+							</th>
+							<th class="headerSort" tabindex="0" role="columnheader button" title="Sort ascending">
+								Description
+							</th>
+							<th data-sort-type="number" class="headerSort" tabindex="0" role="columnheader button"
+								title="Sort ascending">Max. gross weight
+							</th>
+							<th data-sort-type="number" class="headerSort" tabindex="0" role="columnheader button"
+								title="Sort ascending">Total disk area
+							</th>
+							<th data-sort-type="number" class="headerSort" tabindex="0" role="columnheader button"
+								title="Sort ascending">Max. disk loading
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><a href="/wiki/Robinson_R22" title="Robinson R22">Robinson R22</a></td>
+							<td>Light utility <a href="/wiki/Helicopter" title="Helicopter">helicopter</a></td>
+							<td>1,370&nbsp;lb (635&nbsp;kg)</td>
+							<td>497&nbsp;ft<sup>2</sup> (46.2 m<sup>2</sup>)</td>
+							<td>2.6&nbsp;lb/ft<sup>2</sup> (14&nbsp;kg/m<sup>2</sup>)
+							</td>
+						</tr>
+						<tr>
+							<td><a href="/wiki/Bell_206" title="Bell 206">Bell 206B3 JetRanger</a></td>
+							<td><a href="/wiki/Turboshaft" title="Turboshaft">Turboshaft</a> utility <a
+									href="/wiki/Helicopter" title="Helicopter">helicopter</a></td>
+							<td>3,200&nbsp;lb (1,451&nbsp;kg)</td>
+							<td>872&nbsp;ft<sup>2</sup> (81.1 m<sup>2</sup>)</td>
+							<td>3.7&nbsp;lb/ft<sup>2</sup> (18&nbsp;kg/m<sup>2</sup>)
+							</td>
+						</tr>
+						<tr>
+							<td><a href="/wiki/CH-47D_Chinook" class="mw-redirect" title="CH-47D Chinook">CH-47D
+									Chinook</a></td>
+							<td><a href="/wiki/Tandem_rotor" class="mw-redirect" title="Tandem rotor">Tandem rotor</a>
+								<a href="/wiki/Helicopter" title="Helicopter">helicopter</a></td>
+							<td>50,000&nbsp;lb (22,680&nbsp;kg)</td>
+							<td>5,655&nbsp;ft<sup>2</sup> (526 m<sup>2</sup>)</td>
+							<td>8.8&nbsp;lb/ft<sup>2</sup> (43&nbsp;kg/m<sup>2</sup>)
+							</td>
+						</tr>
+						<tr>
+							<td><a href="/wiki/Mil_Mi-26" title="Mil Mi-26">Mil Mi-26</a></td>
+							<td>Heavy-lift <a href="/wiki/Helicopter" title="Helicopter">helicopter</a></td>
+							<td>123,500&nbsp;lb (56,000&nbsp;kg)</td>
+							<td>8,495&nbsp;ft<sup>2</sup> (789 m<sup>2</sup>)</td>
+							<td>14.5&nbsp;lb/ft<sup>2</sup> (71&nbsp;kg/m<sup>2</sup>)
+							</td>
+						</tr>
+						<tr>
+							<td><a href="/wiki/CH-53E_Super_Stallion" class="mw-redirect"
+									title="CH-53E Super Stallion">CH-53E Super Stallion</a></td>
+							<td>Heavy-lift <a href="/wiki/Helicopter" title="Helicopter">helicopter</a></td>
+							<td>73,500&nbsp;lb (33,300&nbsp;kg)</td>
+							<td>4,900&nbsp;ft<sup>2</sup> (460 m<sup>2</sup>)</td>
+							<td>15&nbsp;lb/ft<sup>2</sup> (72&nbsp;kg/m<sup>2</sup>)
+							</td>
+						</tr>
+						<tr>
+							<td><a href="/wiki/V-22_Osprey" class="mw-redirect" title="V-22 Osprey">MV-22B Osprey</a>
+							</td>
+							<td><a href="/wiki/Tiltrotor" title="Tiltrotor">Tiltrotor</a> <a
+									href="/wiki/Vertical/Short_Takeoff_and_Landing" class="mw-redirect"
+									title="Vertical/Short Takeoff and Landing">V/STOL</a></td>
+							<td>60,500&nbsp;lb (27,400&nbsp;kg)</td>
+							<td>2,268&nbsp;ft<sup>2</sup> (211.4 m<sup>2</sup>)</td>
+							<td>26.68&nbsp;lb/ft<sup>2</sup> (129.63&nbsp;kg/m<sup>2</sup>)
+							</td>
+						</tr>
+					</tbody>
+					<tfoot></tfoot>
+				</table>
+			</section>
+			<section>
+				<h4>Figure of Merit</h4>
+				\[ \begin{aligned}
+				FOM = \frac{\text{Ideal power required to hover}}{\text{Actual power required to hover}} \\
+				\end{aligned} \]
+			</section>
+			<section>
+				\[ \begin{aligned}
+				FOM = \frac{\frac{T^(\frac{3}{2})}{\sqrt{2 \rho A}}} {K (\frac{T^(\frac{3}{2})}{\sqrt{2 \rho A}}) + P_o}
+				\\
+				\end{aligned} \]
+				<table>
+					<thead>
+						<td>Symbol</td>
+						<td>Meaning</td>
+					</thead>
+					<tbody>
+						<tr>
+							<td>T</td>
+							<td>Thrust</td>
+						</tr>
+						<tr>
+							<td>A</td>
+							<td>Area of the rotor</td>
+						</tr>
+						<tr>
+							<td>K</td>
+							<td>Induced power factor (Loss Factor)</td>
+						</tr>
+						<tr>
+							<td>Po</td>
+							<td>Parasite power (Profile Power)</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+			<section>
+				<h4>Other Non - dimensionalizations</h4>
+				<table style="font-size:18px;">
+					<thead>
+						<td>Dimensional Quantity</td>
+						<td>Non Dimensinal Quantity</td>
+						<td>Name</td>
+						<td>Definition</td>
+					</thead>
+					<tbody>
+						<tr>
+							<td>T</td>
+							<td>DL</td>
+							<td>Disk Loading</td>
+							<td>\[ \begin{aligned}
+								DL = \frac{T}{A} \\
+								\end{aligned} \]</td>
+						</tr>
+						<tr>
+							<td>P</td>
+							<td>PL</td>
+							<td>Power Loading</td>
+							<td>\[ \begin{aligned}
+								PL = \frac{P}{T} \\
+								\end{aligned} \]</td>
+						</tr>
+						<tr>
+							<td>P</td>
+							<td>DL</td>
+							<td>Figure of Merit</td>
+							<td>\[ \begin{aligned}
+								FOM = \frac{\text{Ideal power required to hover}}{\text{Actual power required to hover}}
+								\\
+								\end{aligned} \]</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+		</div>
+	</div>
+	</section>
+	</div>
+	</div>
+
+
+	<script src="../reveal.js/dist/reveal.js"></script>
+	<script src="../reveal.js/plugin/notes/notes.js"></script>
+	<script src="../reveal.js/plugin/markdown/markdown.js"></script>
+	<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+	<script src="index.js"></script>
+	<script src="quadcopterData.js"></script>
+	</script>
+	<script>
+		// More info about initialization & config:
+		// - https://revealjs.com/initialization/
+		// - https://revealjs.com/config/
+		Reveal.initialize({
+			hash: true,
+
+			// Learn about plugins: https://revealjs.com/plugins/
+			plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
+		});
+	</script>
+	<script>
+		const canvas1 = new Image();
+		canvas1.src = quadcopter_path;
+
+		const canvas2 = new Image();
+		canvas2.src = propeller_path;
+
+		const canvas3 = new Image();
+		canvas3.src = quadcopter_front_path;
+
+		const canvas4 = new Image();
+		canvas4.src = propeller_circle_path;
+
+
+		document.addEventListener("DOMContentLoaded", function (event) {
+			const quadcopter_data = quadcopterData();
+			populateCanvas('myCanvas1', canvas1, RotationDirection.CLOCKWISE);
+			populateCanvas('myCanvas2', canvas2, RotationDirection.COUNTERCLOCKWISE);
+			populateCanvas('myCanvas3', canvas3, null, 1);
+			populateCanvas('myCanvas4', canvas4, null, null);
+			drawAnimateQuadcopter('myCanvas5', quadcopter_chassis_path, propeller_circle_path);
+			drawAnimateQuadcopter('myCanvas7', quadcopter_chassis_path, propeller_circle_path);
+			//QuadcopterAnimateleftRight('myCanvas7', quadcopter_front_path);
+			canvas6();
+		});
+
+	</script>
+
+	<script>
+		Reveal.initialize({ plugins: [RevealMath.KaTeX] });
+	</script>
+</body>
+
+</html>
