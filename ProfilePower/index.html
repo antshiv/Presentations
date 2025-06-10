@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>Profile Power - Modelling a Rotorcraft</title>
+
+	<link rel="stylesheet" href="../reveal.js/dist/reset.css">
+	<link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+	<link rel="stylesheet" href="../reveal.js/dist/theme/black.css">
+
+	<!-- Theme used for syntax highlighted code -->
+	<link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+
+	<script src="../reveal.js/plugin/math/math.js"></script>
+
+	<!-- get bootstrap from cdn -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+
+<body>
+	<div class="reveal">
+		<div class="slides">
+			<section>
+				<img src="assets/quadcopter/SVG/quadcopter_illustration.svg" alt="reveal.js logo"
+					style="height: 180px; margin: 0 auto 4rem auto; background: transparent;" class="demo-logo">
+				<h1>Profile Power</h1>
+			</section>
+			<section>
+				<h4>Deeper Insights</h4>
+				<table>
+					<thead>
+						<tr>
+							<th>Power</th>
+							<th>Equation</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Figure of Merit</td>
+							<td>\[\begin{aligned}
+								FOM = \frac{\frac{T^{\frac{3}{2}}}{{\sqrt{2 \rho A}}}} {k (
+								\frac{T^{\frac{3}{2}}}{{\sqrt{2 \rho A}}}) + \textcolor{red}{P_o}} \\
+								\end{aligned}\]</td>
+						</tr>
+						<tr>
+							<td>Autorotation</td>
+							<td>
+								\[\begin{aligned}
+								T*(V_c + V_i) + \textcolor{red}{P_o} = 0 \\
+								\end{aligned}\]
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+			<section>
+				<h4> What is Profile power?</h4>
+				<p class="fragment">
+					Profile power is the power required to overcome the drag of the rotor blades as they move through
+					the air.
+				</p>
+			</section>
+			<section>
+				<img src="assets/quadcopter/2048w/profile_power_concept.png" alt="reveal.js logo"
+					style="margin: 0 auto 4rem auto; background: transparent;" class="demo-logo">
+			</section>
+			<section>
+				<h4>Blade Element Theory</h4>
+				<ul style="font-size:24px;">
+					<li class="fragment">
+						Blade element theory is a mathematical process for calculating the forces on a rotor blade in
+						forward
+						flight.
+					</li>
+					<li class="fragment">
+						It is based on the assumption that the blade is made up of a number of small sections, each of
+						which can be considered to be in steady flow.
+					</li>
+					<li class="fragment">
+						Each section is then analysed to determine the forces acting on it.
+					</li>
+					<li class="fragment">
+						These forces are then integrated along the length of the blade to give the total forces acting
+						on
+						the blade.
+				</ul>
+			</section>
+			<section>
+				<img src="assets/aerodynamics/foilShape.jpg">
+				<div class="d-flex justify-content-center">
+					<div>
+						<img src="assets/aerodynamics/clVsAlpha.jpg">
+					</div>
+					<div>
+						<img src="assets/aerodynamics/cdVsAlpha.jpg">
+					</div>
+				</div>
+				<div style="font-size:18px;">
+					<a href="http://airfoiltools.com/airfoil/details?airfoil=n0012-il">Source: Airfoiltools</a>
+				</div>
+			</section>
+			<section>
+				<div class="d-flex">
+					<div>
+						<img src="assets/aerodynamics/2048w/blade_cross_section.png">
+					</div>
+					<div class="fragment" style="font-size:18px;">
+						All about Hover
+						\[\begin{aligned}
+						Drag = \frac{1}{2}(\omega y)^2 C c_{d0} dy \\
+						Torque = Drag * y = \frac{1}{2}\rho\omega^2 C C_{d0} y^3 dy \\
+						\text{Total torque (1 blade)} = \frac{1}{2}\rho\omega^2 C C_{d0} \int_0^R y^3 dy \\
+						= \frac{1}{2}\rho\omega^2 C C_{d0} \frac{R^4}{4} \\
+						\text{Torque } N_b \text{ blades} = \frac{N_b}{8}\rho \omega^2 C C_{d0} R^4 \\
+						Power = \text{Torque x } \omega = \frac{N_b}{8}\rho \omega^3 C C_{d0} R^4 \\
+						\\ Where \\
+						\text{C is Chord length} \\
+						C_{d0} \text{is Drag coefficient at } 0^{\degree} \text{AOA} \\
+						\text{R is radius of the blade} \\
+						N_b \text{is number of blades} \\
+						\text{y is the distance from the center of the blade} \\
+						\end{aligned}\]
+					</div>
+				</div>
+			</section>
+			<section>
+				<div class="d-flex justify-content-around" style="font-size:24px;">
+					<div>
+						\[\begin{aligned}
+						P_0 = \frac{1}{8} \rho N_b c R^4 Cd_{0} \omega^3 \\
+						\end{aligned}\]
+
+						\[\begin{aligned}
+						C_p0 = \frac{P_0}{\rho A (V_{tip})^3} \\
+						= \frac{1}{8} (\frac{N_b c}{\pi R}) C d_0 \\
+						\\
+						where \\
+						V_{tip} = \omega R \\
+						\\
+						\\
+						C_{p0} = \frac{1}{8} \sigma C d_0 \\
+						\end{aligned}\]
+					</div>
+					<div style="font-size:24px;">
+						<table>
+							<thead>
+								<tr>
+									<th>Term</th>
+									<th>Definition</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>Inflow Ratio</td>
+									<td>\[\begin{aligned}
+										\lambda = \frac{V_i}{V_{tip}} \\
+										\end{aligned}\]</td>
+								</tr>
+								<tr>
+									<td>Thrust Coefficient</td>
+									<td>\[\begin{aligned}
+										C_t = \frac{T}{\rho A (V_{tip})^2} \\
+										\end{aligned}\]</td>
+								</tr>
+								<tr>
+									<td>Power Coefficient</td>
+									<td>\[\begin{aligned}
+										C_p = \frac{P}{\rho A (V_{tip})^3} \\
+										\end{aligned}\]</td>
+								</tr>
+								<tr>
+									<td>Solidity</td>
+									<td>\[\begin{aligned}
+										\sigma = \frac{N_b c}{\pi R} \\
+										\end{aligned}\]</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+			<section>
+				<h4>Solidity</h4>
+				<div class="d-flex justifiy-content-around" style="font-size:18px;">
+					<div>
+						<img src="assets/aerodynamics/2048w/solidity.png">
+					</div>
+					<div>
+						\[ \begin{aligned}
+						\sigma = \frac{N_b c}{\pi R} \\
+						\sigma = \frac{N_b c R}{\pi R^2} \\
+						\end{aligned} \]
+						<table>
+							<thead>
+								<tr>
+									<th>Term</th>
+									<th>Definition</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>Single Blade</td>
+									<td>
+										\[\begin{aligned}
+										CR
+										\end{aligned}\]
+									</td>
+								</tr>
+								<tr>
+									<td>Nb Blades</td>
+									<td>
+										\[\begin{aligned}
+										N_b CR
+										\end{aligned}\]
+									</td>
+								</tr>
+								<tr>
+									<td>Rotor Disk</td>
+									<td>
+										\[\begin{aligned}
+										\pi R^2 \\
+										\end{aligned}\]
+									</td>
+								</tr>
+							</tbody>
+						</table>
+						<div class="fragment">
+							\[\begin{aligned}
+							C_{p0} = \frac{1}{8} \sigma Cd_0 \\
+							\end{aligned}\]
+						</div>
+						<div class="fragment" style="border:3px solid white; padding:7px 7px;">
+							\[\begin{aligned}
+							\sigma = \frac{\text{Total Blade Area}}{\text{Area of Rotor Disk}} \\
+							\end{aligned}\]
+						</div>
+					</div>
+				</div>
+			</section>
+			<section style="font-size:24px;">
+				Rotor solidity is a dimensionless quantity used in design and analysis of rotorcraft, propellers and wind turbines. Rotor solidity is a function of the aspect ratio and number of blades in the rotor and is widely used as a parameter for ensuring geometric similarity in rotorcraft experiments. It provides a measure of how close a lifting rotor system is to an ideal actuator disk in momentum theory. It also plays an important role in determining the fluid speed across the rotor disk when lift is generated and consequentially the performance of the rotor; amount of downwash around it, and noise levels the rotor generates. It is also used to compare performance characteristics between rotors of different sizes. Typical values of rotor solidity ratio for helicopters fall in the range 0.05 to 0.12.[1] 
+				<a href="https://en.wikipedia.org/wiki/Rotor_solidity">Source: Rotor Solidity Wikipedia</a>
+			</section>
+			<section>
+				<h4> Lift</h4>
+				<div class="d-flex justify-content-around">
+					<div>
+						<img src="assets/aerodynamics/2048w/lift.png">
+					</div>
+					<div style="font-size:20px;">
+						\[\begin{aligned}
+						Lift = \frac{1}{2} \rho (\omega y)^2 C C_l \\ \\
+						\text{Total Thrust} = \frac{1}{2} \rho \omega^2 C C_l \int_0^R y^2 dy \\
+						= \frac{1}{2} \rho \omega^2 C C_l \frac{R^3}{3} \\
+						N_b \text{ blades} = \frac{N_b}{6} \rho \omega^2 C C_l R^3 \\ \\
+						where \\
+						\text{Lift == Thrust} \\
+						C = \text{Chord Length} \\
+						C_l = \text{Mean Coefficient of Lift} \\
+						\end{aligned}\]
+					</div>
+				</div>
+			</section>
+			<section>
+				<h4> Blade Loading </h4>
+				<div class="d-flex justify-content-between" style="font-size:20px;">
+					<div>
+						\[\begin{aligned}
+						T = \frac{1}{2} \rho N_b c R^3 (C_lmean) \omega^2 \\
+						\text{Non -dimensionalize by } \rho A (V_{tip})^2 \\
+						\end{aligned}\]
+						<div>
+							\[\begin{aligned}
+							\text{Thrust Coefficient } C_t = \frac{T}{\rho A (V_{tip})^2} \\
+							= \frac{1}{2}\frac{\rho N_b c R_3 C_{lmean} \omega^2}{\rho A (V_{tip})^2} \\
+							= \frac{1}{6} (\frac{N_b c}{ \pi R}) (C_{lmean}) \\
+							= \frac{1}{6} \sigma (C_lmean) \\
+							\frac{C_t}{\sigma} = \frac{1}{6} (C_lmean) \\
+							\end{aligned}\]
+						</div>
+					</div>
+					<div style="font-size:20px;">
+						<table>
+							<thead>
+								<tr>
+									<th>Term</th>
+									<th>Definition</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>Inflow Ratio</td>
+									<td>\[\begin{aligned}
+										\lambda = \frac{V_i}{V_{tip}} \\
+										\end{aligned}\]</td>
+								</tr>
+								<tr>
+									<td>Thrust Coefficient</td>
+									<td>\[\begin{aligned}
+										C_t = \frac{T}{\rho A (V_{tip})^2} \\
+										\end{aligned}\]</td>
+								</tr>
+								<tr>
+									<td>Power Coefficient</td>
+									<td>\[\begin{aligned}
+										C_p = \frac{P}{\rho A (V_{tip})^3} \\
+										\end{aligned}\]</td>
+								</tr>
+								<tr>
+									<td>Solidity</td>
+									<td>\[\begin{aligned}
+										\sigma = \frac{N_b c}{\pi R} \\
+										\end{aligned}\]</td>
+								</tr>
+								<tr>
+									<td>Blade Loading</td>
+									<td>
+										\[\begin{aligned}
+										\frac{C_t}{\sigma}
+										\end{aligned}\]
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+			<section>
+				<h4> Figure of Merit - Revisit</h4>
+				<div style="font-size:32px;">
+					<div class="fragment">
+						\[ \begin{aligned}
+						FOM = \frac{\frac{T^{\frac{3}{2}}}{{\sqrt{2 \rho A}}}} {k (
+						\frac{T^{\frac{3}{2}}}{{\sqrt{2 \rho A}}}) + \textcolor{red}{P_o}} \\
+						\end{aligned} \]
+					</div>
+					<div class="fragment">
+						\[\begin{aligned}
+						FOM = \frac{\frac{T^{\frac{3}{2}}}{{\sqrt{2 \rho A}}}} {k (
+						\frac{T^{\frac{3}{2}}}{{\sqrt{2 \rho A}}}) + \frac{1}{8} \sigma C_{d0}} \\
+						\end{aligned}\]
+					</div>
+					<div class="fragment">
+						\[\begin{aligned}
+						\frac{1}{k + \frac{\sqrt{2}}{8}\frac{\sigma C_{d0}}{C_{T}^(\frac{3}{2})}} \\
+						\end{aligned}\]
+					</div>
+				</div>
+			</section>
+			<section>
+				<div style="border:3px solid white;">
+					\[ \begin{aligned}
+					FOM = \frac{1}
+					{k
+					+ \frac{3 \sqrt{2}}{4} \frac{\sqrt{\rho}V_{tip}}
+					{\frac{Cl_{mean}}{C_{d0}}\sqrt{DL}}} \\
+					\end{aligned} \]
+				</div>
+				<div style="font-size:14px">
+					\[ \begin{aligned}
+					where \\
+					\frac{C_t}{\sigma} = \frac{1}{6} (C_lmean) \\
+					\sqrt{\frac{C_t}{2}} = \lambda = \frac{Vi}{V_{tip}} \\
+					Vi = \sqrt{\frac{DL}{2\rho}} \\
+					\end{aligned} \]
+				</div>
+				<div class="" style="font-size:22px;">
+					<ul>
+						<li class="fragment">How uniform is the flow trough the disk?</li>
+						<li class="fragment">How efficient are your airfoil sections?</li>
+						<li class="fragment">How high are you hovering?</li>
+						<li class="fragment">How fast are your blades rotating</li>
+						<li class="fragment">How big is your rotor disk?</li>
+					</ul>
+				</div>
+			</section>
+			<section style="font-size:36px;">
+				<h4>FOM Revisited</h4>
+				<div class="" style="font-size:18px">
+					Use FOM as a rule of thumb to compare different rotorcrafts.
+					But be cautious of the assumptions.
+				</div>
+				<ul>
+					Do not compare if:
+					<li>
+						Rotors that have different disk loadings and different airfoils will have different FOMs.
+					</li>
+					<li>
+						Rotors operating at different altitudes will have different FOMs.
+					</li>
+				</ul>
+			</section>
+		</div>
+	</div>
+	</section>
+	</div>
+	</div>
+
+
+	<script src="../reveal.js/dist/reveal.js"></script>
+	<script src="../reveal.js/plugin/notes/notes.js"></script>
+	<script src="../reveal.js/plugin/markdown/markdown.js"></script>
+	<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+	<script src="index.js"></script>
+	<script src="quadcopterData.js"></script>
+	</script>
+	<script>
+		// More info about initialization & config:
+		// - https://revealjs.com/initialization/
+		// - https://revealjs.com/config/
+		Reveal.initialize({
+			hash: true,
+
+			// Learn about plugins: https://revealjs.com/plugins/
+			plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
+		});
+	</script>
+	<script>
+		const canvas1 = new Image();
+		canvas1.src = quadcopter_path;
+
+		const canvas2 = new Image();
+		canvas2.src = propeller_path;
+
+		const canvas3 = new Image();
+		canvas3.src = quadcopter_front_path;
+
+		const canvas4 = new Image();
+		canvas4.src = propeller_circle_path;
+
+
+		document.addEventListener("DOMContentLoaded", function (event) {
+			const quadcopter_data = quadcopterData();
+			populateCanvas('myCanvas1', canvas1, RotationDirection.CLOCKWISE);
+			populateCanvas('myCanvas2', canvas2, RotationDirection.COUNTERCLOCKWISE);
+			populateCanvas('myCanvas3', canvas3, null, 1);
+			populateCanvas('myCanvas4', canvas4, null, null);
+			drawAnimateQuadcopter('myCanvas5', quadcopter_chassis_path, propeller_circle_path);
+			drawAnimateQuadcopter('myCanvas7', quadcopter_chassis_path, propeller_circle_path);
+			//QuadcopterAnimateleftRight('myCanvas7', quadcopter_front_path);
+			canvas6();
+		});
+
+	</script>
+
+	<script>
+		Reveal.initialize({ plugins: [RevealMath.KaTeX] });
+	</script>
+</body>
+
+</html>

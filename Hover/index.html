@@ -609,10 +609,14 @@
 				</table>
 			</section>
 			<section>
-				<h4>Figure of Merit</h4>
+				<h4>Figure of Merit (Hover efficiency)</h4>
 				\[ \begin{aligned}
 				FOM = \frac{\text{Ideal power required to hover}}{\text{Actual power required to hover}} \\
 				\end{aligned} \]
+				<ul>
+					<li>Unlike power loading, FOM is non-dimensional</li>
+					<li>Has a value of 0 and 1</li>
+				</ul>
 			</section>
 			<section>
 				\[ \begin{aligned}
@@ -655,24 +659,40 @@
 					</thead>
 					<tbody>
 						<tr>
+							<td>Vi</td>
+							<td>
+								\[ \begin{aligned}
+								\lambda \\
+								\end{aligned} \]
+							</td>
+							<td>Inflow Ratio</td>
+							<td>
+								\[ \begin{aligned}
+								\lambda = \frac{V_i}{V_Tip} \\
+								\end{aligned} \]
+							</td>
+						</tr>
+						<tr>
 							<td>T</td>
-							<td>DL</td>
-							<td>Disk Loading</td>
+							<td>Ct</td>
+							<td>Thrust Coeficient</td>
 							<td>\[ \begin{aligned}
-								DL = \frac{T}{A} \\
-								\end{aligned} \]</td>
+								C_t = \frac{T}{\rho A (V_Tip)^2} \\	
+								\end{aligned} \]
+							</td>
 						</tr>
 						<tr>
 							<td>P</td>
-							<td>PL</td>
+							<td>Cp</td>
+							<td>Power Coeficient</td>
+							<td>\[ \begin{aligned}
+								C_p = \frac{P}{\rho A (V_Tip)^3} \\	
+								\end{aligned} \]
+							</td>
+						</tr>
+						<tr>
 							<td>Power Loading</td>
-							<td>\[ \begin{aligned}
-								PL = \frac{P}{T} \\
-								\end{aligned} \]</td>
-						</tr>
-						<tr>
-							<td>P</td>
-							<td>DL</td>
+							<td>FOM</td>
 							<td>Figure of Merit</td>
 							<td>\[ \begin{aligned}
 								FOM = \frac{\text{Ideal power required to hover}}{\text{Actual power required to hover}}
@@ -681,6 +701,20 @@
 						</tr>
 					</tbody>
 				</table>
+			</section>
+			<section>
+				<h4>source</h4>
+				<ul style="font-size:18px;">
+					<li>
+						<a href="https://en.wikipedia.org/wiki/Momentum_theory">Wikipedia: Momentum Theory</a>
+					</li>
+					<li>
+						<a href="https://en.wikipedia.org/wiki/Helicopter_rotor#Design_principles">Wikipedia: Helicopter Rotor</a>
+					</li>
+					<li>
+						<a href="https://en.wikipedia.org/wiki/Disk_loading">Wikipedia: Disk Loading</a>
+					</li>
+				</ul>
 			</section>
 		</div>
 	</div>
