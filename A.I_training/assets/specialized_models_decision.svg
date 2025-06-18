@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 26.0.3, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1400 667.1" style="enable-background:new 0 0 1400 667.1;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#FFFFFF;}
+	.st1{font-family:'Arial-BoldMT';}
+	.st2{font-size:28px;}
+	.st3{fill:#AAAAAA;}
+	.st4{font-family:'ArialMT';}
+	.st5{font-size:16px;}
+	.st6{fill:#2D2D5C;stroke:#FFEB3B;stroke-width:2;}
+	.st7{fill:#FFEB3B;}
+	.st8{font-size:12px;}
+	.st9{fill:#4CAF50;}
+	.st10{font-size:11px;}
+	.st11{fill:#2D2D44;stroke:#4A4A6A;stroke-width:2;}
+	.st12{fill:#FF9800;}
+	.st13{fill:#45B7D1;}
+	.st14{fill:#3D3D5C;stroke:#6A6A8A;}
+	.st15{fill:#4ECDC4;}
+	.st16{fill:#CCCCCC;}
+	.st17{fill:#96CEB4;}
+	.st18{fill:#FECA57;}
+</style>
+<g>
+	<text transform="matrix(1 0 0 1 323.4424 40)" class="st0 st1 st2">Large Generative LLMs vs Specialized Language Models</text>
+	<text transform="matrix(1 0 0 1 408.5859 65)" class="st3 st4 st5">Both use transformers, but different scales and architectures for different purposes</text>
+	<g id="architecture" transform="translate(50, 100)">
+		<path class="st6" d="M10,0h1280c5.5,0,10,4.9,10,11v131.6c0,6.1-4.5,11-10,11H10c-5.5,0-10-4.9-10-11V11C0,4.9,4.5,0,10,0z"/>
+		<text transform="matrix(1 0 0 1 514.4062 25)" class="st0 st1 st5">Architecture and Scale Comparison</text>
+		<g transform="translate(50, 50)">
+			<text transform="matrix(1 0 0 1 0 15)" class="st7 st1 st8">Large Generative LLMs:</text>
+			<text transform="matrix(1 0 0 1 0 30)" class="st9 st4 st10">• Decoder-only transformers (GPT, LLaMA, Claude)</text>
+			<text transform="matrix(1 0 0 1 0 45)" class="st9 st4 st10">• 7B-175B+ parameters</text>
+			<text transform="matrix(1 0 0 1 0 60)" class="st9 st4 st10">• Text generation and reasoning</text>
+			<text transform="matrix(1 0 0 1 0 75)" class="st9 st4 st10">• General-purpose capabilities</text>
+			<text transform="matrix(1 0 0 1 0 90)" class="st9 st4 st10">• High inference costs</text>
+		</g>
+		<g transform="translate(700, 50)">
+			<text transform="matrix(1 0 0 1 0 15)" class="st7 st1 st8">Specialized Language Models:</text>
+			<text transform="matrix(1 0 0 1 0 30)" class="st9 st4 st10">• Encoder transformers (BERT, RoBERTa, DistilBERT)</text>
+			<text transform="matrix(1 0 0 1 0 45)" class="st9 st4 st10">• 100M-400M parameters</text>
+			<text transform="matrix(1 0 0 1 0 60)" class="st9 st4 st10">• Classification and extraction tasks</text>
+			<text transform="matrix(1 0 0 1 0 75)" class="st9 st4 st10">• Task-specific fine-tuning</text>
+			<text transform="matrix(1 0 0 1 0 90)" class="st9 st4 st10">• Low inference costs</text>
+		</g>
+	</g>
+	<g id="cost_x5F_analysis" transform="translate(50, 260)">
+		<path class="st11" d="M10,0h610c5.5,0,10,4.5,10,10v160c0,5.5-4.5,10-10,10H10c-5.5,0-10-4.5-10-10V10C0,4.5,4.5,0,10,0z"/>
+		<text transform="matrix(1 0 0 1 187.25 25)" class="st0 st1 st5">Cost Analysis: 10,000 Documents</text>
+		<g transform="translate(30, 50)">
+			<text transform="matrix(1 0 0 1 0 20)" class="st0 st4 st8">Large Generative LLMs (GPT-4/Claude):</text>
+			<text transform="matrix(1 0 0 1 0 40)" class="st12 st1 st10">• API costs: $100-500</text>
+			<text transform="matrix(1 0 0 1 0 55)" class="st12 st1 st10">• Processing time: Hours</text>
+			<text transform="matrix(1 0 0 1 0 70)" class="st12 st1 st10">• Rate limits: Bottleneck</text>
+			<text transform="matrix(1 0 0 1 0 85)" class="st12 st1 st10">• Prompt engineering required</text>
+		</g>
+		<g transform="translate(320, 50)">
+			<text transform="matrix(1 0 0 1 0 20)" class="st0 st4 st8">Specialized Language Models:</text>
+			<text transform="matrix(1 0 0 1 0 40)" class="st9 st4 st10">• Processing costs: $1-10</text>
+			<text transform="matrix(1 0 0 1 0 55)" class="st9 st4 st10">• Processing time: Minutes</text>
+			<text transform="matrix(1 0 0 1 0 70)" class="st9 st4 st10">• No rate limits</text>
+			<text transform="matrix(1 0 0 1 0 85)" class="st9 st4 st10">• Consistent performance</text>
+		</g>
+		<g transform="translate(30, 130)">
+			<text transform="matrix(1 0 0 1 200 25)" class="st7 st1 st8">100x cost difference for large-scale processing!</text>
+		</g>
+	</g>
+	<g id="architecture_x5F_per_x5F_chracteristics" transform="translate(720, 260)">
+		<path class="st11" d="M10,0h610c5.5,0,10,4.5,10,10v160c0,5.5-4.5,10-10,10H10c-5.5,0-10-4.5-10-10V10C0,4.5,4.5,0,10,0z"/>
+		<text transform="matrix(1 0 0 1 140.2656 25)" class="st0 st1 st5">Architecture and Performance Characteristics</text>
+		<g transform="translate(30, 50)">
+			<text transform="matrix(1 0 0 1 0 20)" class="st0 st4 st8">Model Architecture:</text>
+			<text transform="matrix(1 0 0 1 150 20)" class="st12 st1 st10">Decoder-only</text>
+			<text transform="matrix(1 0 0 1 350 20)" class="st9 st4 st10">Encoder-only</text>
+			<text transform="matrix(1 0 0 1 0 40)" class="st0 st4 st8">Primary Task:</text>
+			<text transform="matrix(1 0 0 1 150 40)" class="st13 st4 st10">Text generation</text>
+			<text transform="matrix(1 0 0 1 350 40)" class="st9 st4 st10">Classification/NER</text>
+			<text transform="matrix(1 0 0 1 0 60)" class="st0 st4 st8">Inference Speed:</text>
+			<text transform="matrix(1 0 0 1 150 60)" class="st12 st1 st10">1-10 seconds</text>
+			<text transform="matrix(1 0 0 1 350 60)" class="st9 st4 st10">1-50ms</text>
+			<text transform="matrix(1 0 0 1 0 80)" class="st0 st4 st8">Memory Usage:</text>
+			<text transform="matrix(1 0 0 1 150 80)" class="st12 st1 st10">14-140GB</text>
+			<text transform="matrix(1 0 0 1 350 80)" class="st9 st4 st10">0.1-4GB</text>
+			<text transform="matrix(1 0 0 1 0 100)" class="st0 st4 st8">Training Data Needed:</text>
+			<text transform="matrix(1 0 0 1 150 100)" class="st9 st4 st10">100s examples</text>
+			<text transform="matrix(1 0 0 1 350 100)" class="st13 st4 st10">1000s examples</text>
+		</g>
+	</g>
+	<g id="encode" transform="translate(50, 460)">
+		<path class="st11" d="M10-11h1280c5.5,0,10,4.5,10,10v180c0,5.5-4.5,10-10,10H10c-5.5,0-10-4.5-10-10V-1C0-6.5,4.5-11,10-11z"/>
+		<text transform="matrix(1 0 0 1 451.4297 14)" class="st0 st1 st5">Encoder-Based Language Models for Specific Tasks</text>
+		<g id="NER" transform="translate(50, 50)">
+			<path class="st14" d="M5-11h270c2.8,0,5,2.2,5,5v110c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V-6C0-8.8,2.2-11,5-11z"/>
+			<path class="st15" d="M13-1h254c1.7,0,3,1.3,3,3v19c0,1.7-1.3,3-3,3H13c-1.7,0-3-1.3-3-3V2C10,0.3,11.3-1,13-1z"/>
+			<text transform="matrix(1 0 0 1 40.4375 16)" class="st0 st1 st5">Named Entity Recognition</text>
+			<text transform="matrix(1 0 0 1 15 39)" class="st0 st4 st8">Models: BERT, RoBERTa, spaCy</text>
+			<text transform="matrix(1 0 0 1 15 54)" class="st0 st4 st8">Use cases:</text>
+			<text transform="matrix(1 0 0 1 15 69)" class="st16 st4 st10">• Extract people, places, dates</text>
+			<text transform="matrix(1 0 0 1 15 84)" class="st16 st4 st10">• Legal contract analysis</text>
+			<text transform="matrix(1 0 0 1 15 99)" class="st16 st4 st10">• Medical record processing</text>
+		</g>
+		<g id="document_x5F_classification" transform="translate(350, 50)">
+			<path class="st14" d="M5-11h270c2.8,0,5,2.2,5,5v110c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V-6C0-8.8,2.2-11,5-11z"/>
+			<path class="st13" d="M13-1h254c1.7,0,3,1.3,3,3v19c0,1.7-1.3,3-3,3H13c-1.7,0-3-1.3-3-3V2C10,0.3,11.3-1,13-1z"/>
+			<text transform="matrix(1 0 0 1 46.6484 16)" class="st0 st1 st5">Document Classification</text>
+			<text transform="matrix(1 0 0 1 15 39)" class="st0 st4 st8">Models: DistilBERT, RoBERTa</text>
+			<text transform="matrix(1 0 0 1 15 54)" class="st0 st4 st8">Use cases:</text>
+			<text transform="matrix(1 0 0 1 15 69)" class="st16 st4 st10">• Content categorization</text>
+			<text transform="matrix(1 0 0 1 15 84)" class="st16 st4 st10">• Sentiment analysis</text>
+			<text transform="matrix(1 0 0 1 15 99)" class="st16 st4 st10">• Intent detection</text>
+		</g>
+		<g id="similarity" transform="translate(650, 50)">
+			<path class="st14" d="M5-11h270c2.8,0,5,2.2,5,5v110c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V-6C0-8.8,2.2-11,5-11z"/>
+			<path class="st17" d="M13-1h254c1.7,0,3,1.3,3,3v19c0,1.7-1.3,3-3,3H13c-1.7,0-3-1.3-3-3V2C10,0.3,11.3-1,13-1z"/>
+			<text transform="matrix(1 0 0 1 37.3125 16)" class="st0 st1 st5">Similarity and Embeddings</text>
+			<text transform="matrix(1 0 0 1 15 39)" class="st0 st4 st8">Models: Sentence Transformers</text>
+			<text transform="matrix(1 0 0 1 15 54)" class="st0 st4 st8">Use cases:</text>
+			<text transform="matrix(1 0 0 1 15 69)" class="st16 st4 st10">• Document clustering</text>
+			<text transform="matrix(1 0 0 1 15 84)" class="st16 st4 st10">• Semantic search</text>
+			<text transform="matrix(1 0 0 1 15 99)" class="st16 st4 st10">• Duplicate detection</text>
+		</g>
+		<g id="triplets" transform="translate(950, 50)">
+			<path class="st14" d="M5-11h270c2.8,0,5,2.2,5,5v110c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V-6C0-8.8,2.2-11,5-11z"/>
+			<path class="st18" d="M13-1h254c1.7,0,3,1.3,3,3v19c0,1.7-1.3,3-3,3H13c-1.7,0-3-1.3-3-3V2C10,0.3,11.3-1,13-1z"/>
+			<text transform="matrix(1 0 0 1 77.7617 16)" class="st0 st1 st5">Triplet Networks</text>
+			<text transform="matrix(1 0 0 1 15 39)" class="st0 st4 st8">Models: Custom CNN/Transformer</text>
+			<text transform="matrix(1 0 0 1 15 54)" class="st0 st4 st8">Use cases:</text>
+			<text transform="matrix(1 0 0 1 15 69)" class="st16 st4 st10">• Learning relationships</text>
+			<text transform="matrix(1 0 0 1 15 84)" class="st16 st4 st10">• Recommendation systems</text>
+			<text transform="matrix(1 0 0 1 15 99)" class="st16 st4 st10">• Similarity learning</text>
+		</g>
+	</g>
+	<g id="real_x5F_world" transform="translate(50, 660)">
+		<path class="st11" d="M10,65.4h1280c5.5,0,10,4.5,10,10v120c0,5.5-4.5,10-10,10H10c-5.5,0-10-4.5-10-10v-120
+			C0,69.8,4.5,65.4,10,65.4z"/>
+		<text transform="matrix(1 0 0 1 543.8867 90.3617)" class="st0 st1 st5">Real-World Success Stories</text>
+		<g transform="translate(50, 50)">
+			<text transform="matrix(1 0 0 1 3.051758e-05 80.3617)" class="st9 st4 st10">Legal Document Review:</text>
+			<text transform="matrix(1 0 0 1 3.051758e-05 95.3617)" class="st16 st4 st10">• 10,000 contracts analyzed</text>
+			<text transform="matrix(1 0 0 1 3.051758e-05 110.3617)" class="st16 st4 st10">• NER model: $50 total cost</text>
+			<text transform="matrix(1 0 0 1 3.051758e-05 125.3617)" class="st16 st4 st10">• GPT-4 equivalent: $2,000</text>
+			<text transform="matrix(1 0 0 1 3.051758e-05 140.3617)" class="st16 st4 st10">• 40x cost savings</text>
+			<text transform="matrix(1 0 0 1 320 80.3617)" class="st9 st4 st10">Medical Records Analysis:</text>
+			<text transform="matrix(1 0 0 1 320 95.3617)" class="st16 st4 st10">• Patient note classification</text>
+			<text transform="matrix(1 0 0 1 320 110.3617)" class="st16 st4 st10">• 99.2% accuracy achieved</text>
+			<text transform="matrix(1 0 0 1 320 125.3617)" class="st16 st4 st10">• Sub-second processing</text>
+			<text transform="matrix(1 0 0 1 320 140.3617)" class="st16 st4 st10">• HIPAA compliant (local)</text>
+			<text transform="matrix(1 0 0 1 639.9999 80.3617)" class="st9 st4 st10">Customer Support:</text>
+			<text transform="matrix(1 0 0 1 639.9999 95.3617)" class="st16 st4 st10">• Intent classification</text>
+			<text transform="matrix(1 0 0 1 639.9999 110.3617)" class="st16 st4 st10">• 50ms response time</text>
+			<text transform="matrix(1 0 0 1 639.9999 125.3617)" class="st16 st4 st10">• 95% accuracy</text>
+			<text transform="matrix(1 0 0 1 639.9999 140.3617)" class="st16 st4 st10">• Real-time processing</text>
+			<text transform="matrix(1 0 0 1 960 80.3617)" class="st9 st4 st10">Content Moderation:</text>
+			<text transform="matrix(1 0 0 1 960 95.3617)" class="st16 st4 st10">• Automated flagging</text>
+			<text transform="matrix(1 0 0 1 960 110.3617)" class="st16 st4 st10">• 1M+ documents/day</text>
+			<text transform="matrix(1 0 0 1 960 125.3617)" class="st16 st4 st10">• $0.001 per document</text>
+			<text transform="matrix(1 0 0 1 960 140.3617)" class="st16 st4 st10">• 24/7 operation</text>
+		</g>
+	</g>
+	<g id="technical" transform="translate(50, 840)">
+		<path class="st6" d="M10,35.4h1280c5.5,0,10,4.5,10,10v120c0,5.5-4.5,10-10,10H10c-5.5,0-10-4.5-10-10v-120
+			C0,39.8,4.5,35.4,10,35.4z"/>
+		<text transform="matrix(1 0 0 1 552.3398 60.3617)" class="st0 st1 st5">Technical Decision Matrix</text>
+		<g transform="translate(50, 50)">
+			<text transform="matrix(1 0 0 1 3.051758e-05 50.3617)" class="st7 st1 st8">Choose Specialized Language Models when:</text>
+			<text transform="matrix(1 0 0 1 3.051758e-05 70.3617)" style="enable-background:new    ;"><tspan x="0" y="0" class="st9 st10" style="font-family:'MyriadPro-Regular';">✓</tspan><tspan x="5.5" y="0" class="st9 st4 st10"> Task-specific classification or extraction needed</tspan></text>
+			<text transform="matrix(1 0 0 1 3.051758e-05 85.3617)" style="enable-background:new    ;"><tspan x="0" y="0" class="st9 st10" style="font-family:'MyriadPro-Regular';">✓</tspan><tspan x="5.5" y="0" class="st9 st4 st10"> Large labeled dataset available (1000+ examples)</tspan></text>
+			<text transform="matrix(1 0 0 1 3.051758e-05 100.3617)" style="enable-background:new    ;"><tspan x="0" y="0" class="st9 st10" style="font-family:'MyriadPro-Regular';">✓</tspan><tspan x="5.5" y="0" class="st9 st4 st10"> High-volume processing (1000s of documents)</tspan></text>
+			<text transform="matrix(1 0 0 1 3.051758e-05 115.3617)" style="enable-background:new    ;"><tspan x="0" y="0" class="st9 st10" style="font-family:'MyriadPro-Regular';">✓</tspan><tspan x="5.5" y="0" class="st9 st4 st10"> Cost and speed optimization critical</tspan></text>
+			<text transform="matrix(1 0 0 1 649.9999 50.3617)" class="st7 st1 st8">Choose Large Generative LLMs when:</text>
+			<text transform="matrix(1 0 0 1 649.9999 70.3617)" class="st16 st4 st10">• Complex reasoning or generation needed</text>
+			<text transform="matrix(1 0 0 1 649.9999 85.3617)" class="st16 st4 st10">• Few-shot learning (limited training data)</text>
+			<text transform="matrix(1 0 0 1 649.9999 100.3617)" class="st16 st4 st10">• Multiple capabilities in one model</text>
+			<text transform="matrix(1 0 0 1 649.9999 115.3617)" class="st16 st4 st10">• Flexibility over optimization</text>
+		</g>
+	</g>
+</g>
+</svg>

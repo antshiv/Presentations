@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 26.0.3, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1400 670.7" style="enable-background:new 0 0 1400 670.7;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#FFFFFF;}
+	.st1{font-family:'Arial-BoldMT';}
+	.st2{font-size:28px;}
+	.st3{fill:#AAAAAA;}
+	.st4{font-family:'ArialMT';}
+	.st5{font-size:16px;}
+	.st6{fill:#2D2D44;stroke:#4A4A6A;stroke-width:2;}
+	.st7{fill:#4ECDC4;}
+	.st8{font-size:12px;}
+	.st9{fill:#45B7D1;}
+	.st10{font-size:11px;}
+	.st11{fill:#FF9800;}
+	.st12{fill:#CCCCCC;}
+	.st13{fill:#4CAF50;}
+	.st14{fill:#FFEB3B;}
+	.st15{fill:#FF6B6B;}
+	.st16{fill:#3D3D5C;stroke:#6A6A8A;}
+	.st17{font-family:'CourierNewPSMT';}
+	.st18{font-size:10px;}
+	.st19{fill:#96CEB4;}
+</style>
+<g>
+	<text transform="matrix(1 0 0 1 439.6875 40)" class="st0 st1 st2">Parameter-Efficient Fine-Tuning (PEFT)</text>
+	<text transform="matrix(1 0 0 1 430.5312 65)" class="st3 st4 st5">How to practically fine-tune models without breaking the bank (or the model)</text>
+	<g id="lora" transform="translate(50, 100)">
+		<path class="st6" d="M10,0h360c5.5,0,10,5.2,10,11.5v230.9c0,6.4-4.5,11.5-10,11.5H10c-5.5,0-10-5.2-10-11.5V11.5
+			C0,5.2,4.5,0,10,0z"/>
+		<path class="st7" d="M15,10h350c2.8,0,5,2.2,5,5v20c0,2.8-2.2,5-5,5H15c-2.8,0-5-2.2-5-5V15C10,12.2,12.2,10,15,10z"/>
+		<text transform="matrix(1 0 0 1 79.4961 30)" class="st0 st1 st5">LoRA (Low-Rank Adaptation)</text>
+		<g transform="translate(20, 55)">
+			<text transform="matrix(1 0 0 1 0 15)" class="st0 st4 st8">How it works:</text>
+			<text transform="matrix(1 0 0 1 0 30)" class="st9 st1 st10">• Original weights FROZEN</text>
+			<text transform="matrix(1 0 0 1 0 45)" class="st11 st1 st10">• Small adapter matrices added</text>
+			<text transform="matrix(1 0 0 1 0 60)" class="st12 st4 st10">• Low-rank decomposition: B × A</text>
+			<text transform="matrix(1 0 0 1 0 75)" class="st12 st4 st10">• Typical rank: 4-64</text>
+			<text transform="matrix(1 0 0 1 0 100)" class="st0 st4 st8">Benefits:</text>
+			<text transform="matrix(1 0 0 1 0 115)" class="st13 st4 st10">• 0.1-1% of original parameters</text>
+			<text transform="matrix(1 0 0 1 0 130)" class="st13 st4 st10">• Base model preserved</text>
+			<text transform="matrix(1 0 0 1 0 145)" class="st13 st4 st10">• Multiple adapters possible</text>
+			<text transform="matrix(1 0 0 1 0 160)" class="st13 st4 st10">• Fast training and switching</text>
+			<text transform="matrix(1 0 0 1 0 185)" class="st14 st1 st8">Works with: Both SFT and RL</text>
+		</g>
+	</g>
+	<g id="qlora" transform="translate(450, 100)">
+		<path class="st6" d="M69.9,0h360c5.5,0,10,5.2,10,11.5v230.9c0,6.4-4.5,11.5-10,11.5h-360c-5.5,0-10-5.2-10-11.5V11.5
+			C59.9,5.2,64.3,0,69.9,0z"/>
+		<path class="st9" d="M74.9,10h350c2.8,0,5,2.2,5,5v20c0,2.8-2.2,5-5,5h-350c-2.8,0-5-2.2-5-5V15C69.9,12.2,72.1,10,74.9,10z"/>
+		<text transform="matrix(1 0 0 1 152.8408 30)" class="st0 st1 st5">QLoRA (Quantized LoRA)</text>
+		<g transform="translate(20, 55)">
+			<text transform="matrix(1 0 0 1 59.8643 15)" class="st0 st4 st8">Enhanced LoRA approach:</text>
+			<text transform="matrix(1 0 0 1 59.8643 30)" class="st9 st1 st10">• 4-bit quantized base model</text>
+			<text transform="matrix(1 0 0 1 59.8643 45)" class="st11 st1 st10">• 16-bit LoRA adapters</text>
+			<text transform="matrix(1 0 0 1 59.8643 60)" class="st12 st4 st10">• Even more memory efficient</text>
+			<text transform="matrix(1 0 0 1 59.8643 85)" class="st0 st4 st8">Memory savings:</text>
+			<text transform="matrix(1 0 0 1 59.8643 100)" class="st13 st4 st10">• 7B model: 28GB → 7GB</text>
+			<text transform="matrix(1 0 0 1 59.8643 115)" class="st13 st4 st10">• Fits on consumer GPUs</text>
+			<text transform="matrix(1 0 0 1 59.8643 130)" class="st13 st4 st10">• No performance loss</text>
+			<text transform="matrix(1 0 0 1 59.8643 155)" class="st0 st4 st8">Use cases:</text>
+			<text transform="matrix(1 0 0 1 59.8643 170)" class="st12 st4 st10">• Limited GPU memory</text>
+			<text transform="matrix(1 0 0 1 59.8643 185)" class="st12 st4 st10">• Cost-effective fine-tuning</text>
+		</g>
+	</g>
+	<g id="full_x5F_fine_x5F_tuning" transform="translate(850, 100)">
+		<path class="st6" d="M129.7,0h360c5.5,0,10,5.2,10,11.5v230.9c0,6.4-4.5,11.5-10,11.5h-360c-5.5,0-10-5.2-10-11.5V11.5
+			C119.7,5.2,124.2,0,129.7,0z"/>
+		<path class="st15" d="M134.7,10h350c2.8,0,5,2.2,5,5v20c0,2.8-2.2,5-5,5h-350c-2.8,0-5-2.2-5-5V15C129.7,12.2,132,10,134.7,10z"/>
+		<text transform="matrix(1 0 0 1 199.9707 30)" class="st0 st1 st5">Full Fine-Tuning (Avoid This)</text>
+		<g transform="translate(20, 55)">
+			<text transform="matrix(1 0 0 1 119.7285 15)" class="st0 st4 st8">What happens:</text>
+			<text transform="matrix(1 0 0 1 119.7285 30)" class="st15 st4 st10">• ALL weights trainable</text>
+			<text transform="matrix(1 0 0 1 119.7285 45)" class="st15 st4 st10">• Original model modified</text>
+			<text transform="matrix(1 0 0 1 119.7285 60)" class="st15 st4 st10">• Risk of catastrophic forgetting</text>
+			<text transform="matrix(1 0 0 1 119.7285 85)" class="st0 st4 st8">Problems:</text>
+			<text transform="matrix(1 0 0 1 119.7285 100)" class="st15 st4 st10">• Expensive (billions of params)</text>
+			<text transform="matrix(1 0 0 1 119.7285 115)" class="st15 st4 st10">• Memory intensive</text>
+			<text transform="matrix(1 0 0 1 119.7285 130)" class="st15 st4 st10">• Can &quot;spoil&quot; base model</text>
+			<text transform="matrix(1 0 0 1 119.7285 145)" class="st15 st4 st10">• Loses general knowledge</text>
+			<text transform="matrix(1 0 0 1 119.7285 170)" class="st0 st4 st8">When needed:</text>
+			<text transform="matrix(1 0 0 1 119.7285 185)" class="st12 st4 st10">• Major domain shifts only</text>
+		</g>
+	</g>
+	<g id="practical_x5F_lora" transform="translate(50, 340)">
+		<path class="st16" d="M10,71.3h580c5.5,0,10,5.3,10,11.8v213.1c0,6.5-4.5,11.8-10,11.8H10c-5.5,0-10-5.3-10-11.8V83.1
+			C0,76.6,4.5,71.3,10,71.3z"/>
+		<text transform="matrix(1 0 0 1 208.2617 96.2725)" class="st0 st1 st5">Practical LoRA Example</text>
+		<g transform="translate(20, 45)">
+			<text transform="matrix(1 0 0 1 0 86.2725)" class="st13 st17 st18"># Load base model (frozen)</text>
+			<text transform="matrix(1 0 0 1 0 101.2725)" class="st13 st17 st18">model = AutoModelForCausalLM.from_pretrained(&quot;mistral-7b-instruct&quot;)</text>
+			<text transform="matrix(1 0 0 1 0 121.2725)" class="st13 st17 st18"># Add LoRA adapters</text>
+			<text transform="matrix(1 0 0 1 0 136.2725)" class="st13 st17 st18">lora_config = LoraConfig(r=16, target_modules=[&quot;q_proj&quot;, &quot;v_proj&quot;])</text>
+			<text transform="matrix(1 0 0 1 0 151.2725)" class="st13 st17 st18">peft_model = get_peft_model(model, lora_config)</text>
+			<text transform="matrix(1 0 0 1 0 171.2725)" class="st13 st17 st18"># Result: 7B params frozen + 14M params trainable</text>
+			<text transform="matrix(1 0 0 1 0 186.2725)" class="st13 st17 st18"># Training cost: $10-100 instead of $1000+</text>
+			<text transform="matrix(1 0 0 1 0 211.2725)" class="st14 st1 st8">Multiple Adapters Strategy:</text>
+			<text transform="matrix(1 0 0 1 0 226.2725)" class="st0 st4 st8">SQL_adapter.pth, Medical_adapter.pth, Code_adapter.pth</text>
+			<text transform="matrix(1 0 0 1 0 241.2725)" class="st0 st4 st8">Switch between specialists without retraining base model</text>
+		</g>
+	</g>
+	<g id="training_x5F_method" transform="translate(670, 340)">
+		<path class="st6" d="M10,71.3h660c5.5,0,10,5.3,10,11.8v213.1c0,6.5-4.5,11.8-10,11.8H10c-5.5,0-10-5.3-10-11.8V83.1
+			C0,76.6,4.5,71.3,10,71.3z"/>
+		<text transform="matrix(1 0 0 1 229.332 96.2725)" class="st0 st1 st5">Training Method Comparison</text>
+		<g transform="translate(30, 50)">
+			<text transform="matrix(1 0 0 1 0 86.2725)" class="st0 st4 st8">Method</text>
+			<text transform="matrix(1 0 0 1 150 86.2725)" class="st0 st4 st8">Parameters</text>
+			<text transform="matrix(1 0 0 1 300 86.2725)" class="st0 st4 st8">Memory</text>
+			<text transform="matrix(1 0 0 1 450 86.2725)" class="st0 st4 st8">Cost</text>
+			<text transform="matrix(1 0 0 1 550 86.2725)" class="st0 st4 st8">Risk</text>
+			<text transform="matrix(1 0 0 1 0 106.2725)" class="st15 st4 st10">Full Fine-tuning</text>
+			<text transform="matrix(1 0 0 1 150 106.2725)" class="st15 st4 st10">7B trainable</text>
+			<text transform="matrix(1 0 0 1 300 106.2725)" class="st15 st4 st10">28GB+</text>
+			<text transform="matrix(1 0 0 1 450 106.2725)" class="st15 st4 st10">$1000+</text>
+			<text transform="matrix(1 0 0 1 550 106.2725)" class="st15 st4 st10">High</text>
+			<text transform="matrix(1 0 0 1 0 126.2725)" class="st13 st4 st10">LoRA</text>
+			<text transform="matrix(1 0 0 1 150 126.2725)" class="st13 st4 st10">14M trainable</text>
+			<text transform="matrix(1 0 0 1 300 126.2725)" class="st13 st4 st10">16GB</text>
+			<text transform="matrix(1 0 0 1 450 126.2725)" class="st13 st4 st10">$10-100</text>
+			<text transform="matrix(1 0 0 1 550 126.2725)" class="st13 st4 st10">Low</text>
+			<text transform="matrix(1 0 0 1 0 146.2725)" class="st13 st4 st10">QLoRA</text>
+			<text transform="matrix(1 0 0 1 150 146.2725)" class="st13 st4 st10">14M trainable</text>
+			<text transform="matrix(1 0 0 1 300 146.2725)" class="st13 st4 st10">7GB</text>
+			<text transform="matrix(1 0 0 1 450 146.2725)" class="st13 st4 st10">$5-50</text>
+			<text transform="matrix(1 0 0 1 550 146.2725)" class="st13 st4 st10">Low</text>
+			<text transform="matrix(1 0 0 1 0 176.2725)" class="st14 st1 st8">Key Insight: LoRA preserves base model while adding new capabilities</text>
+			<text transform="matrix(1 0 0 1 0 196.2725)" class="st0 st4 st8">99.9% of practical fine-tuning uses LoRA or QLoRA</text>
+		</g>
+	</g>
+</g>
+<g transform="translate(50, 560)">
+	<path class="st6" d="M10,375.5h1280c5.5,0,10,4.5,10,10v140c0,5.5-4.5,10-10,10H10c-5.5,0-10-4.5-10-10v-140
+		C0,380,4.5,375.5,10,375.5z"/>
+	<text transform="matrix(1 0 0 1 526.8828 400.4824)" class="st0 st1 st5">When to Use Each PEFT Method</text>
+	<g transform="translate(50, 50)">
+		<text transform="matrix(1 0 0 1 0 395.4824)" class="st7 st1 st8">LoRA:</text>
+		<text transform="matrix(1 0 0 1 0 410.4824)" class="st12 st4 st10">• Standard choice for most fine-tuning</text>
+		<text transform="matrix(1 0 0 1 0 425.4824)" class="st12 st4 st10">• Task-specific adaptations (SQL, medical, legal)</text>
+		<text transform="matrix(1 0 0 1 0 440.4824)" class="st12 st4 st10">• When you have adequate GPU memory</text>
+		<text transform="matrix(1 0 0 1 0 455.4824)" class="st12 st4 st10">• Production deployments</text>
+		<text transform="matrix(1 0 0 1 400 395.4824)" class="st9 st1 st8">QLoRA:</text>
+		<text transform="matrix(1 0 0 1 400 410.4824)" class="st12 st4 st10">• Limited GPU memory (consumer cards)</text>
+		<text transform="matrix(1 0 0 1 400 425.4824)" class="st12 st4 st10">• Experimentation and prototyping</text>
+		<text transform="matrix(1 0 0 1 400 440.4824)" class="st12 st4 st10">• Educational projects</text>
+		<text transform="matrix(1 0 0 1 400 455.4824)" class="st12 st4 st10">• Cost-constrained environments</text>
+		<text transform="matrix(1 0 0 1 800 395.4824)" class="st15 st1 st8">Full Fine-tuning:</text>
+		<text transform="matrix(1 0 0 1 800 410.4824)" class="st12 st4 st10">• Major domain shifts (rare)</text>
+		<text transform="matrix(1 0 0 1 800 425.4824)" class="st12 st4 st10">• When you need to modify core behaviors</text>
+		<text transform="matrix(1 0 0 1 800 440.4824)" class="st12 st4 st10">• Research purposes only</text>
+		<text transform="matrix(1 0 0 1 800 455.4824)" class="st12 st4 st10">• Not recommended for most use cases</text>
+	</g>
+</g>
+<g transform="translate(50, 740)">
+	<path class="st19" d="M10,375.5h1280c5.5,0,10,4.5,10,10v80c0,5.5-4.5,10-10,10H10c-5.5,0-10-4.5-10-10v-80
+		C0,380,4.5,375.5,10,375.5z"/>
+	<text transform="matrix(1 0 0 1 547.2969 400.4824)" class="st0 st1 st5">PEFT: The Practical Reality</text>
+	<text transform="matrix(1 0 0 1 323.168 425.4824)" class="st3 st4 st5">Parameter-Efficient Fine-Tuning makes both SFT and RL accessible to individual developers</text>
+	<text transform="matrix(1 0 0 1 650 445.4824)" class="st0 st4 st8">• Works with all training methods we discussed (SFT types + RL methods)</text>
+	<text transform="matrix(1 0 0 1 650 460.4824)" class="st0 st4 st8">• Preserves base model capabilities while adding new skills efficiently</text>
+</g>
+</svg>
