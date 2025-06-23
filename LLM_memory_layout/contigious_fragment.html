@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cache Performance Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .demo-section {
+            margin: 40px 0;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        h2 {
+            color: #ffeb3b;
+            border-bottom: 2px solid #ffeb3b;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .memory-grid {
+            display: grid;
+            grid-template-columns: repeat(16, 1fr);
+            gap: 3px;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+        
+        .memory-cell {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #333;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .memory-cell.empty {
+            background: #2c3e50;
+            color: #7f8c8d;
+        }
+        
+        .memory-cell.allocated {
+            background: #3498db;
+            color: white;
+        }
+        
+        .memory-cell.accessed {
+            background: #e74c3c;
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.6);
+        }
+        
+        .memory-cell.cache-hit {
+            background: #27ae60;
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(39, 174, 96, 0.6);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #ffeb3b;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+        
+        .explanation {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #ffeb3b;
+        }
+        
+        .cache-line {
+            background: rgba(255, 235, 59, 0.2);
+            border: 2px dashed #ffeb3b;
+            position: absolute;
+            pointer-events: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Cache Performance: Memory Access Patterns</h1>
+        
+        <div class="demo-section">
+            <h2>🧠 Understanding Cache Behavior</h2>
+            <div class="explanation">
+                <p><strong>Cache Lines:</strong> CPUs load data in chunks called cache lines (typically 64 bytes). When you access one memory location, nearby locations are also loaded into cache.</p>
+                <p><strong>Cache Hit:</strong> Data is already in cache - very fast access (~1-3 CPU cycles)</p>
+                <p><strong>Cache Miss:</strong> Data not in cache, must fetch from RAM - slow access (~100-300 CPU cycles)</p>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🎯 Interactive Memory Simulation</h2>
+            <p>Each cell represents 4 bytes of memory. Cache lines are 64 bytes (16 cells).</p>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #2c3e50;"></div>
+                    <span>Empty Memory</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #3498db;"></div>
+                    <span>Allocated Data</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e74c3c;"></div>
+                    <span>Cache Miss</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #27ae60;"></div>
+                    <span>Cache Hit</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button onclick="setupContiguous()">Setup Contiguous Memory</button>
+                <button onclick="setupFragmented()">Setup Fragmented Memory</button>
+                <button onclick="simulateSequentialAccess()">Sequential Access Pattern</button>
+                <button onclick="simulateRandomAccess()">Random Access Pattern</button>
+                <button onclick="reset()">Reset</button>
+            </div>
+
+            <div class="memory-grid" id="memoryGrid"></div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="cacheHits">0</div>
+                    <div>Cache Hits</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="cacheMisses">0</div>
+                    <div>Cache Misses</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="hitRate">0%</div>
+                    <div>Hit Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="accessTime">0</div>
+                    <div>Total Cycles</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-section">
+            <h2>🔍 Karpathy's Code Analysis</h2>
+            <div class="explanation">
+                <p><strong>Problem in the provided code:</strong> Each parameter tensor is allocated separately, leading to memory fragmentation.</p>
+                <p><strong>Current approach:</strong> wte, wpe, ln1w, ln1b, etc. are scattered across memory</p>
+                <p><strong>Better approach:</strong> Single large allocation with pointers to different sections (as shown in malloc_and_point_parameters)</p>
+                <p><strong>Impact:</strong> Fragmented allocation can cause more cache misses during forward/backward passes when accessing related parameters.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 256; // 16x16 grid
+        const CACHE_LINE_SIZE = 16; // 16 cells per cache line
+        let memoryGrid = [];
+        let cache = new Set();
+        let stats = {
+            hits: 0,
+            misses: 0,
+            totalAccesses: 0
+        };
+
+        function initializeGrid() {
+            const grid = document.getElementById('memoryGrid');
+            grid.innerHTML = '';
+            memoryGrid = [];
+            
+            for (let i = 0; i < GRID_SIZE; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'memory-cell empty';
+                cell.textContent = i.toString(16).toUpperCase().padStart(2, '0');
+                cell.onclick = () => accessMemory(i);
+                grid.appendChild(cell);
+                memoryGrid.push({
+                    element: cell,
+                    allocated: false,
+                    data: null
+                });
+            }
+        }
+
+        function setupContiguous() {
+            reset();
+            // Allocate contiguous blocks for different tensor types
+            const allocations = [
+                { start: 16, size: 32, name: 'wte', color: '#3498db' },
+                { start: 48, size: 16, name: 'wpe', color: '#9b59b6' },
+                { start: 64, size: 24, name: 'ln1w', color: '#e67e22' },
+                { start: 88, size: 24, name: 'qkvw', color: '#1abc9c' }
+            ];
+            
+            allocations.forEach(alloc => {
+                for (let i = alloc.start; i < alloc.start + alloc.size; i++) {
+                    memoryGrid[i].allocated = true;
+                    memoryGrid[i].data = alloc.name;
+                    memoryGrid[i].element.className = 'memory-cell allocated';
+                    memoryGrid[i].element.style.background = alloc.color;
+                }
+            });
+        }
+
+        function setupFragmented() {
+            reset();
+            // Allocate scattered blocks (simulating separate malloc calls)
+            const allocations = [
+                { start: 5, size: 8, name: 'wte', color: '#3498db' },
+                { start: 20, size: 4, name: 'wpe', color: '#9b59b6' },
+                { start: 35, size: 6, name: 'ln1w', color: '#e67e22' },
+                { start: 50, size: 6, name: 'qkvw', color: '#1abc9c' },
+                { start: 70, size: 8, name: 'fcw', color: '#e74c3c' },
+                { start: 90, size: 4, name: 'ln2w', color: '#f39c12' }
+            ];
+            
+            allocations.forEach(alloc => {
+                for (let i = alloc.start; i < alloc.start + alloc.size; i++) {
+                    memoryGrid[i].allocated = true;
+                    memoryGrid[i].data = alloc.name;
+                    memoryGrid[i].element.className = 'memory-cell allocated';
+                    memoryGrid[i].element.style.background = alloc.color;
+                }
+            });
+        }
+
+        function simulateSequentialAccess() {
+            const allocatedCells = memoryGrid.filter(cell => cell.allocated);
+            if (allocatedCells.length === 0) {
+                alert('Please setup memory allocation first!');
+                return;
+            }
+
+            let index = 0;
+            const interval = setInterval(() => {
+                if (index >= allocatedCells.length) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                const cellIndex = memoryGrid.indexOf(allocatedCells[index]);
+                accessMemory(cellIndex);
+                index++;
+            }, 500);
+        }
+
+        function simulateRandomAccess() {
+            const allocatedCells = memoryGrid.filter(cell => cell.allocated);
+            if (allocatedCells.length === 0) {
+                alert('Please setup memory allocation first!');
+                return;
+            }
+
+            let accessCount = 0;
+            const maxAccesses = Math.min(20, allocatedCells.length);
+            
+            const interval = setInterval(() => {
+                if (accessCount >= maxAccesses) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                const randomCell = allocatedCells[Math.floor(Math.random() * allocatedCells.length)];
+                const cellIndex = memoryGrid.indexOf(randomCell);
+                accessMemory(cellIndex);
+                accessCount++;
+            }, 600);
+        }
+
+        function accessMemory(index) {
+            if (!memoryGrid[index].allocated) return;
+            
+            const cacheLineStart = Math.floor(index / CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+            const cacheLineEnd = cacheLineStart + CACHE_LINE_SIZE;
+            
+            // Clear previous access highlights
+            memoryGrid.forEach(cell => {
+                if (cell.element.classList.contains('accessed') || cell.element.classList.contains('cache-hit')) {
+                    cell.element.className = cell.allocated ? 'memory-cell allocated' : 'memory-cell empty';
+                }
+            });
+            
+            let isHit = cache.has(cacheLineStart);
+            
+            if (isHit) {
+                stats.hits++;
+                memoryGrid[index].element.className = 'memory-cell cache-hit';
+            } else {
+                stats.misses++;
+                memoryGrid[index].element.className = 'memory-cell accessed';
+                
+                // Load entire cache line
+                for (let i = cacheLineStart; i < cacheLineEnd && i < GRID_SIZE; i++) {
+                    cache.add(i);
+                }
+                
+                // Highlight cache line being loaded
+                for (let i = cacheLineStart; i < cacheLineEnd && i < GRID_SIZE; i++) {
+                    if (i !== index && memoryGrid[i].allocated) {
+                        setTimeout(() => {
+                            memoryGrid[i].element.style.boxShadow = '0 0 10px rgba(255, 235, 59, 0.8)';
+                            setTimeout(() => {
+                                memoryGrid[i].element.style.boxShadow = '';
+                            }, 1000);
+                        }, 200);
+                    }
+                }
+            }
+            
+            stats.totalAccesses++;
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('cacheHits').textContent = stats.hits;
+            document.getElementById('cacheMisses').textContent = stats.misses;
+            
+            const hitRate = stats.totalAccesses > 0 ? 
+                Math.round((stats.hits / stats.totalAccesses) * 100) : 0;
+            document.getElementById('hitRate').textContent = hitRate + '%';
+            
+            // Approximate cycle count (1 cycle for hit, 200 cycles for miss)
+            const totalCycles = stats.hits * 1 + stats.misses * 200;
+            document.getElementById('accessTime').textContent = totalCycles;
+        }
+
+        function reset() {
+            cache.clear();
+            stats = { hits: 0, misses: 0, totalAccesses: 0 };
+            
+            memoryGrid.forEach(cell => {
+                cell.allocated = false;
+                cell.data = null;
+                cell.element.className = 'memory-cell empty';
+                cell.element.style.background = '';
+                cell.element.style.boxShadow = '';
+            });
+            
+            updateStats();
+        }
+
+        // Initialize the grid when page loads
+        window.onload = initializeGrid;
+    </script>
+</body>
+</html>
