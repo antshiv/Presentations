@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cache-Optimized CPU Training Calculator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+        
+        .cache-hierarchy {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 5px solid #e74c3c;
+        }
+        
+        .cache-level {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr 1fr;
+            gap: 15px;
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            align-items: center;
+        }
+        
+        .l1-cache { border-left: 4px solid #e74c3c; }
+        .l2-cache { border-left: 4px solid #f39c12; }
+        .l3-cache { border-left: 4px solid #3498db; }
+        .dram-level { border-left: 4px solid #27ae60; }
+        
+        .input-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+        
+        input, select {
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .result-card h3 {
+            margin-top: 0;
+            font-size: 1.3em;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+            padding-bottom: 10px;
+        }
+        
+        .memory-breakdown {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .breakdown-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            font-weight: 600;
+            font-size: 1.2em;
+        }
+        
+        .breakdown-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .breakdown-table th {
+            background: #34495e;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .breakdown-table td {
+            padding: 12px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .breakdown-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .cache-aligned { background: #d4edda; color: #155724; }
+        .cache-misaligned { background: #f8d7da; color: #721c24; }
+        .numa-local { background: #cce5ff; color: #0066cc; }
+        .numa-remote { background: #fff3cd; color: #856404; }
+        
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .optimization-tip {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Cache-Optimized CPU Training Calculator</h1>
+        
+        <div class="cache-hierarchy">
+            <h3>🏗️ CPU Cache Hierarchy & Access Patterns</h3>
+            <div class="cache-level l1-cache">
+                <strong>L1 Cache</strong>
+                <span>32KB per core, 1-2 cycles, cache line = 64 bytes</span>
+                <span>Per-core private</span>
+                <span>~300 GB/s</span>
+            </div>
+            <div class="cache-level l2-cache">
+                <strong>L2 Cache</strong>
+                <span>1MB per core, 10-15 cycles, shared cache lines</span>
+                <span>Per-core private</span>
+                <span>~150 GB/s</span>
+            </div>
+            <div class="cache-level l3-cache">
+                <strong>L3 Cache</strong>
+                <span>48MB shared, 40-60 cycles, NUMA-aware</span>
+                <span>Shared across socket</span>
+                <span>~80 GB/s</span>
+            </div>
+            <div class="cache-level dram-level">
+                <strong>DRAM</strong>
+                <span>4TB total, 200-400 cycles, memory controllers</span>
+                <span>NUMA topology</span>
+                <span>~400 GB/s</span>
+            </div>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <label for="modelSize">Model Size (GB)</label>
+                <input type="number" id="modelSize" value="500" min="1" max="2000">
+            </div>
+            
+            <div class="input-group">
+                <label for="totalMemory">Total DRAM (GB)</label>
+                <input type="number" id="totalMemory" value="4000" min="1000" max="8000">
+            </div>
+            
+            <div class="input-group">
+                <label for="numSockets">NUMA Sockets</label>
+                <input type="number" id="numSockets" value="2" min="1" max="8">
+            </div>
+            
+            <div class="input-group">
+                <label for="coresPerSocket">Cores per Socket</label>
+                <input type="number" id="coresPerSocket" value="98" min="16" max="128">
+            </div>
+            
+            <div class="input-group">
+                <label for="batchPerCore">Sequences per Core</label>
+                <input type="number" id="batchPerCore" value="16" min="1" max="64">
+            </div>
+            
+            <div class="input-group">
+                <label for="seqLength">Sequence Length</label>
+                <input type="number" id="seqLength" value="2048" min="512" max="8192">
+            </div>
+            
+            <div class="input-group">
+                <label for="precision">Precision</label>
+                <select id="precision">
+                    <option value="fp32">FP32 (4 bytes)</option>
+                    <option value="fp16">FP16 (2 bytes)</option>
+                    <option value="bf16">BF16 (2 bytes)</option>
+                    <option value="int8">INT8 (1 byte)</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="optimizer">Optimizer</label>
+                <select id="optimizer">
+                    <option value="adamw">AdamW (2x states)</option>
+                    <option value="sgd">SGD (1x states)</option>
+                    <option value="lion">Lion (1.5x states)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="results-grid">
+            <div class="result-card">
+                <h3>📊 Cache Efficiency Analysis</h3>
+                <div id="cacheAnalysis"></div>
+            </div>
+            
+            <div class="result-card">
+                <h3>🔄 NUMA Topology</h3>
+                <div id="numaTopology"></div>
+            </div>
+            
+            <div class="result-card">
+                <h3>⚡ Memory Bandwidth</h3>
+                <div id="bandwidthAnalysis"></div>
+            </div>
+        </div>
+        
+        <div class="memory-breakdown">
+            <div class="breakdown-header">
+                🧮 Cache-Aligned Memory Layout
+            </div>
+            <table class="breakdown-table">
+                <thead>
+                    <tr>
+                        <th>Memory Component</th>
+                        <th>Size (GB)</th>
+                        <th>Cache Alignment</th>
+                        <th>NUMA Placement</th>
+                        <th>Access Pattern</th>
+                        <th>Optimization</th>
+                    </tr>
+                </thead>
+                <tbody id="memoryBreakdown">
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="memory-breakdown">
+            <div class="breakdown-header">
+                🔧 C Implementation Code Snippets
+            </div>
+            <div style="padding: 20px;">
+                <div class="optimization-tip">
+                    <strong>Cache-Aligned Memory Allocation:</strong>
+                    <div class="code-block">
+// Align to cache line boundaries (64 bytes)
+#define CACHE_LINE_SIZE 64
+float *weights;
+posix_memalign((void**)&weights, CACHE_LINE_SIZE, model_size * sizeof(float));
+
+// NUMA-aware allocation
+#include &lt;numa.h&gt;
+float *socket0_gradients = numa_alloc_onnode(gradient_size, 0);
+float *socket1_gradients = numa_alloc_onnode(gradient_size, 1);
+                    </div>
+                </div>
+                
+                <div class="optimization-tip">
+                    <strong>SIMD-Optimized Gradient Accumulation:</strong>
+                    <div class="code-block">
+#include &lt;immintrin.h&gt;
+// AVX-512 gradient accumulation (16 floats at once)
+#pragma omp parallel for simd aligned(gradients, local_grads:64)
+for (int i = 0; i < model_params; i += 16) {
+    __m512 grad_vec = _mm512_load_ps(&gradients[i]);
+    __m512 local_vec = _mm512_load_ps(&local_grads[i]);
+    __m512 result = _mm512_add_ps(grad_vec, local_vec);
+    _mm512_store_ps(&gradients[i], result);
+}
+                    </div>
+                </div>
+                
+                <div class="optimization-tip">
+                    <strong>Prefetch-Optimized Data Loading:</strong>
+                    <div class="code-block">
+// Prefetch next batch while processing current
+#pragma omp parallel for
+for (int core = 0; core < num_cores; core++) {
+    // Process current batch
+    forward_pass(current_batch[core], weights);
+    
+    // Prefetch next batch data into L2 cache
+    __builtin_prefetch(&next_batch[core], 0, 2);  // Read, L2 locality
+    __builtin_prefetch(&activations[core], 1, 1); // Write, L1 locality
+}
+                    </div>
+                </div>
+                
+                <div class="optimization-tip">
+                    <strong>DSA Memory Copy (Data Streaming Accelerator):</strong>
+                    <div class="code-block">
+#include &lt;linux/idxd.h&gt;
+// Use DSA for large memory operations
+struct dsa_hw_desc desc;
+desc.opcode = DSA_OPCODE_MEMMOVE;
+desc.src_addr = (uint64_t)source_gradients;
+desc.dst_addr = (uint64_t)accumulated_gradients;
+desc.xfer_size = gradient_size_bytes;
+desc.flags = IDXD_OP_FLAG_CRAV; // Cache read after write
+submit_dsa_operation(&desc);
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="memory-breakdown">
+            <div class="breakdown-header">
+                🎯 Performance Optimization Recommendations
+            </div>
+            <div id="optimizationRecommendations" style="padding: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        function calculateMemoryRequirements() {
+            const modelSize = parseFloat(document.getElementById('modelSize').value);
+            const totalMemory = parseFloat(document.getElementById('totalMemory').value);
+            const numSockets = parseInt(document.getElementById('numSockets').value);
+            const coresPerSocket = parseInt(document.getElementById('coresPerSocket').value);
+            const batchPerCore = parseInt(document.getElementById('batchPerCore').value);
+            const seqLength = parseInt(document.getElementById('seqLength').value);
+            const precision = document.getElementById('precision').value;
+            const optimizer = document.getElementById('optimizer').value;
+            
+            const totalCores = numSockets * coresPerSocket;
+            
+            // Precision multipliers
+            const precisionBytes = {
+                'fp32': 4,
+                'fp16': 2,
+                'bf16': 2,
+                'int8': 1
+            };
+            
+            const bytesPerParam = precisionBytes[precision];
+            
+            // Optimizer multipliers
+            const optimizerMultiplier = {
+                'adamw': 2.0,
+                'sgd': 1.0,
+                'lion': 1.5
+            };
+            
+            // Convert model size to parameters
+            const modelParams = (modelSize * 1024 * 1024 * 1024) / 4; // Assuming 4 bytes for parameter count
+            const actualModelSize = (modelParams * bytesPerParam) / (1024 * 1024 * 1024);
+            
+            // SHARED MEMORY (NUMA-distributed)
+            const sharedWeights = actualModelSize;
+            const sharedOptimizer = actualModelSize * optimizerMultiplier[optimizer];
+            const sharedGradients = actualModelSize;
+            
+            // PER-CORE MEMORY (cache-aligned)
+            const tokensPerCore = batchPerCore * seqLength;
+            const activationsPerCore = (actualModelSize * 0.15) + (tokensPerCore * bytesPerParam / (1024 * 1024 * 1024));
+            const localGradientsPerCore = actualModelSize * 0.08;
+            const batchDataPerCore = (tokensPerCore * bytesPerParam) / (1024 * 1024 * 1024);
+            const attentionPerCore = (batchPerCore * Math.pow(seqLength, 2) * bytesPerParam) / (1024 * 1024 * 1024);
+            
+            const perCoreTotal = activationsPerCore + localGradientsPerCore + batchDataPerCore + attentionPerCore;
+            const totalPerCoreMemory = perCoreTotal * totalCores;
+            
+            // Cache analysis
+            const L1_SIZE = 0.032; // 32KB in GB
+            const L2_SIZE = 1; // 1MB in GB  
+            const L3_SIZE = 48; // 48MB in GB
+            
+            const weightsPerCore = sharedWeights / totalCores;
+            const l1Efficiency = Math.min(100, (L1_SIZE / perCoreTotal) * 100);
+            const l2Efficiency = Math.min(100, (L2_SIZE / perCoreTotal) * 100);
+            const l3Efficiency = Math.min(100, (L3_SIZE / weightsPerCore) * 100);
+            
+            // NUMA analysis
+            const memoryPerSocket = totalMemory / numSockets;
+            const workloadPerSocket = (sharedWeights + sharedOptimizer + sharedGradients) / numSockets + 
+                                     (totalPerCoreMemory / numSockets);
+            const numaUtilization = (workloadPerSocket / memoryPerSocket) * 100;
+            
+            // Bandwidth analysis
+            const l1Bandwidth = 300; // GB/s
+            const l2Bandwidth = 150;
+            const l3Bandwidth = 80;
+            const dramBandwidth = 400;
+            
+            const effectiveBandwidth = (l1Efficiency/100 * l1Bandwidth) + 
+                                     (l2Efficiency/100 * l2Bandwidth) + 
+                                     (l3Efficiency/100 * l3Bandwidth) + 
+                                     ((100 - Math.max(l1Efficiency, l2Efficiency, l3Efficiency))/100 * dramBandwidth);
+            
+            // Update UI
+            updateCacheAnalysis(l1Efficiency, l2Efficiency, l3Efficiency, perCoreTotal);
+            updateNUMATopology(numSockets, coresPerSocket, memoryPerSocket, numaUtilization);
+            updateBandwidthAnalysis(effectiveBandwidth, dramBandwidth, totalCores);
+            updateMemoryBreakdown({
+                sharedWeights,
+                sharedOptimizer, 
+                sharedGradients,
+                activationsPerCore,
+                localGradientsPerCore,
+                batchDataPerCore,
+                attentionPerCore,
+                perCoreTotal,
+                totalPerCoreMemory,
+                totalCores,
+                precision,
+                bytesPerParam
+            });
+            updateOptimizationRecommendations(l1Efficiency, l2Efficiency, l3Efficiency, numaUtilization, effectiveBandwidth);
+        }
+        
+        function updateCacheAnalysis(l1Eff, l2Eff, l3Eff, perCoreSize) {
+            const analysis = document.getElementById('cacheAnalysis');
+            const cacheStatus = l1Eff > 80 ? 'Excellent' : l1Eff > 50 ? 'Good' : l1Eff > 20 ? 'Poor' : 'Critical';
+            const statusColor = l1Eff > 80 ? '#27ae60' : l1Eff > 50 ? '#f39c12' : '#e74c3c';
+            
+            analysis.innerHTML = `
+                <p><strong>L1 Cache Hit Rate:</strong> <span style="color: ${statusColor}">${l1Eff.toFixed(1)}%</span></p>
+                <p><strong>L2 Cache Efficiency:</strong> ${l2Eff.toFixed(1)}%</p>
+                <p><strong>L3 Cache Efficiency:</strong> ${l3Eff.toFixed(1)}%</p>
+                <p><strong>Per-Core Footprint:</strong> ${perCoreSize.toFixed(2)} GB</p>
+                <hr style="margin: 10px 0; opacity: 0.3;">
+                <p><strong>Cache Status:</strong> <span style="color: ${statusColor}">${cacheStatus}</span></p>
+                <p><em>Cache line alignment critical for performance</em></p>
+            `;
+        }
+        
+        function updateNUMATopology(sockets, coresPerSocket, memPerSocket, utilization) {
+            const topology = document.getElementById('numaTopology');
+            const numaStatus = utilization < 80 ? 'Optimal' : utilization < 95 ? 'Tight' : 'Oversubscribed';
+            const statusColor = utilization < 80 ? '#27ae60' : utilization < 95 ? '#f39c12' : '#e74c3c';
+            
+            topology.innerHTML = `
+                <p><strong>NUMA Sockets:</strong> ${sockets}</p>
+                <p><strong>Cores/Socket:</strong> ${coresPerSocket}</p>
+                <p><strong>Memory/Socket:</strong> ${memPerSocket.toFixed(0)} GB</p>
+                <p><strong>Socket Utilization:</strong> <span style="color: ${statusColor}">${utilization.toFixed(1)}%</span></p>
+                <hr style="margin: 10px 0; opacity: 0.3;">
+                <p><strong>NUMA Status:</strong> <span style="color: ${statusColor}">${numaStatus}</span></p>
+                <p><em>Bind threads to NUMA nodes for locality</em></p>
+            `;
+        }
+        
+        function updateBandwidthAnalysis(effective, peak, cores) {
+            const bandwidth = document.getElementById('bandwidthAnalysis');
+            const efficiency = (effective / peak) * 100;
+            const bandwidthPerCore = effective / cores;
+            
+            bandwidth.innerHTML = `
+                <p><strong>Effective Bandwidth:</strong> ${effective.toFixed(0)} GB/s</p>
+                <p><strong>Peak DRAM Bandwidth:</strong> ${peak} GB/s</p>
+                <p><strong>Bandwidth Efficiency:</strong> ${efficiency.toFixed(1)}%</p>
+                <p><strong>Bandwidth/Core:</strong> ${bandwidthPerCore.toFixed(2)} GB/s</p>
+                <hr style="margin: 10px 0; opacity: 0.3;">
+                <p><em>Cache hits reduce DRAM pressure</em></p>
+            `;
+        }
+        
+        function updateMemoryBreakdown(components) {
+            const tbody = document.getElementById('memoryBreakdown');
+            tbody.innerHTML = '';
+            
+            const cacheLineSize = 64; // bytes
+            
+            // Add memory components with cache analysis
+            addCacheMemoryRow(tbody, 'Model Weights (Shared)', components.sharedWeights, 
+                'NUMA-distributed', 'Read-only, cache-friendly', 'Sequential read', 'Prefetch + NUMA bind');
+            
+            addCacheMemoryRow(tbody, 'Optimizer States (Shared)', components.sharedOptimizer,
+                'NUMA-distributed', 'Synchronized updates', 'Random write', 'Atomic operations');
+                
+            addCacheMemoryRow(tbody, 'Gradients (Shared)', components.sharedGradients,
+                'NUMA-distributed', 'Reduction target', 'Atomic accumulation', 'OpenMP reduction');
+                
+            addCacheMemoryRow(tbody, 'Activations (per core)', components.activationsPerCore,
+                'Core-local', 'L1/L2 cache resident', 'Sequential access', 'Cache line aligned');
+                
+            addCacheMemoryRow(tbody, 'Local Gradients (per core)', components.localGradientsPerCore,
+                'Core-local', 'Computation workspace', 'Write-intensive', 'SIMD vectorized');
+                
+            addCacheMemoryRow(tbody, 'Batch Data (per core)', components.batchDataPerCore,
+                'Core-local', 'Input sequences', 'Streaming read', 'DSA prefetch');
+                
+            // Total row
+            const totalRow = tbody.insertRow();
+            totalRow.className = 'total-memory';
+            totalRow.innerHTML = `
+                <td><strong>🖥️ TOTAL SYSTEM</strong></td>
+                <td><strong>${(components.sharedWeights + components.sharedOptimizer + components.sharedGradients + components.totalPerCoreMemory).toFixed(1)} GB</strong></td>
+                <td><strong>Multi-level</strong></td>
+                <td><strong>Hierarchical</strong></td>
+                <td><strong>Mixed patterns</strong></td>
+                <td><strong>Full optimization stack</strong></td>
+            `;
+        }
+        
+        function addCacheMemoryRow(tbody, name, size, alignment, placement, pattern, optimization) {
+            const row = tbody.insertRow();
+            
+            // Determine cache alignment class
+            const isAligned = size > 0.001; // Reasonable size for alignment
+            const alignmentClass = isAligned ? 'cache-aligned' : 'cache-misaligned';
+            
+            // Determine NUMA class
+            const isShared = name.includes('Shared');
+            const numaClass = isShared ? 'numa-local' : 'numa-remote';
+            
+            row.innerHTML = `
+                <td><strong>${name}</strong></td>
+                <td>${size.toFixed(3)} GB</td>
+                <td class="${alignmentClass}">${alignment}</td>
+                <td class="${numaClass}">${placement}</td>
+                <td>${pattern}</td>
+                <td>${optimization}</td>
+            `;
+        }
+        
+        function updateOptimizationRecommendations(l1Eff, l2Eff, l3Eff, numaUtil, bandwidth) {
+            const recommendations = document.getElementById('optimizationRecommendations');
+            
+            let recs = [];
+            
+            // Cache optimization recommendations
+            if (l1Eff < 50) {
+                recs.push('🔴 <strong>CRITICAL L1 Cache:</strong> Reduce per-core working set size');
+                recs.push('• Use gradient checkpointing to reduce activation memory');
+                recs.push('• Implement cache-blocking for matrix operations');
+            } else if (l1Eff < 80) {
+                recs.push('🟡 <strong>L1 Cache Optimization:</strong> Improve data locality');
+                recs.push('• Reorganize data structures for better cache line utilization');
+                recs.push('• Use loop tiling for better temporal locality');
+            } else {
+                recs.push('🟢 <strong>L1 Cache:</strong> Excellent efficiency');
+            }
+            
+            // NUMA recommendations
+            if (numaUtil > 95) {
+                recs.push('🔴 <strong>NUMA Oversubscription:</strong> Reduce memory per socket');
+                recs.push('• Use more sockets or reduce model size');
+            } else if (numaUtil > 80) {
+                recs.push('🟡 <strong>NUMA Optimization:</strong> Careful memory placement');
+                recs.push('• Use `numa_alloc_onnode()` for socket-local allocation');
+                recs.push('• Bind OpenMP threads to NUMA domains');
+            } else {
+                recs.push('🟢 <strong>NUMA:</strong> Good balance across sockets');
+            }
+            
+            // Technical implementation details
+            recs.push('<hr>');
+            recs.push('<strong>🛠️ Implementation Priorities:</strong>');
+            
+            if (bandwidth < 200) {
+                recs.push('• <strong>HIGH:</strong> Implement DSA for memory copy operations');
+                recs.push('• <strong>HIGH:</strong> Use AVX-512 for gradient accumulation');
+            }
+            
+            recs.push('• <strong>MEDIUM:</strong> Cache-line padding for shared variables');
+            recs.push('• <strong>MEDIUM:</strong> False sharing prevention in gradient arrays');
+            recs.push('• <strong>LOW:</strong> Prefetch instructions for next iteration data');
+            
+            recs.push('<hr>');
+            recs.push('<strong>📏 Memory Layout Guidelines:</strong>');
+            recs.push('• Align all major arrays to 64-byte boundaries');
+            recs.push('• Separate read-only and read-write data structures');
+            recs.push('• Use memory pools to avoid fragmentation');
+            recs.push('• Implement custom allocators for hot paths');
+            
+            recommendations.innerHTML = recs.map(rec => `<p>${rec}</p>`).join('');
+        }
+        
+        // Event listeners
+        ['modelSize', 'totalMemory', 'numSockets', 'coresPerSocket', 'batchPerCore', 'seqLength', 'precision', 'optimizer'].forEach(id => {
+            document.getElementById(id).addEventListener('input', calculateMemoryRequirements);
+        });
+        
+        // Initial calculation
+        calculateMemoryRequirements();
+    </script>
+</body>
+</html>

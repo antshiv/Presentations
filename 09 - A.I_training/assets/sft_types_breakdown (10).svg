@@ -1,0 +1,241 @@
+<svg viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg">
+  <!-- Styles with sft- prefix to avoid conflicts -->
+  <defs>
+    <style>
+      .sft-background { fill: #1a1a2e; }
+      .sft-title { fill: #ffffff; font-size: 28px; font-weight: bold; text-anchor: middle; }
+      .sft-subtitle { fill: #aaaaaa; font-size: 16px; text-anchor: middle; }
+      .sft-section-bg { fill: #2d2d44; stroke: #4a4a6a; stroke-width: 2; }
+      .sft-type-title { fill: #ffffff; font-size: 16px; font-weight: bold; text-anchor: middle; }
+      .sft-instruction-bg { fill: #4ECDC4; }
+      .sft-task-bg { fill: #45B7D1; }
+      .sft-conversation-bg { fill: #96CEB4; }
+      .sft-code-bg { fill: #FECA57; }
+      .sft-multimodal-bg { fill: #FF9FF3; }
+      .sft-text { fill: #ffffff; font-size: 12px; }
+      .sft-subtext { fill: #cccccc; font-size: 11px; }
+      .sft-example-bg { fill: #3d3d5c; stroke: #6a6a8a; stroke-width: 1; }
+      .sft-input-text { fill: #ffeb3b; font-size: 10px; font-style: italic; }
+      .sft-output-text { fill: #4CAF50; font-size: 10px; }
+      .sft-dataset-text { fill: #ff9800; font-size: 11px; font-weight: bold; }
+      .sft-use-case-text { fill: #45B7D1; font-size: 11px; }
+      .sft-challenge-text { fill: #ff6b6b; font-size: 11px; }
+    </style>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1400" height="900" class="sft-background"/>
+  
+  <!-- Main Title -->
+  <text x="700" y="40" class="sft-title">Types of Supervised Fine-Tuning for LLMs</text>
+  <text x="700" y="65" class="sft-subtitle">Different approaches to teach language models specific behaviors</text>
+  
+  <!-- Type 1: Instruction Following -->
+  <g transform="translate(50, 100)">
+    <rect x="0" y="0" width="400" height="200" class="sft-section-bg" rx="10"/>
+    <rect x="10" y="10" width="380" height="30" class="sft-instruction-bg" rx="5"/>
+    <text x="200" y="30" class="sft-type-title">INSTRUCTION FOLLOWING SFT</text>
+    
+    <!-- Description -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="sft-text">Purpose: Teach basic instruction compliance</text>
+      <text x="0" y="35" class="sft-dataset-text">Common Datasets:</text>
+      <text x="0" y="50" class="sft-subtext">• Alpaca (52K instruction-response pairs)</text>
+      <text x="0" y="65" class="sft-subtext">• Dolly (15K human-generated examples)</text>
+      <text x="0" y="80" class="sft-subtext">• Self-Instruct (synthetic data generation)</text>
+      
+      <text x="0" y="105" class="sft-use-case-text">Use Cases:</text>
+      <text x="0" y="120" class="sft-subtext">• General-purpose assistants</text>
+      <text x="0" y="135" class="sft-subtext">• Question answering systems</text>
+      <text x="0" y="150" class="sft-subtext">• Basic chatbots</text>
+    </g>
+  </g>
+  
+  <!-- Example for Instruction Following -->
+  <g transform="translate(470, 120)">
+    <rect x="0" y="0" width="320" height="120" class="sft-example-bg" rx="5"/>
+    <text x="160" y="15" class="sft-type-title">Example</text>
+    <text x="10" y="35" class="sft-input-text">Input: "List 3 benefits of exercise"</text>
+    <text x="10" y="50" class="sft-output-text">Output: "1. Improves cardiovascular health</text>
+    <text x="10" y="65" class="sft-output-text">2. Enhances mental well-being</text>
+    <text x="10" y="80" class="sft-output-text">3. Increases muscle strength"</text>
+    <text x="10" y="100" class="sft-text">Simple, direct instruction following</text>
+  </g>
+  
+  <!-- Type 2: Task-Specific -->
+  <g transform="translate(50, 320)">
+    <rect x="0" y="0" width="400" height="200" class="sft-section-bg" rx="10"/>
+    <rect x="10" y="10" width="380" height="30" class="sft-task-bg" rx="5"/>
+    <text x="200" y="30" class="sft-type-title">TASK-SPECIFIC SFT</text>
+    
+    <!-- Description -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="sft-text">Purpose: Optimize for specific domains</text>
+      <text x="0" y="35" class="sft-dataset-text">Domain Examples:</text>
+      <text x="0" y="50" class="sft-subtext">• Medical: PubMed and clinical notes</text>
+      <text x="0" y="65" class="sft-subtext">• Legal: Legal documents and case law</text>
+      <text x="0" y="80" class="sft-subtext">• SQL: Natural language to SQL queries</text>
+      <text x="0" y="95" class="sft-subtext">• Scientific: Research papers and Q and A</text>
+      
+      <text x="0" y="120" class="sft-use-case-text">Use Cases:</text>
+      <text x="0" y="135" class="sft-subtext">• Domain-specific assistants</text>
+      <text x="0" y="150" class="sft-subtext">• Specialized query systems</text>
+    </g>
+  </g>
+  
+  <!-- Example for Task-Specific -->
+  <g transform="translate(470, 340)">
+    <rect x="0" y="0" width="320" height="120" class="sft-example-bg" rx="5"/>
+    <text x="160" y="15" class="sft-type-title">SQL Example</text>
+    <text x="10" y="35" class="sft-input-text">Input: "Show customers with orders over $1000"</text>
+    <text x="10" y="50" class="sft-output-text">Output: "SELECT c.name FROM customers c</text>
+    <text x="10" y="65" class="sft-output-text">JOIN orders o ON c.id = o.customer_id</text>
+        <text x="10" y="80" class="sft-output-text">WHERE o.amount &gt; 1000;"</text>
+    <text x="10" y="100" class="sft-text">Domain-specific expertise</text>
+  </g>
+  
+  <!-- Type 3: Conversational -->
+  <g transform="translate(820, 100)">
+    <rect x="0" y="0" width="400" height="200" class="sft-section-bg" rx="10"/>
+    <rect x="10" y="10" width="380" height="30" class="sft-conversation-bg" rx="5"/>
+    <text x="200" y="30" class="sft-type-title">CONVERSATIONAL SFT</text>
+    
+    <!-- Description -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="sft-text">Purpose: Multi-turn dialogue capability</text>
+      <text x="0" y="35" class="sft-dataset-text">Common Datasets:</text>
+      <text x="0" y="50" class="sft-subtext">• PersonaChat (personality-based dialogues)</text>
+      <text x="0" y="65" class="sft-subtext">• BlendedSkillTalk (multi-skill conversations)</text>
+      <text x="0" y="80" class="sft-subtext">• DialoGPT training data</text>
+      <text x="0" y="95" class="sft-subtext">• Custom conversation logs</text>
+      
+      <text x="0" y="120" class="sft-use-case-text">Use Cases:</text>
+      <text x="0" y="135" class="sft-subtext">• Customer service bots</text>
+      <text x="0" y="150" class="sft-subtext">• Personal assistants</text>
+      <text x="0" y="165" class="sft-subtext">• Interactive tutoring systems</text>
+    </g>
+  </g>
+  
+  <!-- Example for Conversational -->
+  <g transform="translate(1040, 120)">
+    <rect x="0" y="0" width="320" height="120" class="sft-example-bg" rx="5"/>
+    <text x="160" y="15" class="sft-type-title">Dialogue Example</text>
+    <text x="10" y="35" class="sft-input-text">User: "I'm stressed about work"</text>
+    <text x="10" y="50" class="sft-output-text">Bot: "I understand. What specifically</text>
+    <text x="10" y="65" class="sft-output-text">is causing you stress?"</text>
+    <text x="10" y="80" class="sft-input-text">User: "Too many deadlines"</text>
+    <text x="10" y="95" class="sft-output-text">Bot: "Let's break down your tasks..."</text>
+  </g>
+  
+  <!-- Type 4: Code Generation -->
+  <g transform="translate(820, 320)">
+    <rect x="0" y="0" width="400" height="200" class="sft-section-bg" rx="10"/>
+    <rect x="10" y="10" width="380" height="30" class="sft-code-bg" rx="5"/>
+    <text x="200" y="30" class="sft-type-title">CODE GENERATION SFT</text>
+    
+    <!-- Description -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="sft-text">Purpose: Programming assistance</text>
+      <text x="0" y="35" class="sft-dataset-text">Common Datasets:</text>
+      <text x="0" y="50" class="sft-subtext">• HumanEval (Python problems)</text>
+      <text x="0" y="65" class="sft-subtext">• CodeContests (competitive programming)</text>
+      <text x="0" y="80" class="sft-subtext">• GitHub code and docstrings</text>
+      <text x="0" y="95" class="sft-subtext">• Stack Overflow Q and A</text>
+      
+      <text x="0" y="120" class="sft-use-case-text">Use Cases:</text>
+      <text x="0" y="135" class="sft-subtext">• Code completion (GitHub Copilot)</text>
+      <text x="0" y="150" class="sft-subtext">• Programming tutors</text>
+      <text x="0" y="165" class="sft-subtext">• Code explanation tools</text>
+    </g>
+  </g>
+  
+  <!-- Example for Code Generation -->
+  <g transform="translate(1040, 340)">
+    <rect x="0" y="0" width="320" height="120" class="sft-example-bg" rx="5"/>
+    <text x="160" y="15" class="sft-type-title">Code Example</text>
+    <text x="10" y="35" class="sft-input-text">Input: "Sort a list in Python"</text>
+    <text x="10" y="50" class="sft-output-text">Output: "def sort_list(lst):</text>
+    <text x="10" y="65" class="sft-output-text">    return sorted(lst)</text>
+    <text x="10" y="80" class="sft-output-text"># Example: sort_list([3,1,2]) returns [1,2,3]"</text>
+    <text x="10" y="100" class="sft-text">Code and explanation</text>
+  </g>
+  
+  <!-- Type 5: Multimodal (if space allows) -->
+  <g transform="translate(50, 540)">
+    <rect x="0" y="0" width="400" height="150" class="sft-section-bg" rx="10"/>
+    <rect x="10" y="10" width="380" height="30" class="sft-multimodal-bg" rx="5"/>
+    <text x="200" y="30" class="sft-type-title">MULTIMODAL SFT</text>
+    
+    <!-- Description -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="sft-text">Purpose: Vision + language tasks</text>
+      <text x="0" y="35" class="sft-dataset-text">Common Datasets:</text>
+      <text x="0" y="50" class="sft-subtext">• LLaVA (image and instruction pairs)</text>
+      <text x="0" y="65" class="sft-subtext">• InstructBLIP (visual instruction following)</text>
+      
+      <text x="0" y="90" class="sft-use-case-text">Use Cases: Image description, visual Q and A</text>
+    </g>
+  </g>
+  
+  <!-- Comparison Table -->
+  <g transform="translate(470, 540)">
+    <rect x="0" y="0" width="880" height="200" class="sft-section-bg" rx="10"/>
+    <text x="440" y="25" class="sft-type-title">SFT Type Comparison</text>
+    
+    <!-- Table headers -->
+    <g transform="translate(20, 50)">
+      <text x="0" y="15" class="sft-text">Type</text>
+      <text x="150" y="15" class="sft-text">Data Size</text>
+      <text x="280" y="15" class="sft-text">Training Time</text>
+      <text x="420" y="15" class="sft-text">Complexity</text>
+      <text x="550" y="15" class="sft-text">Best For</text>
+      
+      <!-- Instruction Following -->
+      <text x="0" y="35" class="sft-subtext">Instruction</text>
+      <text x="150" y="35" class="sft-subtext">10K-100K examples</text>
+      <text x="280" y="35" class="sft-subtext">Hours to days</text>
+      <text x="420" y="35" class="sft-subtext">Low</text>
+      <text x="550" y="35" class="sft-subtext">General assistants</text>
+      
+      <!-- Task-Specific -->
+      <text x="0" y="55" class="sft-subtext">Task-Specific</text>
+      <text x="150" y="55" class="sft-subtext">1K-50K examples</text>
+      <text x="280" y="55" class="sft-subtext">Hours</text>
+      <text x="420" y="55" class="sft-subtext">Medium</text>
+      <text x="550" y="55" class="sft-subtext">Domain experts</text>
+      
+      <!-- Conversational -->
+      <text x="0" y="75" class="sft-subtext">Conversational</text>
+      <text x="150" y="75" class="sft-subtext">50K and dialogues</text>
+      <text x="280" y="75" class="sft-subtext">Days</text>
+      <text x="420" y="75" class="sft-subtext">Medium</text>
+      <text x="550" y="75" class="sft-subtext">Chatbots</text>
+      
+      <!-- Code Generation -->
+      <text x="0" y="95" class="sft-subtext">Code Generation</text>
+      <text x="150" y="95" class="sft-subtext">100K and examples</text>
+      <text x="280" y="95" class="sft-subtext">Days</text>
+      <text x="420" y="95" class="sft-subtext">High</text>
+      <text x="550" y="95" class="sft-subtext">Programming tools</text>
+      
+      <!-- Multimodal -->
+      <text x="0" y="115" class="sft-subtext">Multimodal</text>
+      <text x="150" y="115" class="sft-subtext">100K and image-text</text>
+      <text x="280" y="115" class="sft-subtext">Days to weeks</text>
+      <text x="420" y="115" class="sft-subtext">Very High</text>
+      <text x="550" y="115" class="sft-subtext">Vision applications</text>
+    </g>
+    
+    <!-- Key considerations -->
+    <g transform="translate(20, 180)">
+      <text x="0" y="0" class="sft-challenge-text">Key Consideration: Quality over quantity - 1K high-quality examples often outperform 10K low-quality ones</text>
+    </g>
+  </g>
+  
+  <!-- Bottom Summary -->
+  <g transform="translate(50, 760)">
+    <rect x="0" y="0" width="1300" height="60" class="sft-example-bg" rx="10"/>
+    <text x="650" y="25" class="sft-type-title">SFT Strategy</text>
+    <text x="650" y="45" class="sft-subtitle">Choose SFT type based on your target application: general vs specialized, single-turn vs conversational, text vs multimodal</text>
+  </g>
+</svg>

@@ -1,0 +1,2965 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+
+	<title>LLM Parallel Processing Memory</title>
+
+	<meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+	<meta name="author" content="Hakim El Hattab">
+
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<link rel="stylesheet" href="../reveal.js/dist/reset.css">
+	<link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+	<link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+	<!-- Theme used for syntax highlighting of code -->
+	<link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+	<link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+	<div class="reveal">
+
+		<!-- Any section element inside of this container is displayed as a slide -->
+		<div class="slides">
+			<section>
+				<aside class="notes">
+					If you’ve written GPU code before, you already know that memory layout and parallelism go hand in
+					hand.
+					We’re going to apply that same rigor—but this time on the CPU.
+
+					<br><br>
+
+					Why does this matter?
+					Because if you want to train a transformer like GPT-2 on a CPU with 32 cores, memory layout isn't
+					just important—it’s everything.
+
+					<br><br>
+
+					In this video we’ll answer:
+
+					<br>
+					• Why our previous layout—designed for one core—stalls under multi-threaded execution.
+					• How Karpathy’s <code>train_gpt2.c</code> handles memory access—and where that breaks down for HPC.
+					• What a cache-line aware, bump-allocated, parallel-first layout really looks like.
+
+					<br><br>
+
+					We’ll even demo what happens when you <code>mmap</code> and align a model at 410 GiB and run it
+					across cores.
+
+					<br><br>
+
+					By the end, you’ll know how to design memory so 32 cores can run full speed—without stepping on each
+					other.
+				</aside>
+
+				<h1>The
+					<span class="gradient">CPU AI: SCALING</span>
+				</h1>
+				<h5>
+					Optimizing LLMs with Bump Allocation, Cache-Line Alignment, and Parallel Scaling
+				</h5>
+				<p>
+					<small>Created by <a href="http://shivasnotes.com">Anthony Shivakumar</a> and <a
+							href="https://antshiv.com">ANTSHIV ROBOTICS</a></small>
+				</p>
+			</section>
+			<section>
+<aside class="notes">
+  <p>In the last video, we established our high-level strategy: one single, contiguous memory block for our entire model.</p>
+  <p>So, the next logical question is: how do we actually find our data inside that massive, multi-gigabyte block?</p>
+  <p>This is where our blueprint comes in: the <code>TrulyOptimalLayer</code> struct.</p>
+  <br>
+  <p>If you look closely, you’ll notice something unusual: this struct doesn’t contain any float pointers to the actual data.</p>
+  <p>Instead, every single variable is a <code>size_t</code>. Each one is just an integer offset into that memory block.</p>
+  <p>Think of our model memory as a giant unmarked warehouse. This struct is the floor plan.</p>
+  <p>It tells a CPU core: <em>“The LayerNorm weights start 1,024 bytes in.”</em> or <em>“The QKV output buffer starts 50,000 bytes in.”</em></p>
+  <br>
+  <p>And here’s the core design insight: we’re replacing expensive pointer chasing with simple, predictable arithmetic.</p>
+  <p>Accessing any tensor becomes: <code>memory_base + layer_offset + tensor_offset</code>.</p>
+  <p>It’s fast. It’s cache-friendly. And it completely sidesteps many of the pitfalls that plague dynamic allocation.</p>
+  <p>As we’ll see next, our bump() allocator’s job is to fill out this blueprint—ensuring every single offset is correct, and more importantly, cache-aligned.</p>
+
+  <p><strong>(Next Fragment: TransformerModel struct)</strong> Next is the main `TransformerModel` struct. This is the central controller. It holds the hyperparameters, the pointer to our table of layer offsets, and most importantly, the single `float* memory_base` which will point to our massive, contiguous memory arena.</p>
+  
+  <p><strong>(Next Fragment: align_up helper)</strong> Now for the small but crucial helper functions. First is `align_up`. This is the fast, bitwise function we broke down earlier. Its only job is to take a number and round it up to the next 64-byte boundary.</p>
+  
+  <p><strong>(Next Fragment: huge_alloc helper)</strong> Then we have our specialized `huge_alloc` function. This is what makes our design TLB-efficient. It first attempts to get memory directly from the kernel's reserved huge page pool and, if that fails, falls back to a standard aligned allocation while giving the kernel a hint to use Transparent Huge Pages.</p>
+  
+  <p><strong>(Next Fragment: bump helper)</strong> And here is the engine of our layout strategy: the `bump` allocator. It uses `align_up` to take the current memory offset, align it, and then 'bumps' it forward by the size of the tensor we're placing. This simple function builds our entire memory map.</p>
+  
+  <p><strong>(Next Fragment: layout_transformer function)</strong> Now, we put all the pieces together in the `layout_transformer` function. You can see the pattern clearly: we initialize an offset to zero, and then for every single tensor, we call `bump()` to get the next aligned position. Only after every offset has been calculated do we make the single call to `huge_alloc` at the very end.</p>
+  
+  <p><strong>(Next Fragment: main function)</strong> Finally, the `main` function wraps everything in a practical command-line tool. This allows us to do a 'dry run' to calculate memory needs and includes a `--force` flag to perform the actual allocation. So, let's see what happens when we run this for a large model...</p>
+</aside>
+
+				<pre data-id="code-animation"><code class="hljs c" data-trim data-line-numbers="41-53 | 54-73 |  24|27-39| 76-82 | 85 - 143 |  185-245 ">
+/***********************************************************************
+ *  SINGLE-BLOCK, CACHE-ALIGNED GPT-2 LAYOUT  (pure C demo)
+ *  ---------------------------------------------------------------
+ *  • one huge allocation for ALL weights + activations
+ *  • 64-byte alignment for every tensor
+ *  • 2 MB huge-page backing for minimal TLB misses
+ *  • bump() = zero-fragmentation offset math
+ ***********************************************************************/
+
+#define _GNU_SOURCE
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/mman.h>      /* MAP_HUGETLB / munmap */
+#include <unistd.h>
+
+/* ─── alignment targets ───────────────────────────────────────────── */
+#define CACHE_ALIGN   64ULL
+#define HUGE_ALIGN    (2ULL * 1024 * 1024)   /* 2 MB huge page */
+
+/* ─── tiny helpers ────────────────────────────────────────────────── */
+static inline size_t align_up(size_t n, size_t a) { return (n + a - 1) & ~(a - 1); }
+
+/* best-effort huge-page allocator (falls back to THP) */
+static void *huge_alloc(size_t bytes)
+{
+    size_t len = align_up(bytes, HUGE_ALIGN);
+    void *p = mmap(NULL, len, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+    if (p != MAP_FAILED) return p;                    /* explicit huge page ok  */
+
+    /* fallback: page-aligned malloc + THP */
+    p = aligned_alloc(HUGE_ALIGN, len);
+    if (!p) { perror("aligned_alloc"); exit(EXIT_FAILURE); }
+    madvise(p, len, MADV_HUGEPAGE);
+    return p;
+}
+
+/* ─── model structs ───────────────────────────────────────────────── */
+typedef struct {
+    size_t token_emb_offset, pos_emb_offset, embedded_input_offset;
+    size_t ln1_weight_offset, ln1_bias_offset;
+    size_t layer_input_offset, ln1_output_offset;
+    size_t qkv_weight_offset,  qkv_bias_offset,  qkv_output_offset;
+    size_t proj_weight_offset, proj_bias_offset;
+    size_t attention_output_offset, residual1_output_offset;
+    size_t ln2_weight_offset, ln2_bias_offset, ln2_output_offset;
+    size_t fc1_weight_offset, fc1_bias_offset;
+    size_t fc2_weight_offset, fc2_bias_offset;
+    size_t mlp_output_offset,  residual2_output_offset;
+} TrulyOptimalLayer;
+
+typedef struct {
+    /* hyper-parameters */
+    int num_layers, vocab_size, embed_dim, context_window;
+
+    /* single block */
+    float  *memory_base;
+    size_t  total_floats;
+    size_t  layer_stride;
+
+    /* top-level offsets */
+    size_t token_emb_offset, pos_emb_offset, embedded_input_offset;
+    size_t layers_start_offset;
+
+    /* per-layer table */
+    TrulyOptimalLayer *layers;
+
+    /* final LN */
+    size_t final_ln_weight_offset, final_ln_bias_offset;
+} TransformerModel;
+
+/* bump(): round cursor up, return aligned start, advance cursor */
+static inline size_t bump(size_t *off, size_t count, size_t alignB)
+{
+    *off = align_up(*off, alignB / sizeof(float));         /* align in floats */
+    size_t here = *off;
+    *off += count;
+    return here;
+}
+
+/* ─── lay out the entire model ───────────────────────────────────── */
+void layout_transformer(TransformerModel *M)
+{
+    size_t off = 0;                                        /* cursor in floats */
+
+    /* embeddings */
+    M->token_emb_offset      = bump(&off, (size_t)M->vocab_size   * M->embed_dim, CACHE_ALIGN);
+    M->pos_emb_offset        = bump(&off, (size_t)M->context_window * M->embed_dim, CACHE_ALIGN);
+    M->embedded_input_offset = bump(&off, (size_t)M->context_window * M->embed_dim, CACHE_ALIGN);
+
+    /* per-layer */
+    M->layers_start_offset = off;
+    M->layers = malloc(sizeof(TrulyOptimalLayer) * M->num_layers);
+    if (!M->layers) { perror("malloc layers"); exit(EXIT_FAILURE); }
+
+    for (int l = 0; l < M->num_layers; ++l) {
+        TrulyOptimalLayer *L = &M->layers[l];
+
+        L->ln1_weight_offset  = bump(&off, M->embed_dim, CACHE_ALIGN);
+        L->ln1_bias_offset    = bump(&off, M->embed_dim, CACHE_ALIGN);
+
+        L->layer_input_offset = bump(&off, (size_t)M->context_window * M->embed_dim, CACHE_ALIGN);
+        L->ln1_output_offset  = bump(&off, (size_t)M->context_window * M->embed_dim, CACHE_ALIGN);
+
+        L->qkv_weight_offset  = bump(&off, 3ULL * M->embed_dim * M->embed_dim, CACHE_ALIGN);
+        L->qkv_bias_offset    = bump(&off, 3ULL * M->embed_dim, CACHE_ALIGN);
+        L->qkv_output_offset  = bump(&off, 3ULL * (size_t)M->context_window * M->embed_dim,
+                                     CACHE_ALIGN);
+
+        L->proj_weight_offset = bump(&off, M->embed_dim * M->embed_dim, CACHE_ALIGN);
+        L->proj_bias_offset   = bump(&off, M->embed_dim, CACHE_ALIGN);
+        L->attention_output_offset =
+            bump(&off, (size_t)M->context_window * M->embed_dim, CACHE_ALIGN);
+        L->residual1_output_offset =
+            bump(&off, (size_t)M->context_window * M->embed_dim, CACHE_ALIGN);
+
+        L->ln2_weight_offset  = bump(&off, M->embed_dim, CACHE_ALIGN);
+        L->ln2_bias_offset    = bump(&off, M->embed_dim, CACHE_ALIGN);
+        L->ln2_output_offset  = bump(&off, (size_t)M->context_window * M->embed_dim, CACHE_ALIGN);
+
+        L->fc1_weight_offset  = bump(&off, 4ULL * M->embed_dim * M->embed_dim, CACHE_ALIGN);
+        L->fc1_bias_offset    = bump(&off, 4ULL * M->embed_dim, CACHE_ALIGN);
+        L->fc2_weight_offset  = bump(&off, 4ULL * M->embed_dim * M->embed_dim, CACHE_ALIGN);
+        L->fc2_bias_offset    = bump(&off, M->embed_dim, CACHE_ALIGN);
+        L->mlp_output_offset  = bump(&off, (size_t)M->context_window * M->embed_dim, CACHE_ALIGN);
+        L->residual2_output_offset =
+            bump(&off, (size_t)M->context_window * M->embed_dim, CACHE_ALIGN);
+    }
+
+    M->layer_stride =
+        M->layers[1].ln1_weight_offset - M->layers[0].ln1_weight_offset;
+
+    /* final LN */
+    M->final_ln_weight_offset = bump(&off, M->embed_dim, CACHE_ALIGN);
+    M->final_ln_bias_offset   = bump(&off, M->embed_dim, CACHE_ALIGN);
+
+    /* allocate once */
+    M->total_floats = off;
+    M->memory_base  = huge_alloc(off * sizeof(float));
+}
+
+/* ─── destruction helper ─────────────────────────────────────────── */
+void destroy_transformer(TransformerModel *M)
+{
+    munmap(M->memory_base, align_up(M->total_floats * sizeof(float), HUGE_ALIGN));
+    free(M->layers);
+}
+
+/* gpt2_layout_capacity.c – same includes & structs as before … */
+
+#include <getopt.h>      /* for long-options parsing */
+
+/* ------------- new function: size_t bytes_needed(...) --------------- */
+static size_t bytes_needed(int layers, int vocab, int d_model, int ctx)
+{
+    size_t C  = d_model;
+    size_t T  = ctx;
+    size_t V  = vocab;
+
+    /* embeddings */
+    size_t token  = V * C;
+    size_t pos    = T * C;
+    size_t embed  = T * C;
+
+    /* per-layer working size (same as bump logic) */
+    size_t perL =
+        /* ln1 W+B */        2 * C +
+        /* ln1 in+out */     2 * T * C +
+        /* QKV W+B+out */    (3*C*C + 3*C + 3*T*C) +
+        /* proj W+B+out+res1*/(C*C + C + 2*T*C) +
+        /* ln2 W+B+out */    (2*C + T*C) +
+        /* fc1/fc2 W+B */    (8*C*C + 5*C) +
+        /* mlp_out + res2 */ (2*T*C);
+
+    size_t final_ln = 2 * C;
+
+    size_t total_floats = token + pos + embed + layers * perL + final_ln;
+    return total_floats * sizeof(float);   /* bytes */
+}
+
+/* ---------------- main with --size-only / --force -------------------- */
+int main(int argc, char **argv)
+{
+    /* defaults (tiny) */
+    int L = 2, V = 32768, C = 128, T = 128;
+    int do_alloc = 0;
+
+    static struct option long_opts[] = {
+        {"layers",  required_argument, 0, 'l'},
+        {"dmodel",  required_argument, 0, 'd'},
+        {"ctx",     required_argument, 0, 't'},
+        {"vocab",   required_argument, 0, 'v'},
+        {"force",   no_argument,       0, 'f'},
+        {0,0,0,0}
+    };
+    int c;
+    while ((c = getopt_long(argc, argv, "l:d:t:v:f", long_opts, NULL)) != -1) {
+        switch (c) {
+            case 'l': L = atoi(optarg); break;
+            case 'd': C = atoi(optarg); break;
+            case 't': T = atoi(optarg); break;
+            case 'v': V = atoi(optarg); break;
+            case 'f': do_alloc = 1;     break;
+            default:  fprintf(stderr,"Usage: %s [--layers N] [--dmodel N] [--ctx N] [--vocab N] [--force]\n", argv[0]); return 1;
+        }
+    }
+
+    size_t need_bytes = bytes_needed(L, V, C, T);
+    double need_gib   = need_bytes / (1024.0*1024.0*1024.0);
+
+    printf("⚙  Requested model  L=%d  d_model=%d  ctx=%d  vocab=%d\n", L,C,T,V);
+    printf("→ Would need ≈ %.2f GiB (%.0f bytes)\n",
+           need_gib, (double)need_bytes);
+
+    if (!do_alloc) {
+        printf("Dry-run only (no allocation).   Pass --force to allocate.\n");
+        return 0;
+    }
+
+    /* ---------- try allocation ---------- */
+    TransformerModel M = {0};
+    M.num_layers = L; M.vocab_size = V; M.embed_dim = C; M.context_window = T;
+
+    /* sanity: if system RAM < need_bytes, warn */
+    long pages = sysconf(_SC_PHYS_PAGES);
+    long page  = sysconf(_SC_PAGE_SIZE);
+    double sys_gib = pages * (double)page / (1024.0*1024.0*1024.0);
+
+    if (need_gib > sys_gib) {
+        fprintf(stderr,"❌ Need %.2f GiB but system has only %.2f GiB RAM. Aborting.\n",
+                need_gib, sys_gib);
+        return 1;
+    }
+
+    printf("Allocating huge block...  this may page-fault if hugepages are missing\n");
+    layout_transformer(&M);
+    printf("✅ Success!  mmap at %p, %.2f GiB reserved.\n",
+           (void*)M.memory_base, need_gib);
+
+    destroy_transformer(&M);
+    return 0;
+}
+
+				
+				</code>	</pre>
+			</section>
+			<section style="transform:scale(1.4);">
+				<aside class="notes">
+  <p>To understand how to get performance, we first need to talk about memory layout. Let's start by looking at the brilliant and simple approach used in Andrej Karpathy's llama2.c.</p>
+
+  <p><strong>(Point to the left "GOOD" side)</strong> The strategy is to allocate one single block of memory for all the model weights and access them sequentially. As you can see, this is excellent for memory management and single-threaded performance.</p>
+  
+  <p>But there's a hidden problem. Because there's no guarantee that each tensor starts on a 64-byte boundary, this simple layout creates major issues when we try to use multiple CPU cores in parallel.</p>
+  
+  <p><strong>(Point to the right "BETTER" side)</strong> The solution, which we'll be building today, is the cache-aligned approach. We keep the smart single-allocation strategy, but we add one crucial step: we ensure every single tensor is perfectly aligned to a 64-byte cache line.</p>
+
+  <p>This perfect alignment is the key that unlocks true parallel scaling and eliminates performance-killing bottlenecks like false sharing.</p>
+  
+  <p>So, what is this bottleneck? Why does the first approach cause problems? To answer that, we need to look at how a CPU actually works with memory...</p>
+</aside>
+				<svg id="a53ac948-de6c-4e14-92bb-57a803b5a5d1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg"
+					xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1600 662">
+					<defs>
+						<linearGradient id="a3f29797-9dd4-4903-9b51-bfd66040299c" x1="-158.25" y1="1141" x2="-158.25"
+							y2="1140" gradientTransform="matrix(640, 0, 0, -60, 101681, 68570)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#475569" stop-opacity="0.4" />
+							<stop offset="1" stop-color="#334155" stop-opacity="0.4" />
+						</linearGradient>
+						<linearGradient id="a672f8bc-8e36-4f47-b888-5b0617f17d85" x1="-155.76" y1="1141.5" x2="-155.76"
+							y2="1140.5" gradientTransform="matrix(58, 0, 0, -40, 9153, 45780)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#8b5cf6" />
+							<stop offset="1" stop-color="#7c3aed" />
+						</linearGradient>
+						<linearGradient id="f5c77119-b937-4042-89b0-37bbc6062784" x1="-154.71" y1="1141.5" x2="-154.71"
+							y2="1140.5" gradientTransform="matrix(42, 0, 0, -40, 6667, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="f00e1512-9c06-4df7-96ca-7e7a5e86b88c" x1="-153.96" y1="1141.5" x2="-153.96"
+							y2="1140.5" gradientTransform="matrix(35, 0, 0, -40, 5596, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="fe3fdecb-8e47-44de-bcae-179dcc3bc65f" x1="-153.96" y1="1141.5" x2="-153.96"
+							y2="1140.5" gradientTransform="matrix(35, 0, 0, -40, 5631, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="ee67b6ac-f72d-448a-9ac0-1ffb8a75163c" x1="-155.61" y1="1141.5" x2="-155.61"
+							y2="1140.5" gradientTransform="matrix(55, 0, 0, -40, 8846, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="f9a434ec-c871-4038-9a4c-ff2e07e719fa" x1="-154.32" y1="1141.5" x2="-154.32"
+							y2="1140.5" gradientTransform="matrix(38, 0, 0, -40, 6198, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<pattern id="a3435651-ed33-42ca-b897-2f160e6c6a77" data-name="conflictPattern" width="8"
+							height="8" patternTransform="matrix(1, 0, 0, -1, 7, 1076)" patternUnits="userSpaceOnUse"
+							viewBox="0 0 8 8">
+							<rect width="8" height="8" style="fill:none" />
+							<rect width="8" height="8" style="fill:#f59e0b" />
+							<path d="M0,0,8,8M-2,6l4,4M6-2l4,4" style="stroke:#fff" />
+						</pattern>
+						<linearGradient id="b00c6087-0af7-4a8e-94d6-8791c2a04738" x1="-158.47" y1="1141.21" x2="-157.47"
+							y2="1141.21" gradientTransform="matrix(300, 0, 0, -35, 47621, 40160)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#f59e0b" stop-opacity="0.9" />
+							<stop offset="1" stop-color="#d97706" stop-opacity="0.9" />
+						</linearGradient>
+						<linearGradient id="ff40c8e6-de18-4e9c-a1ff-264f8b286fd5" x1="-158.5" y1="1141.21" x2="-157.5"
+							y2="1141.21" gradientTransform="matrix(320, 0, 0, -35, 51121, 40160)"
+							xlink:href="#b00c6087-0af7-4a8e-94d6-8791c2a04738" />
+						<linearGradient id="af4a8538-cbde-4bb0-a919-acdd659e6b6c" x1="-158.25" x2="-158.25"
+							gradientTransform="matrix(640, 0, 0, -60, 102481, 68570)"
+							xlink:href="#a3f29797-9dd4-4903-9b51-bfd66040299c" />
+						<linearGradient id="ef6244ff-1908-4847-9bc7-58b30836b71e" x1="-156.02" y1="1141.5" x2="-156.02"
+							y2="1140.5" gradientTransform="matrix(64, 0, 0, -40, 10897, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="a58d5ec2-a11e-4d45-9393-36b6d846571c" x1="-156.02" y1="1141.5" x2="-156.02"
+							y2="1140.5" gradientTransform="matrix(64, 0, 0, -40, 10961, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="a60ed230-2d7a-4d55-9ab3-4509a4a411dc" x1="-156.02" y1="1141.5" x2="-156.02"
+							y2="1140.5" gradientTransform="matrix(64, 0, 0, -40, 11025, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="a873b385-2682-4822-9135-a3494b034569" x1="-156.02" y1="1141.5" x2="-156.02"
+							y2="1140.5" gradientTransform="matrix(64, 0, 0, -40, 11089, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="e80202de-b412-4821-8105-103e8eccf7d9" x1="-156.02" y1="1141.5" x2="-156.02"
+							y2="1140.5" gradientTransform="matrix(64, 0, 0, -40, 11153, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="b049c96b-921a-43e5-84bd-a55c19ea6dcf" x1="-156.02" y1="1141.5" x2="-156.02"
+							y2="1140.5" gradientTransform="matrix(64, 0, 0, -40, 11217, 45780)"
+							xlink:href="#a672f8bc-8e36-4f47-b888-5b0617f17d85" />
+						<linearGradient id="a2ad13ac-8234-438a-a896-d894fb96ac9e" x1="-157.69" y1="1141.21" x2="-156.16"
+							y2="1141.21" gradientTransform="matrix(120, 0, 0, -35, 19801, 40160)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#10b981" stop-opacity="0.9" />
+							<stop offset="1" stop-color="#059669" stop-opacity="0.9" />
+						</linearGradient>
+						<linearGradient id="b9a76f69-fa23-4b23-b42d-00a196a12e5e" x1="-157.21" y1="1141.21" x2="-156.02"
+							y2="1141.21" gradientTransform="matrix(120, 0, 0, -35, 19941, 40160)"
+							xlink:href="#a2ad13ac-8234-438a-a896-d894fb96ac9e" />
+						<linearGradient id="e193a23f-ef11-4b86-a45f-c7aae65e9c64" x1="-157.01" y1="1141.21" x2="-155.81"
+							y2="1141.21" gradientTransform="matrix(120, 0, 0, -35, 20081, 40160)"
+							xlink:href="#a2ad13ac-8234-438a-a896-d894fb96ac9e" />
+						<linearGradient id="e53bc61e-5d21-41ab-b7e2-04d8b5b04a6a" x1="-156.76" y1="1141.21" x2="-155.76"
+							y2="1141.21" gradientTransform="matrix(120, 0, 0, -35, 20221, 40160)"
+							xlink:href="#a2ad13ac-8234-438a-a896-d894fb96ac9e" />
+						<filter id="ffb2518b-22d8-4382-9ba2-1e595cf5bdbe" x="-20%" y="-20%" width="140%" height="140%"
+							name="dropShadow">
+							<feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3" />
+						</filter>
+					</defs><text transform="translate(279.12 40)"
+						style="isolation:isolate;font-size:28px;fill:#f1f5f9;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Karpathy&apos;s
+						Sequential Allocation vs Cache-Aligned Optimization</text>
+					<g class="fragment" id="b14eb887-91e9-4ef8-9c0b-12ab5926e8bd" data-name="karpathySection"><text
+							transform="translate(171.96 90)"
+							style="isolation:isolate;font-size:20px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">GOOD:
+							Karpathy&apos;s Sequential Allocation</text>
+						<rect x="80" y="110" width="640" height="60" rx="4"
+							style="stroke:#475569;stroke-width:2px;fill:url(#a3f29797-9dd4-4903-9b51-bfd66040299c)" />
+						<line x1="144" y1="110" x2="144" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="208" y1="110" x2="208" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="272" y1="110" x2="272" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="336" y1="110" x2="336" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="400" y1="110" x2="400" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="464" y1="110" x2="464" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="528" y1="110" x2="528" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="592" y1="110" x2="592" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<rect x="90" y="120" width="58" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#a672f8bc-8e36-4f47-b888-5b0617f17d85)" />
+						<text transform="translate(110 145)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">wte</text>
+						<rect x="148" y="120" width="42" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#f5c77119-b937-4042-89b0-37bbc6062784)" />
+						<text transform="translate(160 145)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">wpe</text>
+						<rect x="190" y="120" width="35" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#f00e1512-9c06-4df7-96ca-7e7a5e86b88c)" />
+						<text transform="translate(196.2 145)"
+							style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1w</text>
+						<rect x="225" y="120" width="35" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#fe3fdecb-8e47-44de-bcae-179dcc3bc65f)" />
+						<text transform="translate(231.2 145)"
+							style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1b</text>
+						<rect x="260" y="120" width="55" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#ee67b6ac-f72d-448a-9ac0-1ffb8a75163c)" />
+						<text transform="translate(276.2 145)"
+							style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">qkvw</text>
+						<rect x="315" y="120" width="38" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#f9a434ec-c871-4038-9a4c-ff2e07e719fa)" />
+						<text transform="translate(323.2 145)"
+							style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">qkvb</text><text
+							transform="translate(94 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							0</text><text transform="translate(158 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							1</text><text transform="translate(222 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							2</text><text transform="translate(286 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							3</text><text transform="translate(350 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							4</text>
+						<rect x="148" y="125" width="4" height="30"
+							style="fill:url(#a3435651-ed33-42ca-b897-2f160e6c6a77)" />
+						<rect x="190" y="125" width="4" height="30"
+							style="fill:url(#a3435651-ed33-42ca-b897-2f160e6c6a77)" />
+						<rect x="225" y="125" width="4" height="30"
+							style="fill:url(#a3435651-ed33-42ca-b897-2f160e6c6a77)" />
+						<rect x="260" y="125" width="4" height="30"
+							style="fill:url(#a3435651-ed33-42ca-b897-2f160e6c6a77)" />
+						<rect x="315" y="125" width="4" height="30"
+							style="fill:url(#a3435651-ed33-42ca-b897-2f160e6c6a77)" />
+						<rect x="80" y="200" width="300" height="35" rx="6"
+							style="stroke:#f59e0b;stroke-width:2px;fill:url(#b00c6087-0af7-4a8e-94d6-8791c2a04738)" />
+						<text transform="translate(85.98 222)"
+							style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Parallel
+							processing causes false sharing</text>
+						<rect x="400" y="200" width="320" height="35" rx="6"
+							style="stroke:#f59e0b;stroke-width:2px;fill:url(#ff40c8e6-de18-4e9c-a1ff-264f8b286fd5)" />
+						<text transform="translate(426.78 222)"
+							style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Sequential
+							but not cache-line aligned</text>
+					</g>
+					<g class="fragment" id="ab9676f7-c220-4a96-8e45-3cedb0a66eab" data-name="optimizedSection"><text
+							transform="translate(965.96 90)"
+							style="isolation:isolate;font-size:20px;fill:#10b981;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">BETTER:
+							Cache-Aligned bump() Allocation</text>
+						<rect x="880" y="110" width="640" height="60" rx="4"
+							style="stroke:#475569;stroke-width:2px;fill:url(#af4a8538-cbde-4bb0-a919-acdd659e6b6c)" />
+						<line x1="944" y1="110" x2="944" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="1008" y1="110" x2="1008" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="1072" y1="110" x2="1072" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="1136" y1="110" x2="1136" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="1200" y1="110" x2="1200" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="1264" y1="110" x2="1264" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="1328" y1="110" x2="1328" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<line x1="1392" y1="110" x2="1392" y2="170"
+							style="fill:none;stroke:#64748b;stroke-dasharray:2,2" />
+						<rect x="880" y="120" width="64" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#ef6244ff-1908-4847-9bc7-58b30836b71e)" />
+						<text transform="translate(903 145)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">wte</text>
+						<rect x="944" y="120" width="64" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#a58d5ec2-a11e-4d45-9393-36b6d846571c)" />
+						<text transform="translate(967 145)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">wpe</text>
+						<rect x="1008" y="120" width="64" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#a60ed230-2d7a-4d55-9ab3-4509a4a411dc)" />
+						<text transform="translate(1028 145)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1w</text>
+						<rect x="1072" y="120" width="64" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#a873b385-2682-4822-9135-a3494b034569)" />
+						<text transform="translate(1092 145)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1b</text>
+						<rect x="1136" y="120" width="64" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#e80202de-b412-4821-8105-103e8eccf7d9)" />
+						<text transform="translate(1156 145)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">qkvw</text>
+						<rect x="1200" y="120" width="64" height="40" rx="3"
+							style="stroke:#8b5cf6;stroke-width:2px;fill:url(#b049c96b-921a-43e5-84bd-a55c19ea6dcf)" />
+						<text transform="translate(1220 145)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">qkvb</text><text
+							transform="translate(894 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							0</text><text transform="translate(958 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							1</text><text transform="translate(1022 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							2</text><text transform="translate(1086 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							3</text><text transform="translate(1150 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							4</text><text transform="translate(1214 185)"
+							style="isolation:isolate;font-size:10px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Line
+							5</text>
+						<path
+							d="M887.2,200h165.6c5.08,0,9.2,2.69,9.2,6v23c0,3.31-4.12,6-9.2,6H887.2c-5.08,0-9.2-2.69-9.2-6V206C878,202.69,882.12,200,887.2,200Z"
+							style="stroke:#10b981;stroke-width:2px;fill:url(#a2ad13ac-8234-438a-a896-d894fb96ac9e)" />
+						<text transform="translate(883.59 222)"
+							style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Perfect
+							parallel scaling</text>
+						<path
+							d="M1083.26,200h127.65c3.92,0,7.09,2.69,7.09,6v23c0,3.31-3.17,6-7.09,6H1083.26c-3.91,0-7.09-2.69-7.09-6V206C1076.17,202.69,1079.35,200,1083.26,200Z"
+							style="stroke:#10b981;stroke-width:2px;fill:url(#b9a76f69-fa23-4b23-b42d-00a196a12e5e)" />
+						<text transform="translate(1082.27 222)"
+							style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Zero
+							false sharing</text>
+						<path
+							d="M1247.2,200h129.6c4,0,7.2,2.69,7.2,6v23c0,3.31-3.22,6-7.2,6H1247.2c-4,0-7.2-2.69-7.2-6V206C1240,202.69,1243.22,200,1247.2,200Z"
+							style="stroke:#10b981;stroke-width:2px;fill:url(#e193a23f-ef11-4b86-a45f-c7aae65e9c64)" />
+						<text transform="translate(1247.19 222)"
+							style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Cache-line
+							aligned</text>
+						<rect x="1410" y="200" width="120" height="35" rx="6"
+							style="stroke:#10b981;stroke-width:2px;fill:url(#e53bc61e-5d21-41ab-b7e2-04d8b5b04a6a)" />
+						<text transform="translate(1419.59 222)"
+							style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Linear
+							speedup</text>
+					</g>
+					<g class="fragment" id="b8e87331-2ab5-4dc8-ab96-6eaadbbab4f1" data-name="performanceSection">
+						<g class="fragment" style="filter:url(#ffb2518b-22d8-4382-9ba2-1e595cf5bdbe)">
+							<path
+								d="M92.64,280h648.6c7,0,12.63,7.38,12.63,16.49V401c0,9.11-5.65,16.5-12.63,16.5H92.64c-7,0-12.64-7.39-12.64-16.5V296.49C80,287.38,85.66,280,92.64,280Z"
+								style="fill:#1e293b" />
+							<path
+								d="M92.64,280h648.6c7,0,12.63,7.38,12.63,16.49V401c0,9.11-5.65,16.5-12.63,16.5H92.64c-7,0-12.64-7.39-12.64-16.5V296.49C80,287.38,85.66,280,92.64,280Z"
+								style="fill:none;stroke:#f59e0b;stroke-width:2px" />
+						</g><text transform="translate(284.78 305)"
+							style="isolation:isolate;font-size:22px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Sequential
+							Layout Issues</text><text transform="translate(100 339)"
+							style="isolation:isolate;font-size:17px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">•
+							Single allocation <tspan x="204.03" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">
+								✓</tspan>
+							<tspan x="212.53" y="0" xml:space="preserve"> (Good for memory management)</tspan>
+						</text><text transform="translate(100 369.5)"
+							style="isolation:isolate;font-size:17px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">•
+							Sequential access <tspan x="204.03" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">
+								✓</tspan>
+							<tspan x="212.53" y="0" xml:space="preserve"> (Good for single-threaded performance)</tspan>
+						</text><text transform="translate(100 400)"
+							style="isolation:isolate;font-size:17px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">•
+							No cache alignment <tspan x="214.23" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✗</tspan>
+							<tspan x="222.73" y="0" xml:space="preserve"> (Parallel processing suffers)</tspan>
+						</text>
+						<g class="fragment" style="filter:url(#ffb2518b-22d8-4382-9ba2-1e595cf5bdbe)">
+							<path
+								d="M892.72,280h652.72c7,0,12.71,7.38,12.71,16.49V401c0,9.11-5.69,16.5-12.71,16.5H892.72c-7,0-12.72-7.39-12.72-16.5V296.49C880,287.38,885.69,280,892.72,280Z"
+								style="fill:#1e293b" />
+							<path
+								d="M892.72,280h652.72c7,0,12.71,7.38,12.71,16.49V401c0,9.11-5.69,16.5-12.71,16.5H892.72c-7,0-12.72-7.39-12.72-16.5V296.49C880,287.38,885.69,280,892.72,280Z"
+								style="fill:none;stroke:#10b981;stroke-width:2px" />
+						</g><text transform="translate(1094.38 305)"
+							style="isolation:isolate;font-size:22px;fill:#10b981;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Cache-Aligned
+							Benefits</text><text transform="translate(900 339)"
+							style="font-size:17px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Single
+							allocation <tspan x="204.03" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">✓
+							</tspan>
+							<tspan x="212.53" y="0" xml:space="preserve"> (Inherits Karpathy&apos;s benefits)</tspan>
+						</text><text transform="translate(900 371.1)"
+							style="font-size:17px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Sequential
+							access <tspan x="204.03" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan>
+							<tspan x="212.53" y="0" xml:space="preserve"> (Maintains single-threaded performance)
+							</tspan>
+						</text><text transform="translate(900 403.2)"
+							style="font-size:17px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Perfect
+							alignment <tspan x="204.03" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">✓
+							</tspan>
+							<tspan x="212.53" y="0" xml:space="preserve"> (Unlocks parallel performance)</tspan>
+						</text>
+					</g>
+					<g class="fragment" id="ec6fca45-88fb-4328-b4d7-4cf824ef25be" data-name="codeComparison">
+						<g class="fragment" style="filter:url(#ffb2518b-22d8-4382-9ba2-1e595cf5bdbe)">
+							<path
+								d="M85.87,439h656c6.63,0,12,5.93,12,13.24v150c0,7.31-5.37,13.23-12,13.23h-656c-6.63,0-12-5.92-12-13.23v-150C73.87,445,79.24,439,85.87,439Z"
+								style="fill:#1e293b" />
+							<path
+								d="M85.87,439h656c6.63,0,12,5.93,12,13.24v150c0,7.31-5.37,13.23-12,13.23h-656c-6.63,0-12-5.92-12-13.23v-150C73.87,445,79.24,439,85.87,439Z"
+								style="fill:none;stroke:#f59e0b;stroke-width:2px" />
+						</g><text transform="translate(289.05 469.03)"
+							style="font-size:22px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Karpathy&apos;s
+							Approach (Good)</text><text transform="translate(93.87 494.03)"
+							style="isolation:isolate;font-size:15px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">//
+							Single allocation, sequential layout</text><text transform="translate(93.87 514.03)"
+							style="isolation:isolate;font-size:15px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">float*
+							params_memory = malloc(num_parameters * sizeof(float));</text><text
+							transform="translate(93.87 534.03)"
+							style="isolation:isolate;font-size:15px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">float*
+							iterator = params_memory;</text><text transform="translate(93.87 554.03)"
+							style="isolation:isolate;font-size:15px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">params-&gt;wte
+							= iterator; iterator += wte_size;</text><text transform="translate(93.87 574.03)"
+							style="isolation:isolate;font-size:15px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">params-&gt;wpe
+							= iterator; iterator += wpe_size;</text><text transform="translate(93.87 599.03)"
+							style="isolation:isolate;font-size:14px;fill:#64748b;font-family:CourierNewPSMT, Courier New">//
+							Result: Sequential but not cache-aligned</text>
+						<g class="fragment" style="filter:url(#ffb2518b-22d8-4382-9ba2-1e595cf5bdbe)">
+							<path
+								d="M890.15,438.84h656c6.63,0,12,5.92,12,13.23v150c0,7.31-5.37,13.23-12,13.23h-656c-6.62,0-12-5.92-12-13.23v-150C878.15,444.76,883.53,438.84,890.15,438.84Z"
+								style="fill:#1e293b" />
+							<path
+								d="M890.15,438.84h656c6.63,0,12,5.92,12,13.23v150c0,7.31-5.37,13.23-12,13.23h-656c-6.62,0-12-5.92-12-13.23v-150C878.15,444.76,883.53,438.84,890.15,438.84Z"
+								style="fill:none;stroke:#10b981;stroke-width:2px" />
+						</g><text transform="translate(1069.33 468.84)"
+							style="font-size:22px;fill:#10b981;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Cache-Aligned
+							Approach (Better)</text><text transform="translate(898.15 493.84)"
+							style="font-size:15px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">// Single
+							allocation + perfect 64-byte alignment</text><text transform="translate(898.15 513.84)"
+							style="font-size:15px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">float*
+							params_memory = huge_alloc(total_size);</text><text transform="translate(898.15 553.84)"
+							style="font-size:15px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">wte_offset =
+							bump(&amp;off, wte_size, CACHE_ALIGN);</text><text transform="translate(898.15 573.84)"
+							style="font-size:15px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">wpe_offset =
+							bump(&amp;off, wpe_size, CACHE_ALIGN);</text><text transform="translate(898.15 601.47)"
+							style="font-size:14px;fill:#64748b;font-family:CourierNewPSMT, Courier New">// Result:
+							Sequential + cache-aligned + parallel-ready</text><text transform="translate(899.84 534.03)"
+							style="font-size:15px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">size_t off =
+							0;</text>
+					</g>
+				</svg>
+			</section>
+			<section style="transform:scale(1.2);">
+				<aside class="notes">
+  <p><strong>(First fragment reveals the core diagrams)</strong>
+  So let's visualize the exact problem. On the left, with a simple sequential layout, if Core 0 needs a piece of data and Core 1 needs the piece right next to it, they might both fall within the same 64-byte cache line. This creates that hardware-level conflict we call 'false sharing.' The solution, shown on the right, is to ensure the data for each core's main task starts in its own, separate cache line.</p>
+  
+  <p><strong>(Next fragment reveals "The Issue" and "Building on Foundation" boxes)</strong>
+  To put it another way, the brilliant single allocation strategy is excellent for single-threaded performance. But its main limitation is that parallel cores are forced to fight over those shared cache lines. The foundation is solid, though. We can keep the single allocation strategy and just add 64-byte alignment for every tensor to unlock perfect parallel scaling.</p>
+  
+  <p><strong>(Next fragment reveals the performance comparison boxes)</strong>
+  And the performance impact of this one change is significant. The sequential approach gives great single-thread performance, but the multi-threaded speedup is limited—you might only see an 8-12x speedup on 32 cores. But by simply adding alignment, with the same memory footprint, we can achieve near-linear scaling, getting a 28-30x speedup. That's a massive improvement in parallel efficiency.</p>
+  
+  <p><strong>(Final fragment reveals the bottom summary boxes)</strong>
+  So to summarize, the original approach is elegant and a perfect foundation to build upon. Our cache-aligned enhancement keeps the same memory efficiency but uses the bump allocator to achieve near-linear scaling. We're truly standing on the shoulders of a great idea to unlock its full multi-core potential.</p>
+</aside>
+				<svg id="a0c323c4-6c66-4c3d-83a4-d5b664527696" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg"
+					xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1600 996.26">
+					<defs>
+						<filter id="a4889165-a305-4574-a796-7e25bf3bdec7" x="-20%" y="-20%" width="140%" height="140%"
+							name="dropShadow">
+							<feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3" />
+						</filter>
+						<linearGradient id="aa9dfe41-bde3-4f05-b8d5-f9f957786306" x1="-152.05" y1="452.42" x2="-152.05"
+							y2="451.38" gradientTransform="matrix(560, 0, 0, -60, 85575.64, 27256.6)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#fee2e2" />
+							<stop offset="1" stop-color="#fecaca" />
+						</linearGradient>
+						<linearGradient id="a0dbf49c-b102-42ef-a415-ed9d5263fa40" x1="-151.08" y1="450.79" x2="-151.08"
+							y2="449.79" gradientTransform="matrix(140, 0, 0, -30, 22169.26, 13635.32)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#475569" stop-opacity="0.4" />
+							<stop offset="1" stop-color="#334155" stop-opacity="0.4" />
+						</linearGradient>
+						<linearGradient id="e34fd827-82e6-4600-8832-2cfde8e862ce" x1="-151.08" y1="449.89" x2="-151.08"
+							y2="448.89" gradientTransform="matrix(140, 0, 0, -30, 22169.26, 13675.32)"
+							xlink:href="#a0dbf49c-b102-42ef-a415-ed9d5263fa40" />
+						<linearGradient id="a2e783e9-7b03-450d-bc36-3eaf6fcde3b2" x1="-151.08" y1="450.79" x2="-151.08"
+							y2="449.79" gradientTransform="matrix(140, 0, 0, -30, 22329.26, 13635.32)"
+							xlink:href="#a0dbf49c-b102-42ef-a415-ed9d5263fa40" />
+						<linearGradient id="bc06b610-4ba8-4dee-bac4-ffd97ceeefde" x1="-151.08" y1="449.89" x2="-151.08"
+							y2="448.89" gradientTransform="matrix(140, 0, 0, -30, 22329.26, 13675.32)"
+							xlink:href="#a0dbf49c-b102-42ef-a415-ed9d5263fa40" />
+					</defs>
+					<g class="fragment" id="f3e9be3d-762c-4ad9-abf6-815d1dfe7e3e" data-name="falseSharingDetail"><text
+							transform="translate(509.35 51.56)"
+							style="isolation:isolate;font-size:20px;fill:#60a5fa;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Why
+							Sequential Allocation Still Has Parallel Problems</text>
+						<g class="fragment" style="filter:url(#a4889165-a305-4574-a796-7e25bf3bdec7)">
+							<path
+								d="M153.41,111.56h548a6.11,6.11,0,0,1,6,6.22v49.74a6.12,6.12,0,0,1-6,6.22h-548a6.11,6.11,0,0,1-6-6.22V117.78A6.11,6.11,0,0,1,153.41,111.56Z"
+								style="fill:url(#aa9dfe41-bde3-4f05-b8d5-f9f957786306)" />
+							<path
+								d="M153.41,111.56h548a6.11,6.11,0,0,1,6,6.22v49.74a6.12,6.12,0,0,1-6,6.22h-548a6.11,6.11,0,0,1-6-6.22V117.78A6.11,6.11,0,0,1,153.41,111.56Z"
+								style="fill:none;stroke:#f59e0b;stroke-width:3px" />
+						</g><text transform="translate(246.03 203.56)"
+							style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">64-byte
+							Cache Line</text>
+						<rect x="167.41" y="121.56" width="80" height="40" rx="4"
+							style="fill:#8b5cf6;stroke:#7c3aed;stroke-width:2px" /><text
+							transform="translate(177.4 146.56)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1w[0-19]</text>
+						<rect x="267.41" y="121.56" width="80" height="40" rx="4"
+							style="fill:#8b5cf6;stroke:#7c3aed;stroke-width:2px" /><text
+							transform="translate(274.4 146.56)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1w[20-39]</text>
+						<rect x="367.41" y="121.56" width="80" height="40" rx="4"
+							style="fill:#8b5cf6;stroke:#7c3aed;stroke-width:2px" /><text
+							transform="translate(374.4 146.56)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1w[40-59]</text>
+						<rect x="467.41" y="121.56" width="80" height="40" rx="4"
+							style="fill:#8b5cf6;stroke:#7c3aed;stroke-width:2px" /><text
+							transform="translate(477.4 146.56)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1b[0-15]</text>
+						<polygon points="217.91 81.56 207.41 111.56 196.91 81.56 217.91 81.56" style="fill:#f59e0b" />
+						<polygon points="317.91 81.56 307.41 111.56 296.91 81.56 317.91 81.56" style="fill:#f59e0b" />
+						<polygon points="417.91 81.56 407.41 111.56 396.91 81.56 417.91 81.56" style="fill:#f59e0b" />
+						<polygon points="517.91 81.56 507.41 111.56 496.91 81.56 517.91 81.56" style="fill:#f59e0b" />
+						<rect x="182.41" y="71.56" width="50" height="20" rx="3"
+							style="fill:#1e293b;stroke:#f59e0b;stroke-width:2px" /><text
+							transform="translate(189.4 85.56)"
+							style="isolation:isolate;font-size:10px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+							0</text>
+						<rect x="282.41" y="71.56" width="50" height="20" rx="3"
+							style="fill:#1e293b;stroke:#f59e0b;stroke-width:2px" /><text
+							transform="translate(289.4 85.56)"
+							style="isolation:isolate;font-size:10px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+							1</text>
+						<rect x="382.41" y="71.56" width="50" height="20" rx="3"
+							style="fill:#1e293b;stroke:#f59e0b;stroke-width:2px" /><text
+							transform="translate(389.4 85.56)"
+							style="isolation:isolate;font-size:10px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+							2</text>
+						<rect x="482.41" y="71.56" width="50" height="20" rx="3"
+							style="fill:#1e293b;stroke:#f59e0b;stroke-width:2px" /><text
+							transform="translate(489.4 85.56)"
+							style="isolation:isolate;font-size:10px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+							3</text><text transform="translate(881.54 88.9)"
+							style="isolation:isolate;font-size:16px;fill:#10b981;font-family:ArialMT, Arial">✅<tspan
+								x="12" y="0" xml:space="preserve"
+								style="font-family:CourierNewPS-BoldMT, Courier New;font-weight:700"> Cache-Aligned:
+								Each Tensor Owns Its Lines</tspan></text>
+						<rect x="947.41" y="111.56" width="140" height="30" rx="4"
+							style="stroke:#10b981;stroke-width:2px;fill:url(#a0dbf49c-b102-42ef-a415-ed9d5263fa40)" />
+						<rect x="947.41" y="178.56" width="140" height="30" rx="4"
+							style="stroke:#10b981;stroke-width:2px;fill:url(#e34fd827-82e6-4600-8832-2cfde8e862ce)" />
+						<rect x="1107.41" y="111.56" width="140" height="30" rx="4"
+							style="stroke:#10b981;stroke-width:2px;fill:url(#a2e783e9-7b03-450d-bc36-3eaf6fcde3b2)" />
+						<rect x="1107.41" y="178.56" width="140" height="30" rx="4"
+							style="stroke:#10b981;stroke-width:2px;fill:url(#bc06b610-4ba8-4dee-bac4-ffd97ceeefde)" />
+						<rect x="952.41" y="116.56" width="130" height="20" rx="2"
+							style="fill:#8b5cf6;stroke:#7c3aed" /><text transform="translate(978.4 129.56)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1w
+							(Core 0)</text>
+						<rect x="952.41" y="183.56" width="130" height="20" rx="2"
+							style="fill:#8b5cf6;stroke:#7c3aed" /><text transform="translate(978.4 196.56)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">ln1b
+							(Core 1)</text>
+						<rect x="1112.41" y="116.56" width="130" height="20" rx="2"
+							style="fill:#8b5cf6;stroke:#7c3aed" /><text transform="translate(1138.4 129.56)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">qkvw
+							(Core 2)</text>
+						<rect x="1112.41" y="183.56" width="130" height="20" rx="2"
+							style="fill:#8b5cf6;stroke:#7c3aed" /><text transform="translate(1138.4 196.56)"
+							style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">qkvb
+							(Core 3)</text><text transform="translate(947.4 156.56)"
+							style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Cache
+							Line A</text><text transform="translate(947.4 224.56)"
+							style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Cache
+							Line B</text><text transform="translate(1107.4 156.56)"
+							style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Cache
+							Line C</text><text transform="translate(1107.4 224.56)"
+							style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Cache
+							Line D</text>
+						<polygon
+							points="1014.96 109.08 1011.8 103.61 1008.63 98.13 1014.96 98.13 1021.28 98.13 1018.12 103.61 1014.96 109.08"
+							style="fill:#10b981" />
+						<polygon
+							points="1173.4 108.06 1170.24 102.58 1167.08 97.11 1173.4 97.11 1179.73 97.11 1176.57 102.58 1173.4 108.06"
+							style="fill:#10b981" />
+						<polygon
+							points="1014.96 175.83 1011.8 170.35 1008.63 164.87 1014.96 164.87 1021.28 164.87 1018.12 170.35 1014.96 175.83"
+							style="fill:#10b981" />
+						<polygon
+							points="1173.4 174.81 1170.24 169.33 1167.08 163.85 1173.4 163.85 1179.73 163.85 1176.57 169.33 1173.4 174.81"
+							style="fill:#10b981" />
+					</g>
+					<g class="fragment" id="b7fb6dc4-c777-40b2-9baa-4c3b6e61fd71" data-name="keyDifferenceSection">
+						<g class="fragment" style="filter:url(#a4889165-a305-4574-a796-7e25bf3bdec7)">
+							<path
+								d="M83.82,251.56h656c6.63,0,12,6.71,12,15v120c0,8.28-5.37,15-12,15h-656c-6.63,0-12-6.72-12-15v-120C71.82,258.27,77.19,251.56,83.82,251.56Z"
+								style="fill:#1e293b" />
+							<path
+								d="M83.82,251.56h656c6.63,0,12,6.71,12,15v120c0,8.28-5.37,15-12,15h-656c-6.63,0-12-6.72-12-15v-120C71.82,258.27,77.19,251.56,83.82,251.56Z"
+								style="fill:none;stroke:#f59e0b;stroke-width:2px" />
+						</g><text transform="translate(97.95 281.56)"
+							style="isolation:isolate;font-size:22px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">The
+							Issue with Karpathy&apos;s Approach</text><text transform="translate(91.82 306.56)"
+							style="font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Brilliant
+							single allocation strategy <tspan x="421.27" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(91.82 331.56)"
+							style="font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Excellent for
+							single-threaded performance <tspan x="475.28" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(91.82 356.56)"
+							style="font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• But tensors
+							can span cache line boundaries <tspan x="486.08" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✗</tspan></text><text
+							transform="translate(91.82 381.56)"
+							style="font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Parallel cores
+							fight over shared cache lines <tspan x="507.68" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✗</tspan></text>
+						<g class="fragment" style="filter:url(#a4889165-a305-4574-a796-7e25bf3bdec7)">
+							<path
+								d="M843.82,251.56h656c6.63,0,12,6.46,12,14.43V381.44c0,8-5.37,14.43-12,14.43h-656c-6.63,0-12-6.46-12-14.43V266C831.82,258,837.19,251.56,843.82,251.56Z"
+								style="fill:#1e293b" />
+							<path
+								d="M843.82,251.56h656c6.63,0,12,6.46,12,14.43V381.44c0,8-5.37,14.43-12,14.43h-656c-6.63,0-12-6.46-12-14.43V266C831.82,258,837.19,251.56,843.82,251.56Z"
+								style="fill:none;stroke:#10b981;stroke-width:2px" />
+						</g><text transform="translate(855.04 281.56)"
+							style="isolation:isolate;font-size:22px;fill:#10b981;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Building
+							on Karpathy&apos;s Foundation</text><text transform="translate(851.82 306.56)"
+							style="font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Keep the
+							single allocation strategy <tspan x="410.47" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(851.82 331.56)"
+							style="font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Maintain
+							single-threaded performance <tspan x="421.27" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(851.82 356.56)"
+							style="font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Add 64-byte
+							alignment for every tensor <tspan x="442.87" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(851.82 381.56)"
+							style="font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">• Unlock perfect
+							parallel scaling <tspan x="367.26" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">✓
+							</tspan></text>
+					</g>
+					<g class="fragment" id="b6e6da93-7579-4c79-b266-d6277dbb5f62" data-name="performanceComparison">
+						<g class="fragment" style="filter:url(#a4889165-a305-4574-a796-7e25bf3bdec7)">
+							<path
+								d="M58.13,431.56h545a16,16,0,0,1,15.72,16.2V550.35a16,16,0,0,1-15.72,16.2h-545a16,16,0,0,1-15.72-16.2V447.76A16,16,0,0,1,58.13,431.56Z"
+								style="fill:#1e293b" />
+							<path
+								d="M58.13,431.56h545a16,16,0,0,1,15.72,16.2V550.35a16,16,0,0,1-15.72,16.2h-545a16,16,0,0,1-15.72-16.2V447.76A16,16,0,0,1,58.13,431.56Z"
+								style="fill:none;stroke:#f59e0b;stroke-width:2px" />
+						</g><text transform="translate(60.77 461.56)"
+							style="isolation:isolate;font-size:21px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Karpathy&apos;s
+							Sequential: Great Single-Thread</text><text transform="translate(62.41 486.56)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Single-threaded:
+							Excellent performance <tspan x="421.27" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(62.41 513.83)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Multi-threaded:
+							Cache conflicts limit scaling</text><text transform="translate(62.41 541.56)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">32
+							cores: Maybe 8-12x speedup (not linear)</text>
+						<g class="fragment" style="filter:url(#a4889165-a305-4574-a796-7e25bf3bdec7)">
+							<path
+								d="M662.24,431.56H917.1c9.59,0,17.37,7.25,17.37,16.2V550.35c0,8.95-7.78,16.2-17.37,16.2H662.24c-9.6,0-17.38-7.25-17.38-16.2V447.76C644.86,438.81,652.64,431.56,662.24,431.56Z"
+								style="fill:#1e293b" />
+							<path
+								d="M662.24,431.56H917.1c9.59,0,17.37,7.25,17.37,16.2V550.35c0,8.95-7.78,16.2-17.37,16.2H662.24c-9.6,0-17.38-7.25-17.38-16.2V447.76C644.86,438.81,652.64,431.56,662.24,431.56Z"
+								style="fill:none;stroke:#8b5cf6;stroke-width:2px" />
+						</g><text transform="translate(668.05 461.56)"
+							style="isolation:isolate;font-size:20px;fill:#8b5cf6;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">3-5x
+							IMPROVEMENT</text><text transform="translate(664.86 486.56)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Just
+							adding alignment!</text><text transform="translate(653 513.52)"
+							style="isolation:isolate;font-size:19.71811866760254px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Same
+							memory footprint</text><text transform="translate(653 540.39)"
+							style="isolation:isolate;font-size:19.71811866760254px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Better
+							parallel scaling</text>
+						<g class="fragment" style="filter:url(#a4889165-a305-4574-a796-7e25bf3bdec7)">
+							<path
+								d="M996.93,431.56h503.54c8,0,14.52,7.25,14.52,16.2V550.35c0,8.95-6.5,16.2-14.52,16.2H996.93c-8,0-14.52-7.25-14.52-16.2V447.76C982.41,438.81,988.91,431.56,996.93,431.56Z"
+								style="fill:#1e293b" />
+							<path
+								d="M996.93,431.56h503.54c8,0,14.52,7.25,14.52,16.2V550.35c0,8.95-6.5,16.2-14.52,16.2H996.93c-8,0-14.52-7.25-14.52-16.2V447.76C982.41,438.81,988.91,431.56,996.93,431.56Z"
+								style="fill:none;stroke:#10b981;stroke-width:2px" />
+						</g><text transform="translate(1000.77 461.56)"
+							style="isolation:isolate;font-size:20px;fill:#10b981;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Cache-Aligned:
+							Great Single + Multi-Thread</text><text transform="translate(1002.41 486.56)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Single-threaded:
+							Same excellent performance <tspan x="475.28" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(1002.41 514.29)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Multi-threaded:
+							Near-linear scaling <tspan x="388.86" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(1002.41 541.56)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">32
+							cores: ~28-30x speedup (nearly linear!)</text>
+					</g>
+					<g class="fragment" id="bd16409b-3036-4890-b70d-dc311dafb25a" data-name="keyMetrics">
+						<path
+							d="M54.67,594.6H945.13c8.48,0,15.35,6.25,15.35,14v111.8c0,7.71-6.87,14-15.35,14H54.67c-8.48,0-15.35-6.26-15.35-14V608.57C39.32,600.85,46.19,594.6,54.67,594.6Z"
+							style="fill:#1e293b;stroke:#f59e0b;stroke-width:2px" /><text
+							transform="translate(298.34 624.54)"
+							style="isolation:isolate;font-size:23px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Karpathy&apos;s
+							Approach</text><text transform="translate(59.71 656.56)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Memory
+							efficiency: Excellent <tspan x="313.25" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(393.2 656.56)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Implementation:
+							Simple and elegant</text><text transform="translate(59.71 686.79)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Cache
+							locality: Good for single-thread <tspan x="421.27" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(498.97 686.79)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Educational
+							value: Teaches good practices</text><text transform="translate(59.71 716.56)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Parallel
+							scaling: Limited by false sharing</text><text transform="translate(522.1 716.56)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Foundation:
+							Perfect base to build upon</text>
+						<path
+							d="M450.11,741.66H1557.94c10.55,0,19.1,5.81,19.1,13V858.39c0,7.16-8.55,13-19.1,13H450.11c-10.55,0-19.1-5.81-19.1-13V754.63C431,747.47,439.56,741.66,450.11,741.66Z"
+							style="fill:#1e293b;stroke:#10b981;stroke-width:2px" /><text
+							transform="translate(837.19 768.56)"
+							style="isolation:isolate;font-size:23px;fill:#10b981;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Cache-Aligned
+							Enhancement</text><text transform="translate(449.98 799.94)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Memory
+							efficiency: Same as Karpathy <tspan x="388.86" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(860.95 799.94)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Implementation:
+							bump() helper function</text><text transform="translate(449.98 829.94)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Cache
+							locality: Great for all thread counts <tspan x="475.28" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(953.95 829.94)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Educational
+							value: Teaches alignment principles</text><text transform="translate(449.98 859.94)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Parallel
+							scaling: Near-linear <tspan x="324.05" y="0"
+								style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><text
+							transform="translate(798.46 859.94)"
+							style="isolation:isolate;font-size:18px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">Result:
+							Production-ready parallel performance</text>
+					</g>
+					<g class="fragment" id="fe66ff84-279b-4ebd-9e7f-56a2b5c75ea3" data-name="respectfulSummary">
+						<g class="fragment" style="filter:url(#a4889165-a305-4574-a796-7e25bf3bdec7)">
+							<path
+								d="M35.77,891.56h1512.1c7.08,0,12.81,8.62,12.81,19.24v41.7c0,10.63-5.73,19.24-12.81,19.24H35.77C28.7,971.74,23,963.13,23,952.5V910.8C23,900.18,28.7,891.56,35.77,891.56Z"
+								style="fill:#1e293b" />
+							<path
+								d="M35.77,891.56h1512.1c7.08,0,12.81,8.62,12.81,19.24v41.7c0,10.63-5.73,19.24-12.81,19.24H35.77C28.7,971.74,23,963.13,23,952.5V910.8C23,900.18,28.7,891.56,35.77,891.56Z"
+								style="fill:none;stroke:#60a5fa;stroke-width:2px" />
+						</g><text transform="translate(87.98 926.56)"
+							style="isolation:isolate;font-size:21px;fill:#60a5fa;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Building
+							on Karpathy&apos;s Excellent Foundation: Same Smart Strategy + Cache Alignment = Perfect
+							Parallel Performance</text><text transform="translate(254.21 947.56)"
+							style="isolation:isolate;font-size:17px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Karpathy&apos;s
+							sequential allocation was brilliant • We&apos;re just adding alignment to unlock multi-core
+							potential</text>
+					</g>
+				</svg>
+			</section>
+			<section>
+				<aside class="notes">
+  <p>So, what exactly is this 'false sharing' problem? To understand it, we need to look at how a modern CPU's cache system actually works. It's a five-step process.</p>
+  
+  <p><strong>(Fragment 1: The Rule)</strong>
+  Step 1 is the fundamental rule: CPUs don't load single bytes from memory. When a core needs data, it must load the entire 64-byte block, or 'cache line,' that the data lives in.</p>
+  
+  <p><strong>(Fragment 2: The Sharing)</strong>
+  Step 2 shows the 'Sharing' phase. This works perfectly fine. Multiple cores can all have their own read-only copies of the same cache line simultaneously. There are no conflicts here.</p>
+  
+  <p><strong>(Fragment 3: The Conflict)</strong>
+  The problem starts in Step 3: The Conflict. The moment a core needs to *write* to its data, the hardware's cache coherency protocol requires it to gain exclusive ownership of the entire 64-byte line. To do this, it sends an invalidation message to all other cores, telling them their copies are now stale and unusable.</p>
+  
+  <p><strong>(Fragment 4: The Fight)</strong>
+  This leads to Step 4: The Fight. If another core also needs to write to its piece of data on that same line, it has to 'steal' exclusive ownership back. This forces the cache line to bounce back and forth between the cores' private caches. Each transfer costs hundreds of wasted clock cycles where the cores are just waiting.</p>
+  
+  <p><strong>(Fragment 5: The Solution)</strong>
+  And that brings us to Step 5: The Solution. By using cache alignment, we guarantee that the data for each core's task starts in its own, separate 64-byte cache line. There is no shared line to fight over, which completely prevents false sharing and allows for true parallel performance.</p>
+</aside>
+				<svg id="b641b69d-5a8f-40e0-81bb-142bff7924cb" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg"
+					xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1473.7 1036.32">
+					<defs>
+						<linearGradient id="a78a012a-5481-4d7a-ae32-6385858e9d31" x1="-271.13" y1="1039.89" x2="-270.13"
+							y2="1039.89" gradientTransform="matrix(1000, 0, 0, -60, 271347.83, 62521)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#475569" />
+							<stop offset="1" stop-color="#334155" />
+						</linearGradient>
+						<linearGradient id="e9161330-98e3-4055-b589-4247ea18a9ef" x1="-266.1" y1="1040.08" x2="-266.1"
+							y2="1039.08" gradientTransform="matrix(40, 0, 0, -40, 10901.45, 41711)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#8b5cf6" />
+							<stop offset="1" stop-color="#7c3aed" />
+						</linearGradient>
+						<linearGradient id="f118ed16-ae87-4b7b-a732-461bedfa25e2" x1="-266.1" y1="1040.08" x2="-266.1"
+							y2="1039.08" gradientTransform="matrix(40, 0, 0, -40, 10961.45, 41711)"
+							xlink:href="#e9161330-98e3-4055-b589-4247ea18a9ef" />
+						<linearGradient id="ad4343f7-8f5d-4e04-89e8-0b26223b15ac" x1="-266.1" y1="1040.08" x2="-266.1"
+							y2="1039.08" gradientTransform="matrix(40, 0, 0, -40, 11021.45, 41711)"
+							xlink:href="#e9161330-98e3-4055-b589-4247ea18a9ef" />
+						<linearGradient id="b16a5dd4-39f0-4c29-8b2b-3ee4407c2b33" x1="-266.1" y1="1040.08" x2="-266.1"
+							y2="1039.08" gradientTransform="matrix(40, 0, 0, -40, 11741.45, 41711)"
+							xlink:href="#e9161330-98e3-4055-b589-4247ea18a9ef" />
+						<linearGradient id="a3194b06-3cca-4765-a48d-e84de669ea38" x1="-266.1" y1="1040.08" x2="-266.1"
+							y2="1039.08" gradientTransform="matrix(40, 0, 0, -40, 11801.45, 41711)"
+							xlink:href="#e9161330-98e3-4055-b589-4247ea18a9ef" />
+						<linearGradient id="f2c44dca-b83b-47a4-8457-15622f50b9ed" x1="-269.25" y1="1040.39" x2="-269.25"
+							y2="1039.39" gradientTransform="matrix(120, 0, 0, -60, 32386.98, 62521)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#3b82f6" />
+							<stop offset="1" stop-color="#1d4ed8" />
+						</linearGradient>
+						<linearGradient id="ef48e8b2-65c6-46a3-99f3-4ae6f28795b5" x1="-269.25" y1="1040.54" x2="-269.25"
+							y2="1039.54" gradientTransform="matrix(120, 0, 0, -80, 32386.98, 83541)"
+							xlink:href="#f2c44dca-b83b-47a4-8457-15622f50b9ed" />
+						<linearGradient id="a9b7bd97-9fbd-44d5-80af-c682b38351f0" x1="-268.46" y1="1039.16" x2="-268.46"
+							y2="1038.16" gradientTransform="matrix(80, 0, 0, -20, 21554.21, 21131)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#10b981" />
+							<stop offset="1" stop-color="#059669" />
+						</linearGradient>
+						<linearGradient id="aa4e1b68-fea2-4612-8176-7f8a2ca53392" x1="-269.25" y1="1040.54" x2="-269.25"
+							y2="1039.54" gradientTransform="matrix(120, 0, 0, -80, 32566.98, 83541)"
+							xlink:href="#f2c44dca-b83b-47a4-8457-15622f50b9ed" />
+						<linearGradient id="a5acd8f7-e775-4404-8094-eb7aeeba0967" x1="-268.46" y1="1039.16" x2="-268.46"
+							y2="1038.16" gradientTransform="matrix(80, 0, 0, -20, 21734.21, 21131)"
+							xlink:href="#a9b7bd97-9fbd-44d5-80af-c682b38351f0" />
+						<linearGradient id="a8f6dbfb-787c-4eaa-a2b9-a4e8936746d7" x1="-269.25" y1="1040.54" x2="-269.25"
+							y2="1039.54" gradientTransform="matrix(120, 0, 0, -80, 32746.98, 83541)"
+							xlink:href="#f2c44dca-b83b-47a4-8457-15622f50b9ed" />
+						<linearGradient id="a763170e-c7e6-46eb-9b7b-53e0720a34d0" x1="-268.46" y1="1039.16" x2="-268.46"
+							y2="1038.16" gradientTransform="matrix(80, 0, 0, -20, 21914.21, 21131)"
+							xlink:href="#a9b7bd97-9fbd-44d5-80af-c682b38351f0" />
+						<linearGradient id="f96f118d-64fa-4f09-aac9-039b353e803e" x1="-270.85" y1="1039.58" x2="-269.85"
+							y2="1039.58" gradientTransform="matrix(400, 0, 0, -40, 108956.34, 41921)"
+							xlink:href="#a78a012a-5481-4d7a-ae32-6385858e9d31" />
+						<linearGradient id="a4205c95-4d04-41b6-a358-266f057d4373" x1="-269.47" y1="1040.63" x2="-269.47"
+							y2="1039.63" gradientTransform="matrix(140, 0, 0, -100, 37813.36, 104581)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#ef4444" />
+							<stop offset="1" stop-color="#dc2626" />
+						</linearGradient>
+						<linearGradient id="f9ddb365-3e72-4a7b-9d25-b2cf82500a13" x1="-270.35" y1="1040.08" x2="-270.35"
+							y2="1039.08" gradientTransform="matrix(400, 0, 0, -40, 108956.34, 42141)"
+							xlink:href="#a4205c95-4d04-41b6-a358-266f057d4373" />
+						<linearGradient id="e931f65a-6338-46dd-81c4-b2dfe0fde567" x1="-269.58" y1="1038.84" x2="-269.58"
+							y2="1037.64" gradientTransform="matrix(120, 0, 0, -25, 32486.98, 26956)"
+							xlink:href="#a9b7bd97-9fbd-44d5-80af-c682b38351f0" />
+						<linearGradient id="a195cf9b-aa1f-4df3-b40e-4c552b10e8ab" x1="-268.02" y1="1038.84" x2="-268.02"
+							y2="1037.64" gradientTransform="matrix(120, 0, 0, -25, 32686.98, 26956)"
+							xlink:href="#a9b7bd97-9fbd-44d5-80af-c682b38351f0" />
+						<linearGradient id="bb47fbc0-ca1e-475a-b29d-b4e2bf205425" x1="-266.46" y1="1038.84" x2="-266.46"
+							y2="1037.64" gradientTransform="matrix(120, 0, 0, -25, 32886.98, 26956)"
+							xlink:href="#a9b7bd97-9fbd-44d5-80af-c682b38351f0" />
+						<linearGradient id="b2bb657f-5ebd-4848-b849-90227c2e03c8" x1="-264.89" y1="1038.84" x2="-264.89"
+							y2="1037.64" gradientTransform="matrix(120, 0, 0, -25, 33086.98, 26956)"
+							xlink:href="#a9b7bd97-9fbd-44d5-80af-c682b38351f0" />
+					</defs><text transform="translate(335.63 37.87)"
+						style="isolation:isolate;font-size:24px;fill:#f1f5f9;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">False
+						Sharing: The Cache Coherency Protocol Explained</text>
+					<g class="fragment" id="e1f5ab41-42e7-474c-bddc-82d90c6699c9" data-name="stepsContainer">
+						<g id="e41e6d64-0976-4cbb-8109-51926867cc4d" data-name="step1"><text
+								transform="translate(321.22 69.87)"
+								style="font-size:24px;fill:#60a5fa;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Step
+								1: The Rule - CPUs Always Load 64-Byte Cache Lines</text>
+							<rect x="217.29" y="97.87" width="1000" height="60" rx="6"
+								style="stroke:#64748b;stroke-width:2px;fill:url(#a78a012a-5481-4d7a-ae32-6385858e9d31)" />
+							<text transform="translate(566.06 91.87)"
+								style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">64-Byte
+								Cache Line in Memory</text>
+							<g id="b0fbaecd-c6ae-4496-acfa-f96ff2cb990b" data-name="byteSegments">
+								<rect x="237.29" y="107.87" width="40" height="40" rx="2"
+									style="stroke:#8b5cf6;fill:url(#e9161330-98e3-4055-b589-4247ea18a9ef)" /><text
+									transform="translate(230.28 132.87)"
+									style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">ln1w[0-3]</text>
+								<rect x="297.29" y="107.87" width="40" height="40" rx="2"
+									style="stroke:#8b5cf6;fill:url(#f118ed16-ae87-4b7b-a732-461bedfa25e2)" /><text
+									transform="translate(290.28 132.87)"
+									style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">ln1w[4-7]</text>
+								<rect x="357.29" y="107.87" width="40" height="40" rx="2"
+									style="stroke:#8b5cf6;fill:url(#ad4343f7-8f5d-4e04-89e8-0b26223b15ac)" /><text
+									transform="translate(347.28 132.87)"
+									style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">ln1w[8-11]</text><text
+									transform="translate(422.88 132.87)"
+									style="isolation:isolate;font-size:16px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">...</text>
+								<rect x="1077.29" y="107.87" width="40" height="40" rx="2"
+									style="stroke:#8b5cf6;fill:url(#b16a5dd4-39f0-4c29-8b2b-3ee4407c2b33)" /><text
+									transform="translate(1072.98 132.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPSMT, Courier New">ln1b[0-3]</text>
+								<rect x="1137.29" y="107.87" width="40" height="40" rx="2"
+									style="stroke:#8b5cf6;fill:url(#a3194b06-3cca-4765-a48d-e84de669ea38)" /><text
+									transform="translate(1132.98 132.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPSMT, Courier New">ln1b[4-7]</text>
+							</g>
+							<rect x="17.29" y="97.87" width="120" height="60" rx="8"
+								style="stroke:#3b82f6;stroke-width:2px;fill:url(#f2c44dca-b83b-47a4-8457-15622f50b9ed)" />
+							<text transform="translate(55.68 122.87)"
+								style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								0</text><text transform="translate(38.28 142.87)"
+								style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">wants
+								ln1w[0]</text><text transform="translate(117.76 166.25)"
+								style="isolation:isolate;font-size:10px;fill:#3b82f6;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Loads
+								entire 64 bytes!</text>
+							<rect x="8.29" y="177.87" width="1400" height="50" rx="8"
+								style="fill:#1e293b;stroke:#60a5fa;stroke-width:2px" /><text
+								transform="translate(85.29 206.19)"
+								style="font-size:20px;fill:#fff;font-family:ArialMT, Arial">🔹<tspan x="15" y="0"
+									xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> CPU Rule: Even
+									if Core 0 only needs 4 bytes (ln1w[0]), it must load all 64 bytes of the cache line
+								</tspan></text>
+							<line x1="139.56" y1="127.87" x2="195.26" y2="127.87"
+								style="fill:none;stroke:#3b82f6;stroke-linecap:round;stroke-miterlimit:10;stroke-width:5px" />
+							<path
+								d="M217.29,127.87c-10.37,3.85-23.23,10.41-31.2,17.36l6.28-17.36-6.28-17.35C194.06,117.47,206.92,124,217.29,127.87Z"
+								style="fill:#3b82f6" />
+						</g>
+						<g class="fragment" id="a61553bb-35a2-4c63-ae14-374001841671" data-name="step2"><text
+								transform="translate(249.21 267.87)"
+								style="isolation:isolate;font-size:24px;fill:#60a5fa;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Step
+								2: The Sharing - Multiple Cores Can Read the Same Cache Line</text>
+							<g id="a9fbf84c-cf10-4759-82f4-03d56fa04956" data-name="multipleCores">
+								<rect x="17.29" y="297.87" width="120" height="80" rx="8"
+									style="stroke:#3b82f6;stroke-width:2px;fill:url(#ef48e8b2-65c6-46a3-99f3-4ae6f28795b5)" />
+								<text transform="translate(55.68 322.87)"
+									style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									0</text><text transform="translate(53.28 342.87)"
+									style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">L1
+									Cache</text>
+								<rect x="37.29" y="347.87" width="80" height="20" rx="2"
+									style="stroke:#10b981;fill:url(#a9b7bd97-9fbd-44d5-80af-c682b38351f0)" /><text
+									transform="translate(52.98 362.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPSMT, Courier New">READ
+									COPY</text>
+								<rect x="197.29" y="297.87" width="120" height="80" rx="8"
+									style="stroke:#3b82f6;stroke-width:2px;fill:url(#aa4e1b68-fea2-4612-8176-7f8a2ca53392)" />
+								<text transform="translate(235.68 322.87)"
+									style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									1</text><text transform="translate(233.28 342.87)"
+									style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">L1
+									Cache</text>
+								<rect x="217.29" y="347.87" width="80" height="20" rx="2"
+									style="stroke:#10b981;fill:url(#a5acd8f7-e775-4404-8094-eb7aeeba0967)" /><text
+									transform="translate(232.98 362.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPSMT, Courier New">READ
+									COPY</text>
+								<rect x="377.29" y="297.87" width="120" height="80" rx="8"
+									style="stroke:#3b82f6;stroke-width:2px;fill:url(#a8f6dbfb-787c-4eaa-a2b9-a4e8936746d7)" />
+								<text transform="translate(415.68 322.87)"
+									style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									2</text><text transform="translate(413.28 342.87)"
+									style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">L1
+									Cache</text>
+								<rect x="397.29" y="347.87" width="80" height="20" rx="2"
+									style="stroke:#10b981;fill:url(#a763170e-c7e6-46eb-9b7b-53e0720a34d0)" /><text
+									transform="translate(412.98 362.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPSMT, Courier New">READ
+									COPY</text>
+							</g>
+							<rect x="617.29" y="317.87" width="400" height="40" rx="4"
+								style="stroke:#64748b;stroke-width:2px;fill:url(#f96f118d-64fa-4f09-aac9-039b353e803e)" />
+							<text transform="translate(720.07 342.87)"
+								style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Shared
+								Cache Line in Memory</text><text transform="translate(553.54 307.87)"
+								style="isolation:isolate;font-size:18px;fill:#10b981;font-family:ArialMT, Arial">✅<tspan
+									x="13.5" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New">
+									All cores can READ simultaneously - No problem!</tspan></text>
+							<path
+								d="M22.63,397.64H1272c5.61,0,10.15,3.58,10.15,8v34c0,4.42-4.54,8-10.15,8H22.63c-5.61,0-10.16-3.58-10.16-8v-34C12.47,401.22,17,397.64,22.63,397.64Z"
+								style="fill:#1e293b;stroke:#10b981;stroke-width:2px" /><text
+								transform="translate(34.97 424.43)"
+								style="font-size:20px;fill:#fff;font-family:ArialMT, Arial">🔹<tspan x="15" y="0"
+									xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Sharing Rule:
+									Multiple cores can all have READ-only copies of the same cache line without conflict
+								</tspan></text>
+							<line x1="138.23" y1="333.66" x2="140.23" y2="333.66"
+								style="fill:none;stroke:#10b981;stroke-miterlimit:10;stroke-width:2px" />
+							<line x1="144.23" y1="333.66" x2="597.48" y2="333.66"
+								style="fill:none;stroke:#10b981;stroke-miterlimit:10;stroke-width:2px;stroke-dasharray:3.993419885635376,3.993419885635376" />
+							<line x1="599.48" y1="333.66" x2="601.48" y2="333.66"
+								style="fill:none;stroke:#10b981;stroke-miterlimit:10;stroke-width:2px" />
+							<polygon points="598.56 343.64 615.83 333.66 598.56 323.69 598.56 343.64"
+								style="fill:#10b981" />
+						</g>
+						<g class="fragment" id="bb34c289-aff0-478e-a57e-04594c815d92" data-name="step3"><text
+								transform="translate(256.41 487.87)"
+								style="isolation:isolate;font-size:24px;fill:#ef4444;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Step
+								3: The Conflict - Write Access Requires Exclusive Ownership</text>
+							<rect x="17.29" y="517.87" width="140" height="100" rx="8"
+								style="stroke:#ef4444;stroke-width:3px;fill:url(#a4205c95-4d04-41b6-a358-266f057d4373)" />
+							<text transform="translate(65.68 542.87)"
+								style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								0</text><text transform="translate(45.28 562.87)"
+								style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">wants
+								to WRITE</text><text transform="translate(45.28 577.87)"
+								style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">ln1w[0]
+								= 0.5f</text>
+							<rect x="37.29" y="587.87" width="100" height="20" rx="2"
+								style="fill:#fbbf24;stroke:#f59e0b;stroke-width:2px" /><text
+								transform="translate(44.08 602.87)"
+								style="isolation:isolate;font-size:9px;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">NEEDS
+								EXCLUSIVE!</text>
+							<g id="b54aa422-cf6e-4295-a188-47b68967b1b0" data-name="invalidatedCores">
+								<rect x="237.29" y="517.87" width="120" height="80" rx="8"
+									style="fill:#64748b;stroke:#94a3b8;stroke-width:2px;isolation:isolate;opacity:0.699999988079071" />
+								<text transform="translate(275.68 542.87)"
+									style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									1</text><text transform="translate(273.28 562.87)"
+									style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">L1
+									Cache</text>
+								<rect x="257.29" y="567.87" width="80" height="20" rx="2"
+									style="fill:#ef4444;stroke:#dc2626" /><text transform="translate(267.58 582.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPSMT, Courier New">INVALIDATED</text>
+								<rect x="397.29" y="517.87" width="120" height="80" rx="8"
+									style="fill:#64748b;stroke:#94a3b8;stroke-width:2px;isolation:isolate;opacity:0.699999988079071" />
+								<text transform="translate(435.68 542.87)"
+									style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									2</text><text transform="translate(433.28 562.87)"
+									style="isolation:isolate;font-size:10px;fill:#fff;font-family:CourierNewPSMT, Courier New">L1
+									Cache</text>
+								<rect x="417.29" y="567.87" width="80" height="20" rx="2"
+									style="fill:#ef4444;stroke:#dc2626" /><text transform="translate(427.58 582.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPSMT, Courier New">INVALIDATED</text>
+							</g>
+							<g id="f61e091d-01e9-406a-a2f3-474eb768371d" data-name="invalidationMessages"><text
+									transform="translate(162.07 553.66)"
+									style="isolation:isolate;font-size:10px;fill:#ef4444;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">INVALIDATE!</text><text
+									transform="matrix(0.99, -0.1, 0.1, 0.99, 171.02, 601.96)"
+									style="isolation:isolate;font-size:10px;fill:#ef4444;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">INVALIDATE!</text>
+								<line x1="157.29" y1="565.43" x2="221.33" y2="565.43"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:5px" />
+								<polygon points="218.41 575.4 235.68 565.43 218.41 555.46 218.41 575.4"
+									style="fill:#ef4444" />
+								<line x1="158.89" y1="607.87" x2="382.14" y2="585.1"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:5px" />
+								<polygon points="380.25 595.31 396.42 583.64 378.22 575.47 380.25 595.31"
+									style="fill:#ef4444" />
+							</g>
+							<rect x="617.29" y="537.87" width="400" height="40" rx="4"
+								style="stroke:#ef4444;stroke-width:3px;fill:url(#f9ddb365-3e72-4a7b-9d25-b2cf82500a13)" />
+							<text transform="translate(702.07 562.87)"
+								style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Cache
+								Line (Exclusive to Core 0)</text>
+							<path
+								d="M25.52,637.55H1449.84a8.11,8.11,0,0,1,8.23,8v34a8.12,8.12,0,0,1-8.23,8H25.52a8.12,8.12,0,0,1-8.23-8v-34A8.11,8.11,0,0,1,25.52,637.55Z"
+								style="fill:#1e293b;stroke:#ef4444;stroke-width:2px" /><text
+								transform="translate(33.39 664.33)"
+								style="font-size:20px;fill:#fff;font-family:ArialMT, Arial">🔹<tspan x="15" y="0"
+									xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Conflict Rule:
+									When Core 0 writes, it sends invalidation messages to ALL other cores with copies of
+									that cache line</tspan></text>
+						</g>
+						<g class="fragment" id="ae5763b3-4bc4-403a-bea9-4aa00f3c5906" data-name="step4"><text
+								transform="translate(162.8 731.64)"
+								style="isolation:isolate;font-size:24px;fill:#ef4444;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Step
+								4: The Fight - Cache Line Bounces Between Cores (~200 cycles each time!)</text>
+							<g id="f2b1f45d-2f4b-4922-8c1c-3a16f7d88f35" data-name="bouncingTimeline">
+								<line x1="117.29" y1="767.87" x2="1317.29" y2="767.87"
+									style="fill:none;stroke:#64748b;stroke-width:2px" /><text
+									transform="translate(108.29 762.87)"
+									style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">t=0</text><text
+									transform="translate(381.28 762.87)"
+									style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">t=200
+									cycles</text><text transform="translate(681.28 762.87)"
+									style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">t=400
+									cycles</text><text transform="translate(981.28 762.87)"
+									style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">t=600
+									cycles</text><text transform="translate(1281.28 762.87)"
+									style="isolation:isolate;font-size:18px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">t=800
+									cycles</text>
+								<rect x="97.29" y="777.87" width="40" height="30" rx="4"
+									style="fill:#3b82f6;stroke:#1d4ed8;stroke-width:2px" /><text
+									transform="translate(101.08 797.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									0</text>
+								<rect x="397.29" y="777.87" width="40" height="30" rx="4"
+									style="fill:#10b981;stroke:#059669;stroke-width:2px" /><text
+									transform="translate(401.08 797.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									1</text>
+								<rect x="697.29" y="777.87" width="40" height="30" rx="4"
+									style="fill:#f59e0b;stroke:#d97706;stroke-width:2px" /><text
+									transform="translate(701.08 797.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									2</text>
+								<rect x="997.29" y="777.87" width="40" height="30" rx="4"
+									style="fill:#8b5cf6;stroke:#7c3aed;stroke-width:2px" /><text
+									transform="translate(1001.08 797.87)"
+									style="isolation:isolate;font-size:9px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									0</text>
+								<line x1="138.67" y1="792.04" x2="144.67" y2="792.04"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:4px" />
+								<line x1="156.9" y1="792.04" x2="370.82" y2="792.04"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:4px;stroke-dasharray:12.224305152893066,12.224305152893066" />
+								<line x1="376.93" y1="792.04" x2="382.93" y2="792.04"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:4px" />
+								<polygon points="380.02 802.01 397.29 792.04 380.02 782.07 380.02 802.01"
+									style="fill:#ef4444" />
+								<line x1="439.29" y1="792.04" x2="445.29" y2="792.04"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:4px" />
+								<line x1="457.51" y1="792.04" x2="671.44" y2="792.04"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:4px;stroke-dasharray:12.224305152893066,12.224305152893066" />
+								<line x1="677.55" y1="792.04" x2="683.55" y2="792.04"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:4px" />
+								<polygon points="680.63 802.01 697.9 792.04 680.63 782.07 680.63 802.01"
+									style="fill:#ef4444" />
+								<line x1="737.68" y1="792.04" x2="743.68" y2="792.04"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:4px" />
+								<line x1="755.91" y1="792.04" x2="969.83" y2="792.04"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:4px;stroke-dasharray:12.224305152893066,12.224305152893066" />
+								<line x1="975.94" y1="792.04" x2="981.94" y2="792.04"
+									style="fill:none;stroke:#ef4444;stroke-miterlimit:10;stroke-width:4px" />
+								<polygon points="979.02 802.01 996.29 792.04 979.02 782.07 979.02 802.01"
+									style="fill:#ef4444" />
+							</g>
+							<rect x="17.29" y="854.78" width="1400" height="50" rx="8"
+								style="fill:#1e293b;stroke:#ef4444;stroke-width:2px" /><text
+								transform="translate(79.68 881.56)"
+								style="font-size:20px;fill:#fff;font-family:ArialMT, Arial">🔹<tspan x="15" y="0"
+									xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Fight Rule:
+									Cache line constantly bounces between cores. More cores = more fighting = WORSE
+									performance!</tspan></text><text transform="translate(418.89 838.49)"
+								style="font-size:18px;fill:#ef4444;font-family:ArialMT, Arial">💥<tspan x="13.5" y="0"
+									xml:space="preserve"
+									style="font-family:CourierNewPS-BoldMT, Courier New;font-weight:700"> Each ownership
+									transfer = ~200 cycles of wasted time!</tspan></text>
+						</g>
+						<g class="fragment" id="b553b59d-fa32-4152-a9d5-2d1714673afc" data-name="step5"><text
+								transform="translate(314.02 947.87)"
+								style="isolation:isolate;font-size:24px;fill:#10b981;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Step
+								5: The Solution - Cache Alignment Prevents Fighting</text>
+							<g id="b9ccb26a-9a3e-429d-a9a2-a694beb05687" data-name="separateCacheLines">
+								<path
+									d="M27.54,985.06H247c4.33,0,7.83,2.15,7.83,4.8v20.4c0,2.65-3.5,4.8-7.83,4.8H27.54c-4.33,0-7.84-2.15-7.84-4.8v-20.4C19.7,987.21,23.21,985.06,27.54,985.06Z"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#e931f65a-6338-46dd-81c4-b2dfe0fde567)" />
+								<text transform="translate(29.69 1004.76)"
+									style="isolation:isolate;font-size:18px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									0: Cache Line A</text>
+								<path
+									d="M417.92,985.06H631.58c4.21,0,7.63,2.15,7.63,4.8v20.4c0,2.65-3.42,4.8-7.63,4.8H417.92c-4.21,0-7.63-2.15-7.63-4.8v-20.4C410.29,987.21,413.71,985.06,417.92,985.06Z"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#a195cf9b-aa1f-4df3-b40e-4c552b10e8ab)" />
+								<text transform="translate(415.41 1004.32)"
+									style="font-size:18px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									1: Cache Line B</text>
+								<path
+									d="M804.27,985.06h215.88c4.26,0,7.71,2.15,7.71,4.8v20.4c0,2.65-3.45,4.8-7.71,4.8H804.27c-4.26,0-7.71-2.15-7.71-4.8v-20.4C796.56,987.21,800,985.06,804.27,985.06Z"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#bb47fbc0-ca1e-475a-b29d-b4e2bf205425)" />
+								<text transform="translate(803.15 1002.56)"
+									style="font-size:18px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									2: Cache Line C</text>
+								<path
+									d="M1189.89,985.06h219.56c4.33,0,7.84,2.15,7.84,4.8v20.4c0,2.65-3.51,4.8-7.84,4.8H1189.89c-4.33,0-7.84-2.15-7.84-4.8v-20.4C1182.05,987.21,1185.56,985.06,1189.89,985.06Z"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#b2bb657f-5ebd-4848-b849-90227c2e03c8)" />
+								<text transform="translate(1187.39 1004.34)"
+									style="font-size:18px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+									3: Cache Line D</text><text transform="translate(408.09 972.87)"
+									style="isolation:isolate;font-size:18px;fill:#10b981;font-family:ArialMT, Arial">✅
+									<tspan x="13.5" y="0" xml:space="preserve"
+										style="font-family:CourierNewPS-BoldMT, Courier New;font-weight:700"> No
+										conflicts! Each core owns its own 64-byte cache line</tspan></text>
+							</g>
+						</g>
+					</g>
+				</svg>
+			</section>
+			<section style="transform: scale(1.3);">
+				<aside class="notes">
+  <p><strong>(Animation starts with the empty memory block)</strong>
+  Now let's look at the core engine of our memory layout: the `bump` function. Its job is to fill this single, contiguous, huge-page-aligned memory block, one tensor at a time, ensuring every placement is perfectly cache-aligned. Let's watch it in action.</p>
+  
+  <p><strong>(The "Token Embeddings" block appears)</strong>
+  First, we place the token embeddings. We call `bump` with our current offset, which is zero. It aligns it and then 'bumps' the offset forward by the size of the embedding table. The function returns the starting position for this block.</p>
+  
+  <p><strong>(The "Position Embeddings" block appears)</strong>
+  Next, we do the same for the positional embeddings. We call `bump` again with the new offset. The function takes that position, ensures it's aligned to a 64-byte boundary, and bumps the offset forward again, ready for the next block.</p>
+  
+  <p><strong>(The "Layer" and "Activations" blocks fill in)</strong>
+  We continue this exact same process for every single weight and activation buffer in our entire model, layer by layer. Each call to `bump` guarantees perfect alignment.</p>
+  
+  <p><strong>(Animation finishes, the summary text appears)</strong>
+  And when it's done, we have a perfectly laid-out model in a single block of memory. We have zero fragmentation, no `malloc` overhead, and the sequential access pattern is perfect for the hardware prefetcher. Accessing any tensor is now just a simple, fast calculation: `base_pointer + offset`.</p>
+</aside>
+				<svg viewBox="0 0 1400 600" xmlns="http://www.w3.org/2000/svg">
+					<defs>
+						<!-- Gradients -->
+						<linearGradient id="memoryGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+							<stop offset="0%" style="stop-color:#475569;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#334155;stop-opacity:1" />
+						</linearGradient>
+
+						<linearGradient id="blockGradient1" x1="0%" y1="0%" x2="0%" y2="100%">
+							<stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#1D4ED8;stop-opacity:1" />
+						</linearGradient>
+
+						<linearGradient id="blockGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
+							<stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#047857;stop-opacity:1" />
+						</linearGradient>
+
+						<linearGradient id="blockGradient3" x1="0%" y1="0%" x2="0%" y2="100%">
+							<stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#D97706;stop-opacity:1" />
+						</linearGradient>
+
+						<linearGradient id="blockGradient4" x1="0%" y1="0%" x2="0%" y2="100%">
+							<stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+						</linearGradient>
+
+						<linearGradient id="blockGradient5" x1="0%" y1="0%" x2="0%" y2="100%">
+							<stop offset="0%" style="stop-color:#EF4444;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#DC2626;stop-opacity:1" />
+						</linearGradient>
+
+						<!-- Filters -->
+						<filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+							<feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.3" />
+						</filter>
+
+						<filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+							<feGaussianBlur stdDeviation="3" result="coloredBlur" />
+							<feMerge>
+								<feMergeNode in="coloredBlur" />
+								<feMergeNode in="SourceGraphic" />
+							</feMerge>
+						</filter>
+
+						<!-- Arrow marker -->
+						<defs>
+							<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+								<polygon points="0 0, 10 3.5, 0 7" fill="#F59E0B" />
+							</marker>
+						</defs>
+					</defs>
+
+					<!-- Background -->
+					<rect width="1400" height="600" fill="#0F172A" />
+
+					<!-- Title -->
+					<text x="700" y="40" text-anchor="middle" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+						font-size="24" font-weight="bold">
+						Animated Bump Allocator: How bump() Works
+					</text>
+
+					<!-- Code Reference -->
+					<g id="codeReference">
+						<rect x="50" y="60" width="500" height="120" rx="8" fill="#1E293B" stroke="#475569"
+							stroke-width="2" filter="url(#dropShadow)" />
+						<text x="300" y="85" text-anchor="middle" fill="#60A5FA" font-family="JetBrains Mono, monospace"
+							font-size="14" font-weight="bold">bump() Function</text>
+						<text x="70" y="110" fill="#94A3B8" font-family="JetBrains Mono, monospace"
+							font-size="11">static inline size_t bump(size_t *off, size_t count, size_t alignB) {</text>
+						<text x="90" y="130" fill="#F1F5F9" font-family="JetBrains Mono, monospace" font-size="11">*off
+							= align_up(*off, alignB / sizeof(float));</text>
+						<text x="90" y="150" fill="#10B981" font-family="JetBrains Mono, monospace"
+							font-size="11">size_t here = *off; *off += count; return here;</text>
+						<text x="70" y="170" fill="#94A3B8" font-family="JetBrains Mono, monospace"
+							font-size="11">}</text>
+					</g>
+
+					<!-- Step Indicator -->
+					<g id="stepIndicator">
+						<rect x="850" y="60" width="550" height="60" rx="8" fill="#1E293B" stroke="#475569"
+							stroke-width="2" />
+						<text id="stepText" x="1125" y="95" text-anchor="middle" fill="#F59E0B"
+							font-family="JetBrains Mono, monospace" font-size="18" font-weight="bold">
+							Step 1: Empty Memory Block
+						</text>
+					</g>
+
+					<!-- Memory Block Container -->
+					<g id="memoryContainer">
+						<!-- Main memory bar (background) -->
+						<rect id="memoryBar" x="100" y="220" width="1200" height="80" rx="8" fill="url(#memoryGradient)"
+							stroke="#64748B" stroke-width="2" filter="url(#dropShadow)" />
+						<text x="700" y="210" text-anchor="middle" fill="#94A3B8"
+							font-family="JetBrains Mono, monospace" font-size="14">Contiguous Memory Block (2MB,
+							huge-page aligned)</text>
+
+						<!-- 64-byte alignment markers -->
+						<g id="alignmentMarkers" opacity="0.4">
+							<line x1="164" y1="215" x2="164" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="228" y1="215" x2="228" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="292" y1="215" x2="292" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="356" y1="215" x2="356" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="420" y1="215" x2="420" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="484" y1="215" x2="484" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="548" y1="215" x2="548" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="612" y1="215" x2="612" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="676" y1="215" x2="676" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="740" y1="215" x2="740" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="804" y1="215" x2="804" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<line x1="864" y1="215" x2="864" y2="305" stroke="#60A5FA" stroke-width="1"
+								stroke-dasharray="2,2" />
+							<text x="132" y="330" text-anchor="middle" fill="#60A5FA"
+								font-family="JetBrains Mono, monospace" font-size="10">64B</text>
+							<text x="196" y="330" text-anchor="middle" fill="#60A5FA"
+								font-family="JetBrains Mono, monospace" font-size="10">64B</text>
+							<text x="260" y="330" text-anchor="middle" fill="#60A5FA"
+								font-family="JetBrains Mono, monospace" font-size="10">64B</text>
+						</g>
+					</g>
+
+					<!-- Animated Memory Blocks (initially hidden) -->
+					<g id="animatedBlocks">
+						<!-- Block 1: Token Embeddings -->
+						<g id="block1" opacity="0">
+							<rect x="100" y="220" width="150" height="80" rx="6" fill="url(#blockGradient1)"
+								stroke="#3B82F6" stroke-width="2" filter="url(#glow)" />
+							<text x="175" y="250" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12" font-weight="bold">Token</text>
+							<text x="175" y="265" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12"
+								font-weight="bold">Embeddings</text>
+							<text x="175" y="285" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="10">vocab × emb_dim</text>
+						</g>
+
+						<!-- Block 2: Position Embeddings -->
+						<g id="block2" opacity="0">
+							<rect x="292" y="220" width="120" height="80" rx="6" fill="url(#blockGradient2)"
+								stroke="#10B981" stroke-width="2" filter="url(#glow)" />
+							<text x="352" y="250" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12"
+								font-weight="bold">Position</text>
+							<text x="352" y="265" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12"
+								font-weight="bold">Embeddings</text>
+							<text x="352" y="285" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="10">ctx × emb_dim</text>
+						</g>
+
+						<!-- Block 3: Layer 0 Weights -->
+						<g id="block3" opacity="0">
+							<rect x="420" y="220" width="140" height="80" rx="6" fill="url(#blockGradient3)"
+								stroke="#F59E0B" stroke-width="2" filter="url(#glow)" />
+							<text x="480" y="250" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12" font-weight="bold">Layer 0</text>
+							<text x="480" y="265" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12" font-weight="bold">Weights</text>
+							<text x="480" y="285" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="10">QKV + MLP</text>
+						</g>
+
+						<!-- Block 4: Layer 1 Weights -->
+						<g id="block4" opacity="0">
+							<rect x="612" y="220" width="140" height="80" rx="6" fill="url(#blockGradient4)"
+								stroke="#8B5CF6" stroke-width="2" filter="url(#glow)" />
+							<text x="672" y="250" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12" font-weight="bold">Layer 1</text>
+							<text x="672" y="265" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12" font-weight="bold">Weights</text>
+							<text x="672" y="285" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="10">QKV + MLP</text>
+						</g>
+
+						<!-- Block 5: Activations -->
+						<g id="block5" opacity="0">
+							<rect x="804" y="220" width="110" height="80" rx="6" fill="url(#blockGradient5)"
+								stroke="#EF4444" stroke-width="2" filter="url(#glow)" />
+							<text x="864" y="250" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12"
+								font-weight="bold">Activations</text>
+							<text x="864" y="270" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="10">ctx × emb_dim</text>
+							<text x="864" y="285" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="10">× num_layers</text>
+						</g>
+					</g>
+
+					<!-- Offset Pointer -->
+					<g id="offsetPointer">
+						<line id="offsetLine" x1="100" y1="180" x2="100" y2="320" stroke="#F59E0B" stroke-width="3"
+							marker-end="url(#arrowhead)" filter="url(#glow)" />
+						<text id="offsetLabel" x="100" y="320" text-anchor="middle" fill="#F59E0B"
+							font-family="JetBrains Mono, monospace" font-size="14" font-weight="bold">offset = 0</text>
+					</g>
+
+					<!-- Code Execution Steps -->
+					<g id="codeSteps">
+						<rect x="100" y="360" width="1200" height="180" rx="12" fill="#1E293B" stroke="#475569"
+							stroke-width="2" filter="url(#dropShadow)" />
+						<text x="700" y="385" text-anchor="middle" fill="#60A5FA"
+							font-family="JetBrains Mono, monospace" font-size="16" font-weight="bold">Live Code
+							Execution</text>
+
+						<!-- Step-by-step code execution -->
+						<g id="step1Code" opacity="0">
+							<text x="120" y="410" fill="#94A3B8" font-family="JetBrains Mono, monospace"
+								font-size="12">Step 1: bump(&amp;off, vocab_size * emb_dim, CACHE_ALIGN)</text>
+							<text x="140" y="430" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+								font-size="12">off = align_up(0, 64/4) = 0 // Already aligned</text>
+							<text x="140" y="450" fill="#10B981" font-family="JetBrains Mono, monospace"
+								font-size="12">here = 0, off += 150000, return 0</text>
+							<text x="140" y="470" fill="#F59E0B" font-family="JetBrains Mono, monospace"
+								font-size="12">→ Token embeddings start at offset 0</text>
+						</g>
+
+						<g id="step2Code" opacity="0">
+							<text x="120" y="410" fill="#94A3B8" font-family="JetBrains Mono, monospace"
+								font-size="12">Step 2: bump(&amp;off, ctx_len * emb_dim, CACHE_ALIGN)</text>
+							<text x="140" y="430" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+								font-size="12">off = align_up(150000, 16) = 150000 // Already aligned</text>
+							<text x="140" y="450" fill="#10B981" font-family="JetBrains Mono, monospace"
+								font-size="12">here = 150000, off += 120000, return 150000</text>
+							<text x="140" y="470" fill="#F59E0B" font-family="JetBrains Mono, monospace"
+								font-size="12">→ Position embeddings start at offset 150000</text>
+						</g>
+
+						<g id="step3Code" opacity="0">
+							<text x="120" y="410" fill="#94A3B8" font-family="JetBrains Mono, monospace"
+								font-size="12">Step 3: bump(&amp;off, layer_weights_size, CACHE_ALIGN)</text>
+							<text x="140" y="430" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+								font-size="12">off = align_up(270000, 16) = 270000 // Perfect alignment</text>
+							<text x="140" y="450" fill="#10B981" font-family="JetBrains Mono, monospace"
+								font-size="12">here = 270000, off += 200000, return 270000</text>
+							<text x="140" y="470" fill="#F59E0B" font-family="JetBrains Mono, monospace"
+								font-size="12">→ Layer 0 weights start at offset 270000</text>
+						</g>
+
+						<g id="step4Code" opacity="0">
+							<text x="120" y="410" fill="#94A3B8" font-family="JetBrains Mono, monospace"
+								font-size="12">Step 4: bump(&amp;off, layer_weights_size, CACHE_ALIGN)</text>
+							<text x="140" y="430" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+								font-size="12">off = align_up(470000, 16) = 470000 // Maintains alignment</text>
+							<text x="140" y="450" fill="#10B981" font-family="JetBrains Mono, monospace"
+								font-size="12">here = 470000, off += 200000, return 470000</text>
+							<text x="140" y="470" fill="#F59E0B" font-family="JetBrains Mono, monospace"
+								font-size="12">→ Layer 1 weights start at offset 470000</text>
+						</g>
+
+						<g id="step5Code" opacity="0">
+							<text x="120" y="410" fill="#94A3B8" font-family="JetBrains Mono, monospace"
+								font-size="12">Step 5: bump(&amp;off, activation_size, CACHE_ALIGN)</text>
+							<text x="140" y="430" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+								font-size="12">off = align_up(670000, 16) = 670000 // Perfect progression</text>
+							<text x="140" y="450" fill="#10B981" font-family="JetBrains Mono, monospace"
+								font-size="12">here = 670000, off += 150000, return 670000</text>
+							<text x="140" y="470" fill="#F59E0B" font-family="JetBrains Mono, monospace"
+								font-size="12">→ Activations start at offset 670000</text>
+						</g>
+
+						<g id="finalSummary" opacity="0">
+							<text x="120" y="410" fill="#10B981" font-family="JetBrains Mono, monospace" font-size="14"
+								font-weight="bold">Complete! Total memory used: 820000 floats (3.2MB)</text>
+							<text x="120" y="435" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+								font-size="12">Every allocation perfectly cache-line aligned</text>
+							<text x="120" y="455" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+								font-size="12">Zero fragmentation, zero malloc overhead</text>
+							<text x="120" y="475" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+								font-size="12">Sequential access pattern = perfect for prefetching</text>
+							<text x="120" y="495" fill="#60A5FA" font-family="JetBrains Mono, monospace"
+								font-size="12">Access any tensor: float* ptr = base + offset;</text>
+						</g>
+					</g>
+					<!-- Built-in CSS Animation (as fallback) -->
+					<style>
+						@keyframes slideIn {
+							from {
+								transform: translateX(-100px);
+								opacity: 0;
+							}
+
+							to {
+								transform: translateX(0);
+								opacity: 1;
+							}
+						}
+
+						@keyframes offsetMove {
+							0% {
+								transform: translateX(0);
+							}
+
+							20% {
+								transform: translateX(150px);
+							}
+
+							40% {
+								transform: translateX(270px);
+							}
+
+							60% {
+								transform: translateX(410px);
+							}
+
+							80% {
+								transform: translateX(550px);
+							}
+
+							100% {
+								transform: translateX(660px);
+							}
+						}
+
+						.animate-offset {
+							animation: offsetMove 15s infinite;
+							animation-timing-function: step-end;
+						}
+
+						.animate-slide {
+							animation: slideIn 1s ease-out forwards;
+						}
+					</style>
+				</svg>
+			</section>
+			<section style="transform: scale(1.3);">
+				<aside class="notes">
+  <p>So, we have our perfectly aligned memory layout. Now, how do we use it to get parallel performance? This slide shows our overall strategy.</p>
+  
+  <p><strong>(Point to "Token Distribution")</strong>
+  First, we use data parallelism. We take our entire sequence of tokens—all 30,000 in this example—and we divide it evenly among our 30 cores. Each core becomes responsible for its own slice of 1,000 tokens.</p>
+  
+  <p><strong>(Point to "Attention Head Distribution")</strong>
+  Second, and at the same time, we use model parallelism. The multi-head attention block is naturally parallel because each head is an independent calculation. So, we give each of our 30 cores its own dedicated attention head to compute.</p>
+  
+  <p>This perfect one-to-one mapping of tokens and heads to cores creates a perfectly balanced workload. Now let's look at the code that makes this happen...</p>
+</aside>
+				<svg id="ba930c96-c5d3-49c5-a9a8-74ccc6d83af8" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg"
+					xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1600 395.47">
+					<defs>
+						<linearGradient id="e1f305a9-4554-4d7f-a3f4-57c0f540c206" x1="-156.9" y1="1040.4" x2="-156.9"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10097, 62571)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#64748b" stop-opacity="0.3" />
+							<stop offset="1" stop-color="#475569" stop-opacity="0.3" />
+						</linearGradient>
+						<linearGradient id="b86d1d14-9b8e-4f85-ad1d-cd3ac1f60a50" x1="-156.84" y1="1040.4" x2="-156.84"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10161, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="f2b2ac62-daf8-44f3-ae83-bfb6476aff42" x1="-156.77" y1="1040.4" x2="-156.77"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10225, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="a5cac64d-559e-46dc-b339-e192416f074b" x1="-156.71" y1="1040.4" x2="-156.71"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10289, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="e3085cd5-3d21-4736-a7d2-25cbb116b57d" x1="-156.64" y1="1040.4" x2="-156.64"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10353, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="beaba4c0-0f92-4be5-89d1-bea3b0dd6cdb" x1="-156.58" y1="1040.4" x2="-156.58"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10417, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="bb6508ee-947b-49b1-9fdc-4d3d587eda04" x1="-156.51" y1="1040.4" x2="-156.51"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10481, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="a1e937b2-14aa-407a-9547-6a4475e96d06" x1="-156.45" y1="1040.4" x2="-156.45"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10545, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="e27eff0c-34ae-46a4-adda-d8c23fb4a411" x1="-156.38" y1="1040.4" x2="-156.38"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10609, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="fa7c0be4-de1c-4671-8461-e8f78c206e48" x1="-156.32" y1="1040.4" x2="-156.32"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10673, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="b1cbfaf9-272f-4ee6-92dc-9d44cf360792" x1="-156.25" y1="1040.4" x2="-156.25"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10737, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="a0a9f493-b465-4c05-b066-cec033c50366" x1="-156.19" y1="1040.4" x2="-156.19"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10801, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="b8ba9a88-a77e-47eb-809e-c860a0c72dc6" x1="-156.12" y1="1040.4" x2="-156.12"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10865, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="adfaa13f-5978-43ea-b301-9c0b1a3ae364" x1="-156.06" y1="1040.4" x2="-156.06"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10929, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="b06d6062-4750-47e2-8186-e7f09c3b6a88" x1="-155.99" y1="1040.4" x2="-155.99"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 10993, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="a4684114-3638-42c1-80e3-7e6b11fed4cd" x1="-155.93" y1="1040.4" x2="-155.93"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 11057, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="fa9b5dbc-772a-4439-aff1-e2ff28875815" x1="-155.86" y1="1040.4" x2="-155.86"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 11121, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="aa390267-401e-4303-b8e1-92e5e97f127a" x1="-155.8" y1="1040.4" x2="-155.8"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 11185, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="ab7b53de-8983-4d23-8186-e2b290d3ac4c" x1="-155.73" y1="1040.4" x2="-155.73"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 11249, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="b7be0f6b-6ea8-41ae-a8f9-e5fcf75973f7" x1="-155.67" y1="1040.4" x2="-155.67"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 11313, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="eee137af-f616-4c59-beca-4d03f7a03632" x1="-155.6" y1="1040.4" x2="-155.6"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 11377, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="f62d7173-966b-4357-ace3-82ca1fd85814" x1="-155.54" y1="1040.4" x2="-155.54"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 11441, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="b5c132f1-536c-4d74-b8f0-7b556e3c44ce" x1="-155.47" y1="1040.4" x2="-155.47"
+							y2="1039.33" gradientTransform="matrix(64, 0, 0, -60, 11505, 62571)"
+							xlink:href="#e1f305a9-4554-4d7f-a3f4-57c0f540c206" />
+						<linearGradient id="e678dc4b-e248-4741-8394-dc588c839f7d" x1="-157.44" y1="1039.74" x2="-156.37"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 10097, 52166)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#10b981" stop-opacity="0.9" />
+							<stop offset="1" stop-color="#059669" stop-opacity="0.9" />
+						</linearGradient>
+						<linearGradient id="b30fd521-2241-49c5-86d1-685cc2d13f48" x1="-157.37" y1="1039.74" x2="-156.31"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 10161, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="e8bb3db4-5745-4a22-b0c7-4d2370240b60" x1="-157.31" y1="1039.74" x2="-156.24"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 10225, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="a1a55d8b-8082-4588-8312-41fc00d53420" x1="-157.24" y1="1039.74" x2="-156.18"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 10289, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="b8b89307-adc9-4dd1-b9df-c1101e79d9e9" x1="-157.18" y1="1039.74" x2="-156.11"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 10353, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="ae48784f-c020-42e4-a480-32d6d68eb4ec" x1="-157.11" y1="1039.74" x2="-156.05"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 10417, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="f831270d-0de6-42e8-bfd5-531baba7f416" x1="-157.05" y1="1039.74" x2="-155.98"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 10481, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="ea28748b-3261-4d3a-b728-e71016fae99b" x1="-156.98" y1="1039.74" x2="-155.92"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 10545, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="fddfbc05-b42f-4df9-9970-d2e23cb42528" x1="-156.13" y1="1039.74" x2="-155.07"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 11377, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="bba143c7-024e-4f89-be1d-c219c670381e" x1="-156.07" y1="1039.74" x2="-155"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 11441, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="a536669a-66f4-4a6a-a99c-a6c97e45917d" x1="-156" y1="1039.74" x2="-154.94"
+							y2="1039.74" gradientTransform="matrix(64, 0, 0, -50, 11505, 52166)"
+							xlink:href="#e678dc4b-e248-4741-8394-dc588c839f7d" />
+						<linearGradient id="e9c2531c-f15e-4399-b9a0-252489ba2086" x1="-156.9" y1="1039.64" x2="-156.9"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 10097, 31411)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#6366f1" stop-opacity="0.9" />
+							<stop offset="1" stop-color="#4f46e5" stop-opacity="0.9" />
+						</linearGradient>
+						<linearGradient id="e4a4f514-f9f6-4ccb-9faa-c035b8625567" x1="-156.84" y1="1039.64" x2="-156.84"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 10161, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="b2e08776-12e6-4598-bc2e-f9cd63a9fbb9" x1="-156.77" y1="1039.64" x2="-156.77"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 10225, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="b9957303-271c-4f37-a16b-1f918092d4c9" x1="-156.71" y1="1039.64" x2="-156.71"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 10289, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="b8cddb07-acdc-4a67-a77f-4539f5fc41f8" x1="-156.64" y1="1039.64" x2="-156.64"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 10353, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="bdbd14e1-d707-46c9-97c4-5a572528f879" x1="-156.58" y1="1039.64" x2="-156.58"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 10417, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="a7a46e53-8664-405b-8193-ab06ab8c9e78" x1="-156.51" y1="1039.64" x2="-156.51"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 10481, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="f6747018-98c5-4c77-b176-5b3f5d779881" x1="-156.45" y1="1039.64" x2="-156.45"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 10545, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="eadfdabf-6734-46c7-91c8-f45a3f96f3ef" x1="-155.6" y1="1039.64" x2="-155.6"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 11377, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="fd8cea54-afa7-4219-bc87-0ae590907842" x1="-155.54" y1="1039.64" x2="-155.54"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 11441, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="fe79bd0c-8161-4a46-a5d9-342708fe7477" x1="-155.47" y1="1039.64" x2="-155.47"
+							y2="1038.58" gradientTransform="matrix(64, 0, 0, -30, 11505, 31411)"
+							xlink:href="#e9c2531c-f15e-4399-b9a0-252489ba2086" />
+						<linearGradient id="b33a5696-5f97-4dd8-a147-c0a176e9e859" x1="-157.44" y1="1039.27" x2="-156.37"
+							y2="1039.27" gradientTransform="matrix(64, 0, 0, -40, 10097, 41931)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#f59e0b" stop-opacity="0.9" />
+							<stop offset="1" stop-color="#d97706" stop-opacity="0.9" />
+						</linearGradient>
+						<linearGradient id="b0d9c872-a50b-4def-8e1f-7824514cc221" x1="-157.37" y1="1039.27" x2="-156.31"
+							y2="1039.27" gradientTransform="matrix(64, 0, 0, -40, 10161, 41931)"
+							xlink:href="#b33a5696-5f97-4dd8-a147-c0a176e9e859" />
+						<linearGradient id="f5a49667-7edd-40af-a584-b4e9ff320867" x1="-157.31" y1="1039.27" x2="-156.24"
+							y2="1039.27" gradientTransform="matrix(64, 0, 0, -40, 10225, 41931)"
+							xlink:href="#b33a5696-5f97-4dd8-a147-c0a176e9e859" />
+						<linearGradient id="a2aebb8a-0cac-4af6-ab93-782c55b9dafb" x1="-157.24" y1="1039.27" x2="-156.18"
+							y2="1039.27" gradientTransform="matrix(64, 0, 0, -40, 10289, 41931)"
+							xlink:href="#b33a5696-5f97-4dd8-a147-c0a176e9e859" />
+						<linearGradient id="bb1336c5-c61b-42f8-8c6e-1c0b26bbfd1b" x1="-157.18" y1="1039.27" x2="-156.11"
+							y2="1039.27" gradientTransform="matrix(64, 0, 0, -40, 10353, 41931)"
+							xlink:href="#b33a5696-5f97-4dd8-a147-c0a176e9e859" />
+						<linearGradient id="f52d4a6e-689d-41b8-9964-8f8613de6495" x1="-157.11" y1="1039.27" x2="-156.05"
+							y2="1039.27" gradientTransform="matrix(64, 0, 0, -40, 10417, 41931)"
+							xlink:href="#b33a5696-5f97-4dd8-a147-c0a176e9e859" />
+						<linearGradient id="a3f48864-a8d9-4bed-87fd-fb8949c3cf56" x1="-156.13" y1="1039.27" x2="-155.07"
+							y2="1039.27" gradientTransform="matrix(64, 0, 0, -40, 11377, 41931)"
+							xlink:href="#b33a5696-5f97-4dd8-a147-c0a176e9e859" />
+						<linearGradient id="b3660a1b-09f1-4adf-83d9-ab122c4361e3" x1="-156.07" y1="1039.27" x2="-155"
+							y2="1039.27" gradientTransform="matrix(64, 0, 0, -40, 11441, 41931)"
+							xlink:href="#b33a5696-5f97-4dd8-a147-c0a176e9e859" />
+						<linearGradient id="aaa2339e-d19c-4dfb-8c66-bd7ae6c8a6d2" x1="-156" y1="1039.27" x2="-154.94"
+							y2="1039.27" gradientTransform="matrix(64, 0, 0, -40, 11505, 41931)"
+							xlink:href="#b33a5696-5f97-4dd8-a147-c0a176e9e859" />
+					</defs><text transform="translate(242.08 29.97)"
+						style="isolation:isolate;font-size:29.825000762939453px;fill:#f1f5f9;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Parallel
+						Token Processing: Perfect Cache-Aligned Distribution</text>
+					<g id="b767b4c4-31d1-436a-b3a2-e3d4db2cd7ef" data-name="contextOverview"><text
+							transform="translate(286.83 72.58)"
+							style="isolation:isolate;font-size:17.042858123779297px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Context
+							Window: 30,000 tokens • 30 cores • 1,000 tokens per core • 30 attention heads (1 per
+							core)</text></g>
+					<g id="acbf8135-ef6b-42e7-b7d0-c1c926135125" data-name="tokenDistribution"><text
+							transform="translate(21.04 125.84)"
+							style="isolation:isolate;font-size:19.173215866088867px;fill:#60a5fa;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Token
+							Distribution Across Cores</text>
+						<g id="e03c609f-f86f-45bb-9117-b20b695a44ae" data-name="memoryLayout">
+							<g id="f13895e7-4d0f-4bb8-83df-d948b40291b5" data-name="cacheLines"
+								style="opacity:0.4000000059604645">
+								<rect x="21.04" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#e1f305a9-4554-4d7f-a3f4-57c0f540c206)" />
+								<rect x="89.21" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#b86d1d14-9b8e-4f85-ad1d-cd3ac1f60a50)" />
+								<rect x="157.38" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#f2b2ac62-daf8-44f3-ae83-bfb6476aff42)" />
+								<rect x="225.56" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#a5cac64d-559e-46dc-b339-e192416f074b)" />
+								<rect x="293.73" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#e3085cd5-3d21-4736-a7d2-25cbb116b57d)" />
+								<rect x="361.9" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#beaba4c0-0f92-4be5-89d1-bea3b0dd6cdb)" />
+								<rect x="430.07" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#bb6508ee-947b-49b1-9fdc-4d3d587eda04)" />
+								<rect x="498.24" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#a1e937b2-14aa-407a-9547-6a4475e96d06)" />
+								<rect x="566.41" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#e27eff0c-34ae-46a4-adda-d8c23fb4a411)" />
+								<rect x="634.58" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#fa7c0be4-de1c-4671-8461-e8f78c206e48)" />
+								<rect x="702.76" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#b1cbfaf9-272f-4ee6-92dc-9d44cf360792)" />
+								<rect x="770.93" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#a0a9f493-b465-4c05-b066-cec033c50366)" />
+								<rect x="839.1" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#b8ba9a88-a77e-47eb-809e-c860a0c72dc6)" />
+								<rect x="907.27" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#adfaa13f-5978-43ea-b301-9c0b1a3ae364)" />
+								<rect x="975.44" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#b06d6062-4750-47e2-8186-e7f09c3b6a88)" />
+								<rect x="1043.61" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#a4684114-3638-42c1-80e3-7e6b11fed4cd)" />
+								<rect x="1111.78" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#fa9b5dbc-772a-4439-aff1-e2ff28875815)" />
+								<rect x="1179.96" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#aa390267-401e-4303-b8e1-92e5e97f127a)" />
+								<rect x="1248.13" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#ab7b53de-8983-4d23-8186-e2b290d3ac4c)" />
+								<rect x="1316.3" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#b7be0f6b-6ea8-41ae-a8f9-e5fcf75973f7)" />
+								<rect x="1384.47" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#eee137af-f616-4c59-beca-4d03f7a03632)" />
+								<rect x="1452.64" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#f62d7173-966b-4357-ace3-82ca1fd85814)" />
+								<rect x="1520.81" y="147.14" width="68.17" height="63.91"
+									style="stroke:#64748b;fill:url(#b5c132f1-536c-4d74-b8f0-7b556e3c44ce)" />
+							</g>
+							<g id="a6678e5a-6740-4ec2-950d-fa468820d3dd" data-name="tokenChunks">
+								<rect id="b7cec2b0-4979-4298-a5d8-3b024706e164" data-name="chunk0" x="21.04" y="152.47"
+									width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#e678dc4b-e248-4741-8394-dc588c839f7d)" />
+								<text transform="translate(39.15 184.42)"
+									style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">0-999</text>
+								<rect id="bc232220-ba85-4cc3-a88a-61b1b071d4d8" data-name="chunk1" x="89.21" y="152.47"
+									width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#b30fd521-2241-49c5-86d1-685cc2d13f48)" />
+								<text transform="translate(107.32 184.42)"
+									style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">1K-2K</text>
+								<rect id="a2d653ed-056d-45ef-bfc0-3ba809c40fb2" data-name="chunk2" x="157.38" y="152.47"
+									width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#e8bb3db4-5745-4a22-b0c7-4d2370240b60)" />
+								<text transform="translate(175.49 184.42)"
+									style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">2K-3K</text>
+								<rect id="a45e762c-03b9-43c7-9b7a-5d9138026021" data-name="chunk3" x="225.56" y="152.47"
+									width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#a1a55d8b-8082-4588-8312-41fc00d53420)" />
+								<text transform="translate(243.66 184.42)"
+									style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">3K-4K</text>
+								<rect id="acfac597-7928-42ee-9f3d-231e5f87b399" data-name="chunk4" x="293.73" y="152.47"
+									width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#b8b89307-adc9-4dd1-b9df-c1101e79d9e9)" />
+								<text transform="translate(311.83 184.42)"
+									style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">4K-5K</text>
+								<rect id="a049d05f-1c15-4224-9a5c-cb8f7fcd6818" data-name="chunk5" x="361.9" y="152.47"
+									width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#ae48784f-c020-42e4-a480-32d6d68eb4ec)" />
+								<text transform="translate(380 184.42)"
+									style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">5K-6K</text>
+								<rect id="af1206c6-0b8f-4638-b25e-c202ec482c25" data-name="chunk6" x="430.07" y="152.47"
+									width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#f831270d-0de6-42e8-bfd5-531baba7f416)" />
+								<text transform="translate(449.77 184.42)"
+									style="isolation:isolate;font-size:9.586607933044434px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">6K-7K</text>
+								<rect id="b652b8ac-8cd9-4541-8999-c953802c899f" data-name="chunk7" x="498.24" y="152.47"
+									width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#ea28748b-3261-4d3a-b728-e71016fae99b)" />
+								<text transform="translate(517.94 184.42)"
+									style="isolation:isolate;font-size:9.586607933044434px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">7K-8K</text><text
+									transform="translate(555.76 184.42)"
+									style="isolation:isolate;font-size:21.303573608398438px;fill:#94a3b8;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">...</text>
+								<rect id="e24fb19d-2ebf-45f5-bac5-bdae4a5d9fab" data-name="chunk27" x="1384.47"
+									y="152.47" width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#fddfbc05-b42f-4df9-9970-d2e23cb42528)" />
+								<text transform="translate(1400.66 184.42)"
+									style="isolation:isolate;font-size:8.521429061889648px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">27K-28K</text>
+								<rect id="b6f13a6f-28c8-42a4-883b-a39db4fe3e06" data-name="chunk28" x="1452.64"
+									y="152.47" width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#bba143c7-024e-4f89-be1d-c219c670381e)" />
+								<text transform="translate(1468.83 184.42)"
+									style="isolation:isolate;font-size:8.521429061889648px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">28K-29K</text>
+								<rect id="a02f6da2-2339-40ae-9a55-9a4d8e00240e" data-name="chunk29" x="1520.81"
+									y="152.47" width="68.17" height="53.26"
+									style="stroke:#10b981;stroke-width:2px;fill:url(#a536669a-66f4-4a6a-a99c-a6c97e45917d)" />
+								<text transform="translate(1537 184.42)"
+									style="isolation:isolate;font-size:8.521429061889648px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">29K-30K</text>
+							</g>
+						</g>
+						<g id="a125dfe5-9b26-4983-9882-53e7279f78ca" data-name="coreAssignments">
+							<rect x="21.04" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#e9c2531c-f15e-4399-b9a0-252489ba2086)" />
+							<text transform="translate(32.12 243.01)"
+								style="isolation:isolate;font-size:12.782143592834473px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								0</text>
+							<rect x="89.21" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#e4a4f514-f9f6-4ccb-9faa-c035b8625567)" />
+							<text transform="translate(100.29 243.01)"
+								style="isolation:isolate;font-size:12.782143592834473px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								1</text>
+							<rect x="157.38" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#b2e08776-12e6-4598-bc2e-f9cd63a9fbb9)" />
+							<text transform="translate(168.46 243.01)"
+								style="isolation:isolate;font-size:12.782143592834473px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								2</text>
+							<rect x="225.56" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#b9957303-271c-4f37-a16b-1f918092d4c9)" />
+							<text transform="translate(236.63 243.01)"
+								style="isolation:isolate;font-size:12.782143592834473px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								3</text>
+							<rect x="293.73" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#b8cddb07-acdc-4a67-a77f-4539f5fc41f8)" />
+							<text transform="translate(304.8 243.01)"
+								style="isolation:isolate;font-size:12.782143592834473px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								4</text>
+							<rect x="361.9" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#bdbd14e1-d707-46c9-97c4-5a572528f879)" />
+							<text transform="translate(372.97 243.01)"
+								style="isolation:isolate;font-size:12.782143592834473px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								5</text>
+							<rect x="430.07" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#a7a46e53-8664-405b-8193-ab06ab8c9e78)" />
+							<text transform="translate(441.14 243.01)"
+								style="isolation:isolate;font-size:12.782143592834473px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								6</text>
+							<rect x="498.24" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#f6747018-98c5-4c77-b176-5b3f5d779881)" />
+							<text transform="translate(509.32 243.01)"
+								style="isolation:isolate;font-size:12.782143592834473px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								7</text><text transform="translate(559.59 243.01)"
+								style="isolation:isolate;font-size:17.042858123779297px;fill:#94a3b8;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">...</text>
+							<rect x="1384.47" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#eadfdabf-6734-46c7-91c8-f45a3f96f3ef)" />
+							<text transform="translate(1393.95 243.01)"
+								style="isolation:isolate;font-size:11.716964721679688px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								27</text>
+							<rect x="1452.64" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#fd8cea54-afa7-4219-bc87-0ae590907842)" />
+							<text transform="translate(1462.12 243.01)"
+								style="isolation:isolate;font-size:11.716964721679688px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								28</text>
+							<rect x="1520.81" y="221.7" width="68.17" height="31.96" rx="4.26"
+								style="stroke:#6366f1;stroke-width:2px;fill:url(#fe79bd0c-8161-4a46-a5d9-342708fe7477)" />
+							<text transform="translate(1530.29 243.01)"
+								style="isolation:isolate;font-size:11.716964721679688px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								29</text>
+						</g>
+					</g>
+					<g id="aa45895b-da72-4e91-9215-0df1bc419357" data-name="attentionHeads"><text
+							transform="translate(21.04 317.57)"
+							style="isolation:isolate;font-size:19.173215866088867px;fill:#60a5fa;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Attention
+							Head Distribution (1 head per core)</text>
+						<g id="ffd60b8b-c71e-4b27-a7c4-d02f0042d4d2" data-name="headAssignments">
+							<rect x="21.04" y="338.87" width="68.17" height="42.61" rx="6.39"
+								style="stroke:#f59e0b;stroke-width:2px;fill:url(#b33a5696-5f97-4dd8-a147-c0a176e9e859)" />
+							<text transform="translate(35.95 354.85)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Head
+								0</text><text transform="translate(35.95 368.7)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPSMT, Courier New">Core
+								0</text>
+							<rect x="89.21" y="338.87" width="68.17" height="42.61" rx="6.39"
+								style="stroke:#f59e0b;stroke-width:2px;fill:url(#b0d9c872-a50b-4def-8e1f-7824514cc221)" />
+							<text transform="translate(104.12 354.85)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Head
+								1</text><text transform="translate(104.12 368.7)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPSMT, Courier New">Core
+								1</text>
+							<rect x="157.38" y="338.87" width="68.17" height="42.61" rx="6.39"
+								style="stroke:#f59e0b;stroke-width:2px;fill:url(#f5a49667-7edd-40af-a584-b4e9ff320867)" />
+							<text transform="translate(172.29 354.85)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Head
+								2</text><text transform="translate(172.29 368.7)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPSMT, Courier New">Core
+								2</text>
+							<rect x="225.56" y="338.87" width="68.17" height="42.61" rx="6.39"
+								style="stroke:#f59e0b;stroke-width:2px;fill:url(#a2aebb8a-0cac-4af6-ab93-782c55b9dafb)" />
+							<text transform="translate(240.46 354.85)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Head
+								3</text><text transform="translate(240.46 368.7)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPSMT, Courier New">Core
+								3</text>
+							<rect x="293.73" y="338.87" width="68.17" height="42.61" rx="6.39"
+								style="stroke:#f59e0b;stroke-width:2px;fill:url(#bb1336c5-c61b-42f8-8c6e-1c0b26bbfd1b)" />
+							<text transform="translate(308.64 354.85)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Head
+								4</text><text transform="translate(308.64 368.7)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPSMT, Courier New">Core
+								4</text>
+							<rect x="361.9" y="338.87" width="68.17" height="42.61" rx="6.39"
+								style="stroke:#f59e0b;stroke-width:2px;fill:url(#f52d4a6e-689d-41b8-9964-8f8613de6495)" />
+							<text transform="translate(376.81 354.85)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Head
+								5</text><text transform="translate(376.81 368.7)"
+								style="isolation:isolate;font-size:10.651786804199219px;fill:#fff;font-family:CourierNewPSMT, Courier New">Core
+								5</text><text transform="translate(453.08 360.18)"
+								style="isolation:isolate;font-size:17.042858123779297px;fill:#94a3b8;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">...</text>
+							<rect x="1384.47" y="338.87" width="68.17" height="42.61" rx="6.39"
+								style="stroke:#f59e0b;stroke-width:2px;fill:url(#a3f48864-a8d9-4bed-87fd-fb8949c3cf56)" />
+							<text transform="translate(1398.42 354.85)"
+								style="isolation:isolate;font-size:9.586607933044434px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Head
+								27</text><text transform="translate(1398.42 368.7)"
+								style="isolation:isolate;font-size:9.586607933044434px;fill:#fff;font-family:CourierNewPSMT, Courier New">Core
+								27</text>
+							<rect x="1452.64" y="338.87" width="68.17" height="42.61" rx="6.39"
+								style="stroke:#f59e0b;stroke-width:2px;fill:url(#b3660a1b-09f1-4adf-83d9-ab122c4361e3)" />
+							<text transform="translate(1466.59 354.85)"
+								style="isolation:isolate;font-size:9.586607933044434px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Head
+								28</text><text transform="translate(1466.59 368.7)"
+								style="isolation:isolate;font-size:9.586607933044434px;fill:#fff;font-family:CourierNewPSMT, Courier New">Core
+								28</text>
+							<rect x="1520.81" y="338.87" width="68.17" height="42.61" rx="6.39"
+								style="stroke:#f59e0b;stroke-width:2px;fill:url(#aaa2339e-d19c-4dfb-8c66-bd7ae6c8a6d2)" />
+							<text transform="translate(1534.76 354.85)"
+								style="isolation:isolate;font-size:9.586607933044434px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Head
+								29</text><text transform="translate(1534.76 368.7)"
+								style="isolation:isolate;font-size:9.586607933044434px;fill:#fff;font-family:CourierNewPSMT, Courier New">Core
+								29</text>
+						</g>
+					</g>
+				</svg>
+			</section>
+			<section style="transform: scale(1.45);">
+				<aside class="notes">
+  <p><strong>(Fragment 1: Code Block)</strong>
+  Here's the implementation. We use a simple OpenMP parallel loop. The code on the left calculates the start and end tokens for each core, distributing the data. The code on the right is the most important part: it calculates the memory offset to give each core a pointer to its own unique attention head data. This is how we enforce the separation.</p>
+  
+  <p><strong>(Fragment 2: Memory Access Pattern)</strong>
+  This results in a perfect memory access pattern. As you can see, each core's block of tokens is a distinct, isolated region. Because of our alignment, there is zero cache line sharing between the work of different cores.</p>
+  
+  <p><strong>(Fragment 3: Benefit Boxes)</strong>
+  And the benefits are exactly what we were aiming for. We get near-linear scaling and eliminate false sharing overhead. For the attention calculation, each core computes its head independently, which means there's no cross-core communication needed, leading to a perfectly balanced workload.</p>
+  
+  <p><strong>(Fragment 4: Perfect Division)</strong>
+  Ultimately, our setup creates a perfect division of labor. 30,000 tokens across 30 cores is exactly 1,000 tokens each, and 30 heads for 30 cores is 1 head each. There's no remainder to deal with—just a perfectly balanced, highly efficient parallel system.</p>
+</aside>
+				<svg id="ec7a74f6-4881-4442-be7d-7f1cbf60c820" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg"
+					xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1600 625.02">
+					<defs>
+						<filter id="ec3ecbd1-d3ef-4ac5-b04b-d74d1885d568" x="-20%" y="-20%" width="140%" height="140%"
+							name="dropShadow">
+							<feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3" />
+						</filter>
+						<filter id="bc8f15da-4324-439b-af72-2ad635f8af85" x="-20%" y="-20%" width="140%" height="140%"
+							name="glow">
+							<feGaussianBlur result="coloredBlur" stdDeviation="3" />
+							<feMerge>
+								<feMergeNode in="coloredBlur" />
+								<feMergeNode in="SourceGraphic" />
+							</feMerge>
+						</filter>
+						<linearGradient id="b7d6aaaf-572a-418a-ae4b-1a3491aa9761" x1="-157.87" y1="-13.55" x2="-156.72"
+							y2="-13.55" gradientTransform="matrix(140, 0, 0, -40, 22201, -249.02)"
+							gradientUnits="userSpaceOnUse">
+							<stop offset="0" stop-color="#10b981" stop-opacity="0.9" />
+							<stop offset="1" stop-color="#059669" stop-opacity="0.9" />
+						</linearGradient>
+						<linearGradient id="fbb9b4df-8b90-40e3-8451-4b06bed16f48" x1="-157.68" y1="-13.55" x2="-156.54"
+							y2="-13.55" gradientTransform="matrix(140, 0, 0, -40, 22351, -249.02)"
+							xlink:href="#b7d6aaaf-572a-418a-ae4b-1a3491aa9761" />
+						<linearGradient id="e774a35b-38d1-4be9-8e31-fe5709e5a8e5" x1="-157.52" y1="-13.56" x2="-156.45"
+							y2="-13.56" gradientTransform="matrix(149.94, -0.32, -0.08, -40, 24069.8, -298.69)"
+							xlink:href="#b7d6aaaf-572a-418a-ae4b-1a3491aa9761" />
+						<linearGradient id="b93b33f0-6d99-429b-918d-b97fca093b9b" x1="-157.86" y1="-13.55" x2="-156.86"
+							y2="-13.55" gradientTransform="matrix(140, 0, 0, -40, 23451, -249.02)"
+							xlink:href="#b7d6aaaf-572a-418a-ae4b-1a3491aa9761" />
+					</defs>
+					<g  class="fragment" id="ae4ade0c-3a54-4711-8cff-5ff330793916" data-name="codeImplementation">
+						<g style="filter:url(#ec3ecbd1-d3ef-4ac5-b04b-d74d1885d568)">
+							<path
+								d="M92,13.17H1508c6.63,0,12,5.73,12,12.81V192.47c0,7.07-5.37,12.81-12,12.81H92c-6.63,0-12-5.74-12-12.81V26C80,18.9,85.37,13.17,92,13.17Z"
+								style="fill:#1e293b" />
+							<path
+								d="M92,13.17H1508c6.63,0,12,5.73,12,12.81V192.47c0,7.07-5.37,12.81-12,12.81H92c-6.63,0-12-5.74-12-12.81V26C80,18.9,85.37,13.17,92,13.17Z"
+								style="fill:none;stroke:#6366f1;stroke-width:2px" />
+						</g><text transform="translate(583.96 43.17)"
+							style="isolation:isolate;font-size:18px;fill:#60a5fa;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Parallel
+							Token Processing Implementation</text><text transform="translate(100 73.17)"
+							style="isolation:isolate;font-size:12px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">//
+							Perfect cache-aligned token distribution</text><text transform="translate(100 93.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">#pragma
+							omp parallel for schedule(static)</text><text transform="translate(100 113.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">for
+							(int core = 0; core &lt; 30; ++core) {</text><text transform="translate(120 133.17)"
+							style="isolation:isolate;font-size:12px;fill:#10b981;font-family:CourierNewPSMT, Courier New">int
+							tokens_per_core = 1000;</text><text transform="translate(120 153.17)"
+							style="isolation:isolate;font-size:12px;fill:#10b981;font-family:CourierNewPSMT, Courier New">int
+							start_token = core * tokens_per_core; // 0, 1000, 2000, 3000...</text><text
+							transform="translate(120 173.17)"
+							style="isolation:isolate;font-size:12px;fill:#10b981;font-family:CourierNewPSMT, Courier New">int
+							end_token = start_token + tokens_per_core; // 999, 1999, 2999...</text><text
+							transform="translate(100 193.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">}</text><text
+							transform="translate(900 73.17)"
+							style="isolation:isolate;font-size:12px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">//
+							Each core gets its own attention head</text><text transform="translate(900 93.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">for
+							(int core = 0; core &lt; 30; ++core) {</text><text transform="translate(920 113.17)"
+							style="isolation:isolate;font-size:12px;fill:#f59e0b;font-family:CourierNewPSMT, Courier New">int
+							head_id = core; // Core 0 = Head 0, Core 1 = Head 1...</text><text
+							transform="translate(920 133.17)"
+							style="isolation:isolate;font-size:12px;fill:#f59e0b;font-family:CourierNewPSMT, Courier New">float*
+							q_head = qkv_base + head_id * head_dim;</text><text transform="translate(920 153.17)"
+							style="isolation:isolate;font-size:12px;fill:#f59e0b;font-family:CourierNewPSMT, Courier New">float*
+							k_head = qkv_base + (30 + head_id) * head_dim;</text><text transform="translate(920 173.17)"
+							style="isolation:isolate;font-size:12px;fill:#f59e0b;font-family:CourierNewPSMT, Courier New">float*
+							v_head = qkv_base + (60 + head_id) * head_dim;</text><text transform="translate(900 193.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">}</text>
+					</g>
+					<g  class="fragment"id="be71ad16-1e50-4397-a654-33907f3f809f" data-name="memoryAccessPattern"><text
+							transform="translate(80 233.17)"
+							style="isolation:isolate;font-size:18px;fill:#60a5fa;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Memory
+							Access Pattern: Zero False Sharing</text>
+						<g id="b2d97f48-c344-488a-b55b-37203b0ae634" data-name="memoryBlocks">
+							<rect x="80" y="253.17" width="1440" height="80" rx="8"
+								style="fill:#1e293b;stroke:#475569;stroke-width:2px" />
+							<g style="filter:url(#bc8f15da-4324-439b-af72-2ad635f8af85)">
+								<path
+									d="M104.32,273.17H255.17a4.31,4.31,0,0,1,4.57,4v32a4.31,4.31,0,0,1-4.57,4H104.32a4.32,4.32,0,0,1-4.58-4v-32A4.32,4.32,0,0,1,104.32,273.17Z"
+									style="fill:url(#b7d6aaaf-572a-418a-ae4b-1a3491aa9761)" />
+								<path
+									d="M104.32,273.17H255.17a4.31,4.31,0,0,1,4.57,4v32a4.31,4.31,0,0,1-4.57,4H104.32a4.32,4.32,0,0,1-4.58-4v-32A4.32,4.32,0,0,1,104.32,273.17Z"
+									style="fill:none;stroke:#10b981;stroke-width:2px" />
+							</g><text transform="translate(107.73 298.17)"
+								style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								0: Tokens 0-999</text>
+							<g style="filter:url(#bc8f15da-4324-439b-af72-2ad635f8af85)">
+								<path
+									d="M280.21,273.17H431.07a4.32,4.32,0,0,1,4.57,4v32a4.32,4.32,0,0,1-4.57,4H280.21a4.31,4.31,0,0,1-4.57-4v-32A4.31,4.31,0,0,1,280.21,273.17Z"
+									style="fill:url(#fbb9b4df-8b90-40e3-8451-4b06bed16f48)" />
+								<path
+									d="M280.21,273.17H431.07a4.32,4.32,0,0,1,4.57,4v32a4.32,4.32,0,0,1-4.57,4H280.21a4.31,4.31,0,0,1-4.57-4v-32A4.31,4.31,0,0,1,280.21,273.17Z"
+									style="fill:none;stroke:#10b981;stroke-width:2px" />
+							</g><text transform="translate(283.63 298.17)"
+								style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								1: Tokens 1K-2K</text>
+							<g style="filter:url(#bc8f15da-4324-439b-af72-2ad635f8af85)">
+								<path
+									d="M456.4,273.32,607.2,273a4.3,4.3,0,0,1,4.57,4l.07,32a4.32,4.32,0,0,1-4.56,4l-150.8.32a4.31,4.31,0,0,1-4.57-4l-.07-32A4.31,4.31,0,0,1,456.4,273.32Z"
+									style="fill:url(#e774a35b-38d1-4be9-8e31-fe5709e5a8e5)" />
+								<path
+									d="M456.4,273.32,607.2,273a4.3,4.3,0,0,1,4.57,4l.07,32a4.32,4.32,0,0,1-4.56,4l-150.8.32a4.31,4.31,0,0,1-4.57-4l-.07-32A4.31,4.31,0,0,1,456.4,273.32Z"
+									style="fill:none;stroke:#10b981;stroke-width:2px" />
+							</g><text transform="translate(460.31 298.17)"
+								style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								2: Tokens 2K-3K</text><text transform="translate(645.44 298.17)"
+								style="isolation:isolate;font-size:20px;fill:#94a3b8;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">...</text>
+							<g style="filter:url(#bc8f15da-4324-439b-af72-2ad635f8af85)">
+								<rect x="1350" y="273.17" width="140" height="40" rx="4"
+									style="fill:url(#b93b33f0-6d99-429b-918d-b97fca093b9b)" />
+								<rect x="1350" y="273.17" width="140" height="40" rx="4"
+									style="fill:none;stroke:#10b981;stroke-width:2px" />
+							</g><text transform="translate(1367.19 298.17)"
+								style="isolation:isolate;font-size:11px;fill:#fff;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Core
+								29: 29K-30K</text>
+							<rect x="262.12" y="278.17" width="10" height="30"
+								style="fill:#0f172a;stroke:#64748b;stroke-dasharray:2,2" />
+							<rect x="438.11" y="278.17" width="10" height="30"
+								style="fill:#0f172a;stroke:#64748b;stroke-dasharray:2,2" />
+							<rect x="1340" y="278.17" width="10" height="30"
+								style="fill:#0f172a;stroke:#64748b;stroke-dasharray:2,2" />
+						</g><text transform="translate(375.73 353.17)"
+							style="isolation:isolate;font-size:14px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Perfect
+							isolation: Each core accesses its own 64-byte aligned memory region • Zero cache line
+							sharing</text>
+					</g>
+					<g class="fragment" id="b0846629-e3a7-437a-b53d-7da03765763a" data-name="performanceBenefits">
+						<g style="filter:url(#ec3ecbd1-d3ef-4ac5-b04b-d74d1885d568)">
+							<rect x="80" y="383.17" width="700" height="120" rx="12" style="fill:#1e293b" />
+							<rect x="80" y="383.17" width="700" height="120" rx="12"
+								style="fill:none;stroke:#10b981;stroke-width:2px" />
+						</g><text transform="translate(309.98 413.17)"
+							style="isolation:isolate;font-size:16px;fill:#10b981;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Token
+							Processing Benefits</text><text transform="translate(100 438.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">•
+							Linear scaling: 30x speedup with 30 cores</text><text transform="translate(100 458.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">•
+							Perfect cache utilization: 95%+ hit rate</text><text transform="translate(100 478.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">•
+							Zero false sharing overhead</text>
+						<g style="filter:url(#ec3ecbd1-d3ef-4ac5-b04b-d74d1885d568)">
+							<rect x="820" y="383.17" width="700" height="120" rx="12" style="fill:#1e293b" />
+							<rect x="820" y="383.17" width="700" height="120" rx="12"
+								style="fill:none;stroke:#f59e0b;stroke-width:2px" />
+						</g><text transform="translate(1059.58 413.17)"
+							style="isolation:isolate;font-size:16px;fill:#f59e0b;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Attention
+							Head Benefits</text><text transform="translate(840 438.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">•
+							Each core computes one complete attention head</text><text transform="translate(840 458.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">•
+							No cross-core communication during QKV</text><text transform="translate(840 478.17)"
+							style="isolation:isolate;font-size:12px;fill:#f1f5f9;font-family:CourierNewPSMT, Courier New">•
+							Perfect workload balance</text>
+					</g>
+					<g class="fragment" id="f8c3516e-0d29-4133-8888-b906edff75fc" data-name="mathBreakdown">
+						<g style="filter:url(#ec3ecbd1-d3ef-4ac5-b04b-d74d1885d568)">
+							<rect x="80" y="533.17" width="1440" height="60" rx="12" style="fill:#1e293b" />
+							<rect x="80" y="533.17" width="1440" height="60" rx="12"
+								style="fill:none;stroke:#8b5cf6;stroke-width:2px" />
+						</g><text transform="translate(291.12 558.17)"
+							style="isolation:isolate;font-size:16px;fill:#8b5cf6;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">Perfect
+							Division: 30,000 tokens ÷ 30 cores = 1,000 tokens per core • 30 heads ÷ 30 cores = 1 head
+							per core</text><text transform="translate(414.74 578.17)"
+							style="isolation:isolate;font-size:12px;fill:#94a3b8;font-family:CourierNewPSMT, Courier New">Each
+							core processes exactly 1,000 tokens through exactly 1 attention head • Zero remainder,
+							perfect balance</text>
+					</g>
+					<g id="a06dd8ea-289c-42ef-b6d6-ea4ea0f747f2" data-name="animationElements" style="opacity:0">
+						<g id="f2c153ed-7463-4f88-a55e-45db35031e9f" data-name="memoryAccess">
+							<rect id="e2ba46a9-8575-45b9-bd0a-005a5fa9763b" data-name="access0" x="100" y="143.17"
+								width="140" height="40"
+								style="fill:none;stroke:#60a5fa;stroke-opacity:0;stroke-width:3px" />
+							<rect id="f3e988d2-0e47-4a1f-866e-d5e86d89318a" data-name="access1" x="250" y="143.17"
+								width="140" height="40"
+								style="fill:none;stroke:#60a5fa;stroke-opacity:0;stroke-width:3px" />
+							<rect id="b42e6ef7-3f96-4100-a9ae-d4e42acbb426" data-name="access2" x="400" y="143.17"
+								width="140" height="40"
+								style="fill:none;stroke:#60a5fa;stroke-opacity:0;stroke-width:3px" />
+						</g>
+					</g>
+				</svg>
+			</section>
+			<section style="transform: scale(1.4);">
+				<aside class="notes">
+  <p>So, we have our perfectly balanced workload. But in the real world, no two cores finish at the exact same microsecond. This slide shows what really happens.</p>
+  
+  <p><strong>(Point to the timeline)</strong>
+  Here we see four cores finishing the same QKV computation. Due to tiny, unpredictable factors like OS jitter or CPU frequency scaling, Core 0 finishes a few hundred cycles earlier than Core 3.
+  </p>
+  
+  <p>Because the next operation can't start until all the data is ready, the faster cores must wait at a synchronization point called a 'barrier'.</p>
+
+  <p><strong>(Point to the Performance Analysis)</strong>
+  The performance impact is minimal. The variation between the fastest and slowest core is only about 3%, and the total 'wasted' time for the fast cores is just a few hundred cycles out of ten thousand. The cost of this synchronization is tiny, but it's absolutely necessary.</p>
+  
+  <p><strong>(Point to the Optimal Approach)</strong>
+  This is why a simple, standard OpenMP parallel loop is the optimal approach. The implicit barrier at the end handles this synchronization perfectly. Trying to build a more complex system to avoid this small wait time would add more overhead than it saves. This is a clean, robust, and efficient solution.</p>
+</aside>
+				<svg viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg">
+					<defs>
+						<!-- Gradients for visual appeal -->
+						<linearGradient id="coreGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+							<stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+						</linearGradient>
+
+						<linearGradient id="computeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+							<stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+						</linearGradient>
+
+						<linearGradient id="waitGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+							<stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+							<stop offset="100%" style="stop-color:#D97706;stop-opacity:1" />
+						</linearGradient>
+
+						<linearGradient id="barrierGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+							<stop offset="0%" style="stop-color:#EF4444;stop-opacity:0.8" />
+							<stop offset="100%" style="stop-color:#DC2626;stop-opacity:0.8" />
+						</linearGradient>
+
+						<!-- Drop shadow filter -->
+						<filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+							<feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.3" />
+						</filter>
+
+						<!-- Glow effect for active operations -->
+						<filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+							<feGaussianBlur stdDeviation="3" result="coloredBlur" />
+							<feMerge>
+								<feMergeNode in="coloredBlur" />
+								<feMergeNode in="SourceGraphic" />
+							</feMerge>
+						</filter>
+					</defs>
+
+					<!-- Title -->
+					<text x="600" y="40" text-anchor="middle" fill="#F1F5F9" font-family="JetBrains Mono, monospace"
+						font-size="24" font-weight="bold">
+						Core Synchronization: QKV Operation
+					</text>
+					5
+					<!-- Timeline axis -->
+					<line x1="150" y1="100" x2="1050" y2="100" stroke="#475569" stroke-width="2" />
+
+					<!-- Time markers -->
+					<g id="timeMarkers" fill="#94A3B8" font-family="JetBrains Mono, monospace" font-size="12">
+						<text x="150" y="90" text-anchor="middle">0 cycles</text>
+						<text x="350" y="90" text-anchor="middle">2,500</text>
+						<text x="550" y="90" text-anchor="middle">5,000</text>
+						<text x="750" y="90" text-anchor="middle">7,500</text>
+						<text x="950" y="90" text-anchor="middle">10,000</text>
+						<text x="1050" y="90" text-anchor="middle">10,300</text>
+					</g>
+
+					<!-- Core labels and execution bars -->
+					<g id="coreSection">
+						<!-- Core 0 (fastest) -->
+						<g id="core0" class="core-group">
+							<rect x="80" y="130" width="60" height="40" rx="8" fill="url(#coreGradient)"
+								filter="url(#dropShadow)" />
+							<text x="110" y="155" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="14" font-weight="bold">Core 0</text>
+
+							<!-- QKV computation bar -->
+							<rect id="core0-compute" x="150" y="135" width="780" height="30" rx="4"
+								fill="url(#computeGradient)" filter="url(#glow)" />
+							<text x="540" y="155" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12">QKV Computation (9,750
+								cycles)</text>
+
+							<!-- Wait time -->
+							<rect id="core0-wait" x="930" y="135" width="60" height="30" rx="4"
+								fill="url(#waitGradient)" />
+							<text x="960" y="155" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="10">Wait</text>
+						</g>
+
+						<!-- Core 1 -->
+						<g id="core1" class="core-group">
+							<rect x="80" y="180" width="60" height="40" rx="8" fill="url(#coreGradient)"
+								filter="url(#dropShadow)" />
+							<text x="110" y="205" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="14" font-weight="bold">Core 1</text>
+
+							<rect id="core1-compute" x="150" y="185" width="792" height="30" rx="4"
+								fill="url(#computeGradient)" filter="url(#glow)" />
+							<text x="546" y="205" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12">QKV Computation (9,900
+								cycles)</text>
+
+							<rect id="core1-wait" x="942" y="185" width="48" height="30" rx="4"
+								fill="url(#waitGradient)" />
+							<text x="966" y="205" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="10">Wait</text>
+						</g>
+
+						<!-- Core 2 -->
+						<g id="core2" class="core-group">
+							<rect x="80" y="230" width="60" height="40" rx="8" fill="url(#coreGradient)"
+								filter="url(#dropShadow)" />
+							<text x="110" y="255" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="14" font-weight="bold">Core 2</text>
+
+							<rect id="core2-compute" x="150" y="235" width="800" height="30" rx="4"
+								fill="url(#computeGradient)" filter="url(#glow)" />
+							<text x="550" y="255" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12">QKV Computation (10,000
+								cycles)</text>
+
+							<rect id="core2-wait" x="950" y="235" width="40" height="30" rx="4"
+								fill="url(#waitGradient)" />
+							<text x="970" y="255" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="10">Wait</text>
+						</g>
+
+						<!-- Core 3 (slowest) -->
+						<g id="core3" class="core-group">
+							<rect x="80" y="280" width="60" height="40" rx="8" fill="url(#coreGradient)"
+								filter="url(#dropShadow)" />
+							<text x="110" y="305" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="14" font-weight="bold">Core 3</text>
+
+							<rect id="core3-compute" x="150" y="285" width="824" height="30" rx="4"
+								fill="url(#computeGradient)" filter="url(#glow)" />
+							<text x="562" y="305" text-anchor="middle" fill="white"
+								font-family="JetBrains Mono, monospace" font-size="12">QKV Computation (10,300
+								cycles)</text>
+
+							<!-- No wait time - this core finishes last -->
+						</g>
+					</g>
+
+					<!-- Barrier line -->
+					<g id="barrierSection">
+						<rect id="barrier" x="990" y="120" width="8" height="220" fill="url(#barrierGradient)"
+							filter="url(#dropShadow)" />
+						<text x="1010" y="160" fill="#EF4444" font-family="JetBrains Mono, monospace" font-size="14"
+							font-weight="bold" transform="rotate(90, 1010, 160)">BARRIER</text>
+					</g>
+
+					<!-- Performance metrics -->
+					<g id="metricsSection" fill="#F1F5F9" font-family="JetBrains Mono, monospace">
+						<rect x="80" y="380" width="480" height="200" rx="12" fill="#1E293B" stroke="#475569"
+							stroke-width="2" filter="url(#dropShadow)" />
+						<text x="320" y="410" text-anchor="middle" font-size="18" font-weight="bold"
+							fill="#60A5FA">Performance Analysis</text>
+
+						<text x="100" y="440" font-size="14" fill="#94A3B8">Operation Duration:</text>
+						<text x="280" y="440" font-size="14" fill="#10B981" font-weight="bold">~10,000 cycles</text>
+
+						<text x="100" y="465" font-size="14" fill="#94A3B8">Core Variation:</text>
+						<text x="280" y="465" font-size="14" fill="#F59E0B" font-weight="bold">300 cycles (3%)</text>
+
+						<text x="100" y="490" font-size="14" fill="#94A3B8">Wait Overhead:</text>
+						<text x="280" y="490" font-size="14" fill="#EF4444" font-weight="bold">0-300 cycles</text>
+
+						<text x="100" y="515" font-size="14" fill="#94A3B8">Sync Cost vs Benefit:</text>
+						<text x="280" y="515" font-size="14" fill="#10B981" font-weight="bold">Worth it!</text>
+
+						<text x="100" y="550" font-size="12" fill="#64748B">Simple barrier synchronization is
+							optimal.</text>
+						<text x="100" y="565" font-size="12" fill="#64748B">Complex prefetching coordination costs more
+							than it saves.</text>
+					</g>
+
+					<!-- Code snippet -->
+					<g id="codeSection">
+						<rect x="620" y="380" width="500" height="200" rx="12" fill="#1E293B" stroke="#475569"
+							stroke-width="2" filter="url(#dropShadow)" />
+						<text x="870" y="410" text-anchor="middle" font-size="18" font-weight="bold"
+							fill="#60A5FA">Optimal Approach</text>
+
+						<text x="640" y="440" font-size="12" fill="#94A3B8"
+							font-family="JetBrains Mono, monospace">#pragma omp parallel for schedule(static)</text>
+						<text x="640" y="460" font-size="12" fill="#94A3B8" font-family="JetBrains Mono, monospace">for
+							(int core = 0; core &lt; num_cores; ++core) {</text>
+						<text x="660" y="480" font-size="12" fill="#10B981" font-family="JetBrains Mono, monospace">
+							compute_qkv_slice(core);</text>
+						<text x="660" y="500" font-size="12" fill="#64748B" font-family="JetBrains Mono, monospace"> //
+							Fast cores wait ~200 cycles</text>
+						<text x="660" y="520" font-size="12" fill="#64748B" font-family="JetBrains Mono, monospace"> //
+							This is totally fine!</text>
+						<text x="640" y="540" font-size="12" fill="#94A3B8"
+							font-family="JetBrains Mono, monospace">}</text>
+						<text x="640" y="560" font-size="12" fill="#EF4444"
+							font-family="JetBrains Mono, monospace">#pragma omp barrier</text>
+					</g>
+
+					<!-- Progress indicators (for animation) -->
+					<g id="progressIndicators">
+						<circle id="progress0" cx="930" cy="150" r="8" fill="#10B981" opacity="0" />
+						<circle id="progress1" cx="942" cy="200" r="8" fill="#10B981" opacity="0" />
+						<circle id="progress2" cx="950" cy="250" r="8" fill="#10B981" opacity="0" />
+						<circle id="progress3" cx="974" cy="300" r="8" fill="#10B981" opacity="0" />
+					</g>
+
+					<!-- Cycle counter (for animation) -->
+					<g id="cycleCounter">
+						<rect x="950" y="0" width="200" height="40" rx="8" fill="#1E293B" stroke="#475569"
+							stroke-width="2" />
+						<text id="cycleText" x="1050" y="25" text-anchor="middle" fill="#60A5FA"
+							font-family="JetBrains Mono, monospace" font-size="16" font-weight="bold">Cycle: 0</text>
+					</g>
+
+					<!-- Animation elements (initially hidden) -->
+					<g id="animationEffects" opacity="0">
+						<!-- Compute waves -->
+						<g id="computeWaves">
+							<circle id="wave0" cx="150" cy="150" r="5" fill="#10B981" opacity="0.6" />
+							<circle id="wave1" cx="150" cy="200" r="5" fill="#10B981" opacity="0.6" />
+							<circle id="wave2" cx="150" cy="250" r="5" fill="#10B981" opacity="0.6" />
+							<circle id="wave3" cx="150" cy="300" r="5" fill="#10B981" opacity="0.6" />
+						</g>
+
+						<!-- Completion sparkles -->
+						<g id="sparkles">
+							<polygon id="sparkle0" points="930,140 935,150 930,160 925,150" fill="#FFD700"
+								opacity="0" />
+							<polygon id="sparkle1" points="942,190 947,200 942,210 937,200" fill="#FFD700"
+								opacity="0" />
+							<polygon id="sparkle2" points="950,240 955,250 950,260 945,250" fill="#FFD700"
+								opacity="0" />
+							<polygon id="sparkle3" points="974,290 979,300 974,310 969,300" fill="#FFD700"
+								opacity="0" />
+						</g>
+					</g>
+				</svg>
+
+
+			</section>
+		</div>
+
+	</div>
+
+	<script src="../reveal.js/dist/reveal.js"></script>
+	<script src="../reveal.js/plugin/zoom/zoom.js"></script>
+	<script src="../reveal.js/plugin/notes/notes.js"></script>
+	<script src="../reveal.js/plugin/search/search.js"></script>
+	<script src="../reveal.js/plugin/markdown/markdown.js"></script>
+	<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/DrawSVGPlugin.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/MotionPathHelper.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/MotionPathPlugin.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/MorphSVGPlugin.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Physics2DPlugin.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/TextPlugin.min.js"></script>
+
+	<!-- RoughEase, ExpoScaleEase and SlowMo are all included in the EasePack file -->
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
+	<script>
+
+		// Also available as an ES module, see:
+		// https://revealjs.com/initialization/
+		Reveal.initialize({
+			controls: true,
+			progress: true,
+			center: true,
+			hash: true,
+
+			// Learn about plugins: https://revealjs.com/plugins/
+			plugins: [RevealZoom, RevealNotes, RevealSearch, RevealMarkdown, RevealHighlight]
+		});
+
+	</script>
+	<script>
+		// use a script tag or an external JS file
+		document.addEventListener("DOMContentLoaded", (event) => {
+			gsap.registerPlugin(DrawSVGPlugin, MotionPathHelper, MotionPathPlugin, MorphSVGPlugin, Physics2DPlugin, SplitText, TextPlugin, SlowMo, CustomEase)
+			// gsap code here!
+		});
+
+	</script>
+	<script>
+		// Cache line boundaries from your SVG
+		const cacheLineBoundaries = [100, 292, 420, 612, 804];
+
+		// Function to find the next cache line boundary
+		function getNextCacheLine(currentPosition, boundaries) {
+			return boundaries.find(boundary => boundary > currentPosition) || boundaries[0];
+		}
+
+		const tl = gsap.timeline({ repeat: -1, repeatDelay: 2 });
+
+		// Step 1: Show empty memory
+		tl.set("#stepText", { text: "Step 1: Empty Memory Block" })
+			.to("#step1Code", { opacity: 1, duration: 0.5 })
+
+			// Step 2: Token embeddings slide in and snap to first cache line
+			.to("#stepText", { text: "Step 2: Token Embeddings" }, "+=0.5")
+			.to("#block1", { opacity: 1, x: 0, duration: 0.8, ease: "power2.out" })
+			.to("#offsetLine, #offsetLabel", { x: 100, duration: 0.8 }, "<")  // Snaps to cache line at 292
+			.to("#offsetLabel", { text: "offset = aligned to 64B" }, "<")
+			.to("#step1Code", { opacity: 0, duration: 0.3 })
+			.to("#step2Code", { opacity: 1, duration: 0.5 })
+
+			// Step 3: Position embeddings snap to next cache line
+			.to("#stepText", { text: "Step 3: Position Embeddings" }, "+=0.5")
+			.to("#block2", { opacity: 1, x: 0, duration: 0.8, ease: "power2.out" })
+			.to("#offsetLine, #offsetLabel", { x: 292, duration: 0.8 }, "<")  // Next cache line
+			.to("#offsetLabel", { text: "offset = next 64B boundary" }, "<")
+			.to("#step2Code", { opacity: 0, duration: 0.3 })
+			.to("#step3Code", { opacity: 1, duration: 0.5 })
+
+			// Step 4: Layer 0 weights snap to next cache line
+			.to("#stepText", { text: "Step 4: Layer 0 Weights" }, "+=0.5")
+			.to("#block3", { opacity: 1, x: 0, duration: 0.8, ease: "power2.out" })
+			.to("#offsetLine, #offsetLabel", { x: 420, duration: 0.8 }, "<")  // Next cache line
+			.to("#offsetLabel", { text: "offset = next 64B boundary" }, "<")
+			.to("#step3Code", { opacity: 0, duration: 0.3 })
+			.to("#step4Code", { opacity: 1, duration: 0.5 })
+
+			// Step 5: Layer 1 weights snap to next cache line
+			.to("#stepText", { text: "Step 5: Layer 1 Weights" }, "+=0.5")
+			.to("#block4", { opacity: 1, x: 0, duration: 0.8, ease: "power2.out" })
+			.to("#offsetLine, #offsetLabel", { x: 612, duration: 0.8 }, "<")  // Next cache line
+			.to("#offsetLabel", { text: "offset = next 64B boundary" }, "<")
+			.to("#step4Code", { opacity: 0, duration: 0.3 })
+			.to("#step5Code", { opacity: 1, duration: 0.5 })
+
+			// Step 6: Activations snap to next cache line
+			.to("#stepText", { text: "Step 6: Activations" }, "+=0.5")
+			.to("#block5", { opacity: 1, x: 0, duration: 0.8, ease: "power2.out" })
+			.to("#offsetLine, #offsetLabel", { x: 804, duration: 0.8 }, "<")  // Next cache line
+			.to("#offsetLabel", { text: "offset = next 64B boundary" }, "<")
+			.to("#step5Code", { opacity: 0, duration: 0.3 })
+			.to("#finalSummary", { opacity: 1, duration: 0.5 })
+
+			// Highlight the alignment achievement
+			.to("#stepText", { text: "Perfect! Every tensor cache-aligned" }, "+=1")
+
+			// Flash the cache line boundaries to emphasize alignment
+			.to("line[stroke='#60A5FA']", {
+				stroke: "#10B981",
+				strokeWidth: 3,
+				duration: 0.3,
+				yoyo: true,
+				repeat: 3,
+				stagger: 0.1
+			}, "+=0.5")
+
+			// Show the benefit text
+			.to("#stepText", { text: "Zero false sharing! Perfect parallel performance!" }, "+=1");
+	</script>
+	<script>
+		// QKV Core Synchronization Animation
+		const t2 = gsap.timeline({ repeat: -1, repeatDelay: 2 });
+
+		// Initial setup - all cores ready
+		t2.set("#core0-compute, #core1-compute, #core2-compute, #core3-compute", { width: 0 })
+			.set("#core0-wait, #core1-wait, #core2-wait", { width: 0 })
+			.set("#progress0, #progress1, #progress2, #progress3", { opacity: 0 })
+			.set("#sparkle0, #sparkle1, #sparkle2, #sparkle3", { opacity: 0 })
+			.set("#wave0, #wave1, #wave2, #wave3", { x: 0 })
+
+			// Step 1: Start QKV computation on all cores simultaneously
+			.to("#stepText", { text: "Starting QKV Computation on All Cores..." })
+			.to("#cycleText", { text: "Cycle: 0" })
+
+			// Step 2: Animate computation waves traveling across
+			.to("#wave0, #wave1, #wave2, #wave3", {
+				x: 700, // Travel across computation bars
+				duration: 8,
+				ease: "none"
+			}, 0.5)
+
+			// Step 3: Animate computation bars growing (different speeds per core)
+			.to("#core0-compute", {
+				width: 780,
+				duration: 7.8, // Finishes slightly early
+				ease: "none"
+			}, 0.5)
+
+			.to("#core1-compute", {
+				width: 792,
+				duration: 7.9, // Finishes a bit later
+				ease: "none"
+			}, 0.5)
+
+			.to("#core2-compute", {
+				width: 800,
+				duration: 8.0, // Reference timing
+				ease: "none"
+			}, 0.5)
+
+			.to("#core3-compute", {
+				width: 824,
+				duration: 8.2, // Slowest core
+				ease: "none"
+			}, 0.5)
+
+			// Step 4: Show cores finishing with sparkles (staggered)
+			.to("#sparkle0", {
+				opacity: 1,
+				scale: 1.5,
+				duration: 0.3,
+				ease: "back.out(1.7)"
+			}, 8.3) // Core 0 finishes first
+
+			.to("#progress0", {
+				opacity: 1,
+				scale: 1.2,
+				duration: 0.3
+			}, 8.3)
+
+			.to("#sparkle1", {
+				opacity: 1,
+				scale: 1.5,
+				duration: 0.3,
+				ease: "back.out(1.7)"
+			}, 8.4) // Core 1 finishes
+
+			.to("#progress1", {
+				opacity: 1,
+				scale: 1.2,
+				duration: 0.3
+			}, 8.4)
+
+			.to("#sparkle2", {
+				opacity: 1,
+				scale: 1.5,
+				duration: 0.3,
+				ease: "back.out(1.7)"
+			}, 8.5) // Core 2 finishes
+
+			.to("#progress2", {
+				opacity: 1,
+				scale: 1.2,
+				duration: 0.3
+			}, 8.5)
+
+			.to("#sparkle3", {
+				opacity: 1,
+				scale: 1.5,
+				duration: 0.3,
+				ease: "back.out(1.7)"
+			}, 8.7) // Core 3 finishes last
+
+			.to("#progress3", {
+				opacity: 1,
+				scale: 1.2,
+				duration: 0.3
+			}, 8.7)
+
+			// Step 5: Show wait bars for early finishers
+			.to("#core0-wait", {
+				width: 60,
+				duration: 0.4,
+				ease: "power2.out"
+			}, 8.3) // Core 0 waits
+
+			.to("#core1-wait", {
+				width: 48,
+				duration: 0.3,
+				ease: "power2.out"
+			}, 8.4) // Core 1 waits
+
+			.to("#core2-wait", {
+				width: 40,
+				duration: 0.2,
+				ease: "power2.out"
+			}, 8.5) // Core 2 waits briefly
+
+			// Step 6: Barrier synchronization when all cores finish
+			.to("#barrier", {
+				filter: "url(#glow)",
+				scaleX: 1.3,
+				duration: 0.5,
+				yoyo: true,
+				repeat: 1,
+				ease: "power2.inOut"
+			}, 8.7)
+
+			.to("#stepText", {
+				text: "All cores synchronized at barrier!"
+			}, 8.7)
+
+			// Step 7: Cycle counter animation
+			.to({}, {
+				duration: 8.2,
+				onUpdate: function () {
+					const cycle = Math.floor(this.progress() * 10300);
+					document.getElementById("cycleText").textContent = `Cycle: ${cycle}`;
+				}
+			}, 0.5)
+
+			// Step 8: Show the performance insight
+			.to("#stepText", {
+				text: "Wait time: 200 cycles vs 10,000 cycle operation = 2% overhead"
+			}, "+=0.5")
+
+			// Step 9: Emphasize the lesson
+			.to("#stepText", {
+				text: "Simple synchronization is optimal!"
+			}, "+=1.5")
+
+			// Step 10: Fade sparkles before restart
+			.to("#sparkle0, #sparkle1, #sparkle2, #sparkle3", {
+				opacity: 0,
+				duration: 0.5
+			}, "+=1");
+	</script>
+</body>
+
+</html>

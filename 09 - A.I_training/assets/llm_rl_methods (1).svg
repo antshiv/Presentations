@@ -1,0 +1,266 @@
+<svg viewBox="0 0 1400 1000" xmlns="http://www.w3.org/2000/svg">
+  <!-- Styles with rl- prefix to avoid conflicts -->
+  <defs>
+    <style>
+      .rl-background { fill: #1a1a2e; }
+      .rl-title { fill: #ffffff; font-size: 28px; font-weight: bold; text-anchor: middle; }
+      .rl-subtitle { fill: #aaaaaa; font-size: 16px; text-anchor: middle; }
+      .rl-section-bg { fill: #2d2d44; stroke: #4a4a6a; stroke-width: 2; }
+      .rl-method-title { fill: #ffffff; font-size: 16px; font-weight: bold; text-anchor: middle; }
+      .rl-rlhf-bg { fill: #45B7D1; }
+      .rl-dpo-bg { fill: #4ECDC4; }
+      .rl-grpo-bg { fill: #96CEB4; }
+      .rl-constitutional-bg { fill: #FECA57; }
+      .rl-rlaif-bg { fill: #FF9FF3; }
+      .rl-text { fill: #ffffff; font-size: 12px; }
+      .rl-subtext { fill: #cccccc; font-size: 11px; }
+      .rl-step-text { fill: #ffeb3b; font-size: 11px; font-weight: bold; }
+      .rl-example-bg { fill: #3d3d5c; stroke: #6a6a8a; stroke-width: 1; }
+      .rl-pros-text { fill: #4CAF50; font-size: 11px; }
+      .rl-cons-text { fill: #ff6b6b; font-size: 11px; }
+      .rl-complexity-high { fill: #ff4444; font-size: 11px; font-weight: bold; }
+      .rl-complexity-medium { fill: #ff9800; font-size: 11px; font-weight: bold; }
+      .rl-complexity-low { fill: #4CAF50; font-size: 11px; font-weight: bold; }
+      .rl-performance-text { fill: #45B7D1; font-size: 11px; font-weight: bold; }
+      .rl-arrow { stroke: #ffeb3b; stroke-width: 2; fill: none; }
+      .rl-arrow-head { fill: #ffeb3b; }
+    </style>
+    <marker id="rlArrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L7,3 z" class="rl-arrow-head"/>
+    </marker>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1400" height="1000" class="rl-background"/>
+  
+  <!-- Main Title -->
+  <text x="700" y="40" class="rl-title">Reinforcement Learning Methods for Language Models</text>
+  <text x="700" y="65" class="rl-subtitle">Different approaches to align LLMs with human preferences (NOT game AI!)</text>
+  
+  <!-- Method 1: RLHF (Reinforcement Learning from Human Feedback) -->
+  <g transform="translate(50, 100)">
+    <rect x="0" y="0" width="380" height="280" class="rl-section-bg" rx="10"/>
+    <rect x="10" y="10" width="360" height="30" class="rl-rlhf-bg" rx="5"/>
+    <text x="190" y="30" class="rl-method-title">RLHF</text>
+    
+    <!-- Process steps -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="rl-step-text">Step 1: Collect Preference Data</text>
+      <text x="0" y="30" class="rl-subtext">• Humans rank model outputs A vs B</text>
+      <text x="0" y="45" class="rl-subtext">• Create preference dataset</text>
+      
+      <text x="0" y="70" class="rl-step-text">Step 2: Train Reward Model</text>
+      <text x="0" y="85" class="rl-subtext">• Bradley-Terry model on preferences</text>
+      <text x="0" y="100" class="rl-subtext">• Predicts human preference scores</text>
+      
+      <text x="0" y="125" class="rl-step-text">Step 3: RL Optimization</text>
+      <text x="0" y="140" class="rl-subtext">• PPO (Proximal Policy Optimization)</text>
+      <text x="0" y="155" class="rl-subtext">• Optimize LLM against reward model</text>
+      <text x="0" y="170" class="rl-subtext">• KL penalty to prevent drift</text>
+      
+      <text x="0" y="195" class="rl-complexity-high">Complexity: High</text>
+      <text x="0" y="210" class="rl-performance-text">Performance: Excellent</text>
+      <text x="0" y="225" class="rl-text">Used by: ChatGPT, Claude</text>
+    </g>
+  </g>
+  
+  <!-- RLHF Challenges -->
+  <g transform="translate(450, 120)">
+    <rect x="0" y="0" width="280" height="160" class="rl-example-bg" rx="5"/>
+    <text x="140" y="20" class="rl-method-title">RLHF Challenges</text>
+    
+    <text x="10" y="40" class="rl-cons-text">Challenges:</text>
+    <text x="10" y="55" class="rl-cons-text">• Reward model can be gamed</text>
+    <text x="10" y="70" class="rl-cons-text">• Training instability</text>
+    <text x="10" y="85" class="rl-cons-text">• Expensive human annotation</text>
+    <text x="10" y="100" class="rl-cons-text">• Complex 3-step process</text>
+    
+    <text x="10" y="120" class="rl-pros-text">Benefits:</text>
+    <text x="10" y="135" class="rl-pros-text">• State-of-the-art results</text>
+    <text x="10" y="150" class="rl-pros-text">• Well-established method</text>
+  </g>
+  
+  <!-- Method 2: DPO (Direct Preference Optimization) -->
+  <g transform="translate(50, 400)">
+    <rect x="0" y="0" width="380" height="220" class="rl-section-bg" rx="10"/>
+    <rect x="10" y="10" width="360" height="30" class="rl-dpo-bg" rx="5"/>
+    <text x="190" y="30" class="rl-method-title">DPO</text>
+    
+    <!-- Process steps -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="rl-step-text">Key Innovation: Skip Reward Model</text>
+      <text x="0" y="35" class="rl-text">Process:</text>
+      <text x="0" y="50" class="rl-subtext">• Use same preference data as RLHF</text>
+      <text x="0" y="65" class="rl-subtext">• Directly optimize policy with classification loss</text>
+      <text x="0" y="80" class="rl-subtext">• No separate reward model training</text>
+      <text x="0" y="95" class="rl-subtext">• No PPO, just supervised learning</text>
+      
+      <text x="0" y="120" class="rl-text">Mathematical insight:</text>
+      <text x="0" y="135" class="rl-subtext">• Reparameterize RL objective</text>
+      <text x="0" y="150" class="rl-subtext">• Convert to classification problem</text>
+      
+      <text x="0" y="175" class="rl-complexity-medium">Complexity: Medium</text>
+      <text x="0" y="190" class="rl-performance-text">Performance: Close to RLHF</text>
+    </g>
+  </g>
+  
+  <!-- DPO Benefits -->
+  <g transform="translate(450, 420)">
+    <rect x="0" y="0" width="280" height="140" class="rl-example-bg" rx="5"/>
+    <text x="140" y="20" class="rl-method-title">DPO Advantages</text>
+    
+    <text x="10" y="40" class="rl-pros-text">Benefits:</text>
+    <text x="10" y="55" class="rl-pros-text">• Simpler than RLHF (no reward model)</text>
+    <text x="10" y="70" class="rl-pros-text">• More stable training</text>
+    <text x="10" y="85" class="rl-pros-text">• Less computational overhead</text>
+    <text x="10" y="100" class="rl-pros-text">• Easier to implement</text>
+    
+    <text x="10" y="120" class="rl-cons-text">Trade-off: Less fine-grained control</text>
+  </g>
+  
+  <!-- Method 3: GRPO -->
+  <g transform="translate(750, 100)">
+    <rect x="0" y="0" width="380" height="280" class="rl-section-bg" rx="10"/>
+    <rect x="10" y="10" width="360" height="30" class="rl-grpo-bg" rx="5"/>
+    <text x="190" y="30" class="rl-method-title">GRPO</text>
+    
+    <!-- Process steps -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="rl-step-text">Group Relative Policy Optimization</text>
+      
+      <text x="0" y="40" class="rl-text">Key Innovation:</text>
+      <text x="0" y="55" class="rl-subtext">• Group-based preference learning</text>
+      <text x="0" y="70" class="rl-subtext">• Relative ranking within groups</text>
+      <text x="0" y="85" class="rl-subtext">• More robust to preference noise</text>
+      
+      <text x="0" y="110" class="rl-text">Process:</text>
+      <text x="0" y="125" class="rl-subtext">• Generate multiple responses per prompt</text>
+      <text x="0" y="140" class="rl-subtext">• Rank responses within group</text>
+      <text x="0" y="155" class="rl-subtext">• Optimize relative to group baseline</text>
+      <text x="0" y="170" class="rl-subtext">• Self-play style improvement</text>
+      
+      <text x="0" y="195" class="rl-text">Benefits:</text>
+      <text x="0" y="210" class="rl-subtext">• Better sample efficiency</text>
+      <text x="0" y="225" class="rl-subtext">• Reduced variance in training</text>
+      
+      <text x="0" y="250" class="rl-complexity-medium">Complexity: Medium</text>
+    </g>
+  </g>
+  
+  <!-- Method 4: Constitutional AI -->
+  <g transform="translate(750, 400)">
+    <rect x="0" y="0" width="380" height="220" class="rl-section-bg" rx="10"/>
+    <rect x="10" y="10" width="360" height="30" class="rl-constitutional-bg" rx="5"/>
+    <text x="190" y="30" class="rl-method-title">CONSTITUTIONAL AI</text>
+    
+    <!-- Process steps -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="rl-step-text">AI Teaching AI</text>
+      
+      <text x="0" y="40" class="rl-text">Process:</text>
+      <text x="0" y="55" class="rl-subtext">• Define constitutional principles</text>
+      <text x="0" y="70" class="rl-subtext">• AI critiques its own outputs</text>
+      <text x="0" y="85" class="rl-subtext">• AI revises based on principles</text>
+      <text x="0" y="100" class="rl-subtext">• Train on self-generated improvements</text>
+      
+      <text x="0" y="125" class="rl-text">Example Constitution:</text>
+      <text x="0" y="140" class="rl-subtext">• Be helpful and harmless</text>
+      <text x="0" y="155" class="rl-subtext">• Refuse harmful requests</text>
+      <text x="0" y="170" class="rl-subtext">• Be honest about limitations</text>
+      
+      <text x="0" y="195" class="rl-complexity-low">Complexity: Low-Medium</text>
+    </g>
+  </g>
+  
+  <!-- Method 5: RLAIF -->
+  <g transform="translate(50, 640)">
+    <rect x="0" y="0" width="380" height="180" class="rl-section-bg" rx="10"/>
+    <rect x="10" y="10" width="360" height="30" class="rl-rlaif-bg" rx="5"/>
+    <text x="190" y="30" class="rl-method-title">RLAIF</text>
+    
+    <!-- Process steps -->
+    <g transform="translate(20, 55)">
+      <text x="0" y="15" class="rl-step-text">RL from AI Feedback</text>
+      
+      <text x="0" y="40" class="rl-text">Key Idea:</text>
+      <text x="0" y="55" class="rl-subtext">• Replace human feedback with AI feedback</text>
+      <text x="0" y="70" class="rl-subtext">• Use strong AI model to rate outputs</text>
+      <text x="0" y="85" class="rl-subtext">• Same RLHF process but with AI labels</text>
+      
+      <text x="0" y="110" class="rl-text">Benefits:</text>
+      <text x="0" y="125" class="rl-subtext">• Scalable (no human annotation)</text>
+      <text x="0" y="140" class="rl-subtext">• Consistent feedback</text>
+      
+      <text x="0" y="165" class="rl-complexity-medium">Complexity: Medium</text>
+    </g>
+  </g>
+  
+  <!-- Comparison Matrix -->
+  <g transform="translate(450, 640)">
+    <rect x="0" y="0" width="900" height="180" class="rl-section-bg" rx="10"/>
+    <text x="450" y="25" class="rl-method-title">RL Method Comparison for LLMs</text>
+    
+    <!-- Table headers -->
+    <g transform="translate(20, 50)">
+      <text x="0" y="15" class="rl-text">Method</text>
+      <text x="100" y="15" class="rl-text">Complexity</text>
+      <text x="200" y="15" class="rl-text">Performance</text>
+      <text x="320" y="15" class="rl-text">Human Annotation</text>
+      <text x="480" y="15" class="rl-text">Training Stability</text>
+      <text x="640" y="15" class="rl-text">Best For</text>
+      
+      <!-- RLHF -->
+      <text x="0" y="35" class="rl-subtext">RLHF</text>
+      <text x="100" y="35" class="rl-complexity-high">High</text>
+      <text x="200" y="35" class="rl-pros-text">Excellent</text>
+      <text x="320" y="35" class="rl-subtext">Required</text>
+      <text x="480" y="35" class="rl-cons-text">Can be unstable</text>
+      <text x="640" y="35" class="rl-subtext">Production systems</text>
+      
+      <!-- DPO -->
+      <text x="0" y="55" class="rl-subtext">DPO</text>
+      <text x="100" y="55" class="rl-complexity-medium">Medium</text>
+      <text x="200" y="55" class="rl-pros-text">Very Good</text>
+      <text x="320" y="55" class="rl-subtext">Required</text>
+      <text x="480" y="55" class="rl-pros-text">Stable</text>
+      <text x="640" y="55" class="rl-subtext">Resource-constrained</text>
+      
+      <!-- GRPO -->
+      <text x="0" y="75" class="rl-subtext">GRPO</text>
+      <text x="100" y="75" class="rl-complexity-medium">Medium</text>
+      <text x="200" y="75" class="rl-pros-text">Good</text>
+      <text x="320" y="75" class="rl-subtext">Required</text>
+      <text x="480" y="75" class="rl-pros-text">More stable</text>
+      <text x="640" y="75" class="rl-subtext">Sample efficiency</text>
+      
+      <!-- Constitutional AI -->
+      <text x="0" y="95" class="rl-subtext">Constitutional</text>
+      <text x="100" y="95" class="rl-complexity-low">Low</text>
+      <text x="200" y="95" class="rl-complexity-medium">Good</text>
+      <text x="320" y="95" class="rl-pros-text">Minimal</text>
+      <text x="480" y="95" class="rl-pros-text">Stable</text>
+      <text x="640" y="95" class="rl-subtext">Principles-based</text>
+      
+      <!-- RLAIF -->
+      <text x="0" y="115" class="rl-subtext">RLAIF</text>
+      <text x="100" y="115" class="rl-complexity-medium">Medium</text>
+      <text x="200" y="115" class="rl-complexity-medium">Good</text>
+      <text x="320" y="115" class="rl-pros-text">None</text>
+      <text x="480" y="115" class="rl-complexity-medium">Variable</text>
+      <text x="640" y="115" class="rl-subtext">Scalable alignment</text>
+    </g>
+    
+    <!-- Key insight -->
+    <g transform="translate(20, 160)">
+      <text x="0" y="0" class="rl-step-text">Key Insight: These are NOT traditional RL methods - they're specialized for language model alignment</text>
+    </g>
+  </g>
+  
+  <!-- Bottom Summary -->
+  <g transform="translate(50, 850)">
+    <rect x="0" y="0" width="1300" height="80" class="rl-example-bg" rx="10"/>
+    <text x="650" y="25" class="rl-method-title">RL for LLMs vs Traditional RL</text>
+    <text x="650" y="45" class="rl-subtitle">Traditional RL: Discrete actions, game environments, reward from environment</text>
+    <text x="650" y="65" class="rl-subtitle">LLM RL: Token-level policies, text generation, human preference rewards, alignment focus</text>
+  </g>
+</svg>
