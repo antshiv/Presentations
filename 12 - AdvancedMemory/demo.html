@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+
+	<title>LLM Advanced Memory Technique</title>
+
+	<meta name="description" content="A framework for easily creating beautiful presentations using HTML">
+	<meta name="author" content="Hakim El Hattab">
+
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<link rel="stylesheet" href="../reveal.js/dist/reset.css">
+	<link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+	<link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+	<!-- Theme used for syntax highlighting of code -->
+	<link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+	<link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+	<div class="reveal">
+
+		<!-- Any section element inside of this container is displayed as a slide -->
+		<div class="slides">
+			<section>
+				<h1>
+					<span class="gradient">CPU AI: Memory</span>
+				</h1>
+				<h5>
+					<h3>🧠 Advanced Memory Strategies for High-Performance Compute</h3>
+					<p>Mastering memory for efficient AI compute on CPU</p>
+				</h5>
+				<p>
+					<small>Created by <a href="http://shivasnotes.com">Anthony Shivakumar</a> and <a
+							href="https://antshiv.com">ANTSHIV ROBOTICS</a></small>
+				</p>
+			</section>
+			<section>
+				<aside class="notes">
+  <p>
+    Alright, this slide is our game plan for today. I call it the Memory Optimization Pipeline because it's not just a collection of random tips. It’s a coherent strategy where each stage logically builds on the one before it, taking us from a basic, solid foundation to a highly optimized, hardware-aware design.
+  </p>
+
+  <p>
+    First, and most importantly, we have Stage 1: <strong>Preventing Interleaving</strong>. [cite_start]The core idea is simple: we must store our data in the exact order it’s going to be executed[cite: 9]. [cite_start]We do this by organizing memory layouts to match our access patterns, which gets rid of random pointer chasing and enables the CPU’s L1 and L2 prefetchers to work perfectly[cite: 18].
+  </p>
+
+  <p>
+    Next, in Stage 2, we’ll look at <strong>SNC, or Sub-NUMA Clustering</strong>. [cite_start]This is a powerful feature on modern Xeon CPUs that creates logical NUMA nodes right out of the L3 cache slices[cite: 20]. [cite_start]The main benefit is that it reduces the 'chatter' or cross-core cache snooping and improves latency for local memory accesses[cite: 20].
+  </p>
+
+  <p>
+    That leads us directly to Stage 3: <strong>NUMA Awareness</strong>. If SNC is about neighborhoods on a chip, this is about the entire system. [cite_start]Memory geography matters deeply, especially on servers with multiple CPUs[cite: 14]. [cite_start]We'll talk about how to split our contiguous data blocks into NUMA-specific regions using `mbind()` and then lock our processing threads to those local cores using `pthread_setaffinity_np`[cite: 22, 23].
+  </p>
+
+  <p>
+    In Stage 4, we’ll cover <strong>Cache-Line Alignment</strong>. [cite_start]This is absolutely critical for multi-threaded workloads[cite: 24]. [cite_start]By padding our token embeddings to 64-byte boundaries, we prevent them from crossing cache boundaries, which eliminates 'false sharing'—a scenario where multiple cores accidentally fight over the same line of cache, killing our scaling[cite: 24].
+  </p>
+
+  <p>
+    Once we're scaling well, we can fine-tune with Stage 5: <strong>Prefetching and Pipelining</strong>. [cite_start]This is where we manually tell the CPU what data we'll need next using instructions like `_mm_prefetch`[cite: 25]. [cite_start]The goal is to overlap our computation with memory latency, so the powerful AVX and FMA units are never sitting idle waiting for data[cite: 25].
+  </p>
+
+  <p>
+    Finally, all of this comes together in Stage 6: our <strong>Memory Flow Strategy</strong>. [cite_start]We learn to treat the entire memory access process itself like an instruction pipeline: we Predict what we need, Prefetch it, Compute on it, and then Write it back[cite: 27]. [cite_start]This is what ensures a smooth, continuous throughput by keeping all parts of the CPU active and productive[cite: 27].
+  </p>
+  
+  <p>
+    So that's the pipeline. As you can see, it’s a logical progression from the ground up. With that roadmap in mind, let's dive into Stage 1.
+  </p>
+</aside>
+				<h4 style="color: #3498db; margin-bottom: 30px;">📋 Agenda: Memory Optimization Pipeline</h4>
+
+				<table style="width: 100%; font-size: 16px; border-collapse: collapse;">
+					<thead>
+						<tr style="background-color: #2c3e50; color: white;">
+							<th style="padding: 12px; text-align: left; width: 25%;">Optimization Stage</th>
+							<th style="padding: 12px; text-align: left; width: 75%;">Implementation Strategy</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr class="fragment" data-fragment-index="1">
+							<td style="padding: 10px; border-bottom: 1px solid #ddd; vertical-align: top;">
+								<strong>🧱 1. Prevent Interleaving</strong><br>
+								<em>Store Data in Execution Order</em>
+							</td>
+							<td style="padding: 10px; border-bottom: 1px solid #ddd;">
+								• Organize memory layouts to match access patterns<br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Avoid random pointer
+									chasing</span><br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Enable better L1/L2 prefetch and
+									instruction throughput</span>
+							</td>
+						</tr>
+						<tr class="fragment" data-fragment-index="2">
+							<td style="padding: 10px; border-bottom: 1px solid #ddd; vertical-align: top;">
+								<strong>🔧 2. SNC</strong><br>
+								<em>Sub-NUMA Clustering</em>
+							</td>
+							<td style="padding: 10px; border-bottom: 1px solid #ddd;">
+								• Creates logical NUMA nodes from L3 slices on Xeon CPUs<br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Reduces cross-core cache
+									snooping</span><br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Improves latency for local memory
+									accesses</span>
+							</td>
+						</tr>
+						<tr class="fragment" data-fragment-index="3">
+							<td style="padding: 10px; border-bottom: 1px solid #ddd; vertical-align: top;">
+								<strong>🧭 3. NUMA Awareness</strong><br>
+								<em>Memory Geography Matters</em>
+							</td>
+							<td style="padding: 10px; border-bottom: 1px solid #ddd;">
+								• Split contiguous blocks into NUMA regions<br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Use <code>mbind()</code> to assign
+									subregions to NUMA nodes</span><br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Pin threads using
+									<code>pthread_setaffinity_np</code></span>
+							</td>
+						</tr>
+						<tr class="fragment" data-fragment-index="4">
+							<td style="padding: 10px; border-bottom: 1px solid #ddd; vertical-align: top;">
+								<strong>📏 4. Cache-Line Aligned Tokens</strong><br>
+								<em>Eliminate False Sharing</em>
+							</td>
+							<td style="padding: 10px; border-bottom: 1px solid #ddd;">
+								• Pad token embeddings to 64-byte cache line boundaries<br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Prevent tokens from crossing cache
+									boundaries</span><br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Critical for multi-threaded
+									attention/MLP workloads</span>
+							</td>
+						</tr>
+						<tr class="fragment" data-fragment-index="5">
+							<td style="padding: 10px; border-bottom: 1px solid #ddd; vertical-align: top;">
+								<strong>🚀 5. Prefetching & Pipelining</strong><br>
+								<em>Execution Unit Overlap</em>
+							</td>
+							<td style="padding: 10px; border-bottom: 1px solid #ddd;">
+								• Use manual software prefetching (<code>_mm_prefetch</code>)<br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Overlap compute with memory
+									latency</span><br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Keep all execution units active while
+									AVX/FMA runs</span><br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Use AVX latency windows for memory
+									fetch overlap</span>
+							</td>
+						</tr>
+						<tr class="fragment" data-fragment-index="6">
+							<td style="padding: 10px; border-bottom: 1px solid #ddd; vertical-align: top;">
+								<strong>⚡ 6. Memory Flow Strategy</strong><br>
+								<em>Pipeline Memory Access</em>
+							</td>
+							<td style="padding: 10px; border-bottom: 1px solid #ddd;">
+								• Treat memory access as instruction pipeline<br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Predict → Prefetch → Compute → Write
+									back</span><br>
+								<span style="margin-left: 15px; color: #7f8c8d;">↳ Smooth throughput by keeping all
+									units active</span>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</section>
+			<!-- Part 1 -->
+			<section>
+				<section><h2> Part 1: The Core Problem & The Choice</h2>
+			<aside class="notes">
+  <p>
+    Alright, let's kick things off with Part 1. In this section, we're going to lay the foundation for everything that follows. We're going to talk about a single, fundamental decision that every AI developer makes, whether they know it or not.
+  </p>
+  <p>
+    This is <strong>The Core Problem & The Choice</strong>. The choice is how you decide to lay out your model's data in memory. As we're about to see, this single decision has massive, cascading effects on performance.
+  </p>
+  <p>
+    [CUE: Advance to the next slide]
+  </p>
+</aside>	
+				</section>
+<!-- Slide 3: Memory Layout Comparison: Block-per-Tensor vs Layer-by-Layer Allocation 	-->
+<section style="transform: scale(1.3);">
+	<aside class="notes">
+  <p>
+    So here it is, the two fundamental approaches to memory allocation for a transformer model.
+  </p>
+  <p>
+    On the left, we have the <strong>Block-per-Tensor</strong> structure. You might recognize this from popular C implementations. All similar tensors are grouped together—so all QKV weights for all layers are in one big block, all MLP weights are in another, and so on. The main advantage is that it's fairly simple to manage the pointers. The disadvantage? It's a performance disaster for processing a single layer, as we’ll see.
+  </p>
+  <p>
+    On the right is our alternative: the <strong>Layer-by-Layer</strong> allocation. Here, all the data for a single layer—its weights, its activations, everything—is grouped together in one contiguous block. This is designed to give us incredible cache locality, which is the key to performance.
+  </p>
+  <p>
+    This is the core architectural choice we're making right at the beginning.
+  </p>
+</aside>
+<svg id="faddbac1-c7db-423a-b68d-4bd101450633" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 557.79"><text transform="translate(573.93 25)" style="isolation:isolate;font-size:18px;fill:#8d8f92;font-family:Arial-BoldMT, Arial;font-weight:700">Memory Layout Comparison: Block-per-<tspan x="343.05" y="0" style="letter-spacing:-0.07421875em">T</tspan><tspan x="352.71" y="0">ensor vs Layer-by-Layer</tspan><tspan x="560.8" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="565.14" y="0">Allocation</tspan></text><rect x="50" y="50" width="850" height="480" rx="6" style="fill:#e8f4fd;stroke:#3498db;stroke-width:2px"/><text transform="translate(303.29 80)" style="isolation:isolate;font-size:16px;fill:#2980b9;font-family:Arial-BoldMT, Arial;font-weight:700">CURREN<tspan x="68.45" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="76.45" y="0">: Block-per-</tspan><tspan x="165.34" y="0" style="letter-spacing:-0.07421875em">T</tspan><tspan x="173.93" y="0">ensor (Karapathy</tspan><tspan x="305.52" y="0" style="letter-spacing:-0.037109375em">’</tspan><tspan x="309.38" y="0">s Structure)</tspan></text><text transform="translate(70 105)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Parameters:</text><rect x="90" y="115" width="760" height="30" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(243.24 135)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">qkvw: [L0_qkv|L1_qkv|L2_qkv|...|L<tspan x="152.14" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="156.96" y="0">1_qkv] -</tspan><tspan x="192.53" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="194.76" y="0">All layers in one block</tspan></text><rect x="90" y="155" width="760" height="30" style="fill:#2ecc71;stroke:#27ae60"/><text transform="translate(262.74 175)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">fcw: [L0_fc|L1_fc|L2_fc|...|L<tspan x="121.01" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="125.83" y="0">1_fc] -</tspan><tspan x="153.62" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="155.84" y="0">All layers in one block</tspan></text><rect x="90" y="195" width="760" height="30" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(241.84 215)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">ln1w: [L0_ln1|L1_ln1|L2_ln1|...|L<tspan x="143.28" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="148.1" y="0">1_ln1] -</tspan><tspan x="181.45" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="183.68" y="0">All layers in one block</tspan></text><text transform="translate(70 245)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Activations:</text><rect x="90" y="255" width="760" height="30" style="fill:#f39c12;stroke:#e67e22"/><text transform="translate(266.01 275)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">qkv: [L0_qkv_acts|L1_qkv_acts|L2_qkv_acts|...|L<tspan x="216.63" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="221.45" y="0">1_qkv_acts]</tspan></text><rect x="90" y="295" width="760" height="30" style="fill:#9b59b6;stroke:#8e44ad"/><text transform="translate(279.96 315)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">fch: [L0_fch_acts|L1_fch_acts|L2_fch_acts|...|L<tspan x="207.74" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="212.56" y="0">1_fch_acts]</tspan></text><rect x="90" y="335" width="760" height="30" style="fill:#1abc9c;stroke:#16a085"/><text transform="translate(264.61 355)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">ln1: [L0_ln1_acts|L1_ln1_acts|L2_ln1_acts|...|L<tspan x="207.76" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="212.58" y="0">1_ln1_acts]</tspan></text><rect x="90" y="380" width="760" height="60" style="fill:#ecf0f1;stroke:#bdc3c7"/><text transform="translate(384.7 400)" style="isolation:isolate;font-size:11px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Access Pattern: Process Layer 5</text><text transform="translate(100 420)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:CourierNewPSMT, Courier New">layer5_qkv_weights = params.qkvw + 5 * 3 * C * C; // Jump across blocks</text><text transform="translate(100 435)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:CourierNewPSMT, Courier New">layer5_fc_weights = params.fcw + 5 * 4 * C * C; // Jump across blocks</text><rect x="90" y="450" width="370" height="70" style="fill:#d5f4e6;stroke:#27ae60"/><text transform="translate(259.41 470)" style="isolation:isolate;font-size:11px;fill:#27ae60;font-family:Arial-BoldMT, Arial;font-weight:700">PROS</text><text transform="translate(100 485)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Simple pointer arithmetic per tensor</text><text transform="translate(100 500)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Easy memory management (16 allocations)</text><text transform="translate(100 515)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Good for tensor-parallel operations</text><rect x="480" y="450" width="370" height="70" style="fill:#ffeaa7;stroke:#fdcb6e"/><text transform="translate(649.11 470)" style="isolation:isolate;font-size:11px;fill:#e17055;font-family:Arial-BoldMT, Arial;font-weight:700">CONS</text><text transform="translate(490 485)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Poor cache locality for layer processing</text><text transform="translate(490 500)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Memory scattered across tensor types</text><text transform="translate(490 515)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Many pointer jumps during forward pass</text><rect x="950" y="50" width="800" height="480" rx="6" style="fill:#fff3cd;stroke:#f39c12;stroke-width:2px"/><text transform="translate(1192.35 80)" style="isolation:isolate;font-size:16px;fill:#e67e22;font-family:Arial-BoldMT, Arial;font-weight:700">A<tspan x="11.55" y="0" style="letter-spacing:-0.07421875em">L</tspan><tspan x="20.14" y="0">TERN</tspan><tspan x="63.7" y="0" style="letter-spacing:-0.07421875em">A</tspan><tspan x="74.06" y="0">TIVE: Layer-by-Layer</tspan><tspan x="234.12" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="237.97" y="0">Allocation</tspan></text><text transform="translate(970 105)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Layer 0:</text><rect x="990" y="115" width="180" height="25" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(1056.62 132)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L0_qkvw</text><rect x="1180" y="115" width="140" height="25" style="fill:#2ecc71;stroke:#27ae60"/><text transform="translate(1230.13 132)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L0_fcw</text><rect x="1330" y="115" width="100" height="25" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(1356.37 132)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L0_ln1w</text><rect x="1440" y="115" width="280" height="25" style="fill:#9b59b6;stroke:#8e44ad"/><text transform="translate(1542.84 132)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L0_activations</text><text transform="translate(970 155)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Layer 1:</text><rect x="990" y="165" width="180" height="25" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(1056.62 182)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L1_qkvw</text><rect x="1180" y="165" width="140" height="25" style="fill:#2ecc71;stroke:#27ae60"/><text transform="translate(1230.13 182)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L1_fcw</text><rect x="1330" y="165" width="100" height="25" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(1356.37 182)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L1_ln1w</text><rect x="1440" y="165" width="280" height="25" style="fill:#9b59b6;stroke:#8e44ad"/><text transform="translate(1542.84 182)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L1_activations</text><text transform="translate(970 205)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Layer 2:</text><rect x="990" y="215" width="180" height="25" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(1056.62 232)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L2_qkvw</text><rect x="1180" y="215" width="140" height="25" style="fill:#2ecc71;stroke:#27ae60"/><text transform="translate(1230.13 232)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L2_fcw</text><rect x="1330" y="215" width="100" height="25" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(1356.37 232)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L2_ln1w</text><rect x="1440" y="215" width="280" height="25" style="fill:#9b59b6;stroke:#8e44ad"/><text transform="translate(1542.84 232)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L2_activations</text><text transform="translate(1323.12 265)" style="isolation:isolate;font-size:14px;fill:#7f8c8d;font-family:MyriadPro-Regular, Myriad Pro">...</text><text transform="translate(970 295)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Layer <tspan x="35.36" y="0" style="letter-spacing:-0.05517578125em">1</tspan><tspan x="41.37" y="0">1:</tspan></text><rect x="990" y="305" width="180" height="25" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(1050.86 322)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L<tspan x="4.1" y="0" style="letter-spacing:-0.06005859375em">1</tspan><tspan x="7.67" y="0">1_qkvw</tspan></text><rect x="1180" y="305" width="140" height="25" style="fill:#2ecc71;stroke:#27ae60"/><text transform="translate(1224.37 322)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L<tspan x="4.1" y="0" style="letter-spacing:-0.06005859375em">1</tspan><tspan x="7.67" y="0">1_fcw</tspan></text><rect x="1330" y="305" width="100" height="25" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(1350.61 322)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L<tspan x="4.1" y="0" style="letter-spacing:-0.06005859375em">1</tspan><tspan x="7.67" y="0">1_ln1w</tspan></text><rect x="1440" y="305" width="280" height="25" style="fill:#9b59b6;stroke:#8e44ad"/><text transform="translate(1537.08 322)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow, Arial">L<tspan x="4.1" y="0" style="letter-spacing:-0.06005859375em">1</tspan><tspan x="7.67" y="0">1_activations</tspan></text><rect x="990" y="350" width="730" height="60" style="fill:#ecf0f1;stroke:#bdc3c7"/><text transform="translate(1269.7 370)" style="isolation:isolate;font-size:11px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Access Pattern: Process Layer 5</text><text transform="translate(1000 390)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:CourierNewPSMT, Courier New">layer5_base = layer_memory + 5 * layer_size; // Single pointer jump</text><text transform="translate(1000 405)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:CourierNewPSMT, Courier New">// All layer 5 data is now contiguous: qkv, fc, ln1, activations</text><rect x="990" y="420" width="350" height="100" style="fill:#d5f4e6;stroke:#27ae60"/><text transform="translate(1149.41 440)" style="isolation:isolate;font-size:11px;fill:#27ae60;font-family:Arial-BoldMT, Arial;font-weight:700">PROS</text><text transform="translate(1000 455)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Excellent cache locality per layer</text><text transform="translate(1000 470)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">•<tspan x="3.15" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="5.15" y="0">All layer data together</tspan></text><text transform="translate(1000 485)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Perfect for layer parallelism</text><text transform="translate(1000 500)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Minimal pointer arithmetic</text><text transform="translate(1000 515)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Easy gradient checkpointing</text><rect x="1360" y="420" width="360" height="100" style="fill:#ffeaa7;stroke:#fdcb6e"/><text transform="translate(1524.11 440)" style="isolation:isolate;font-size:11px;fill:#e17055;font-family:Arial-BoldMT, Arial;font-weight:700">CONS</text><text transform="translate(1370 455)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Complex pointer management</text><text transform="translate(1370 470)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• More complex tensor operations</text><text transform="translate(1370 485)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Harder to vectorize across layers</text><text transform="translate(1370 500)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialMT, Arial">• Memory fragmentation risk</text></svg>
+</section>
+<!-- Slide 4: Memory Utilization Analysis: Block-per-Tensor vs Layer-by-Layer --> 
+<section style="transform: scale(1.3);">
+	<aside class="notes">
+  <p>
+    This slide is perhaps the most important one in this section, as it gives you the proof. First, a crucial clarification: both of these approaches allocate the <strong>exact same amount of total memory</strong>. The difference isn't how *much* memory we use, but how *effectively* we use it.
+  </p>
+  <p>
+    Look at the "Poor Cache Utilization" on the left. When the CPU needs just a few bytes for the QKV weights, it's forced by the hardware to load an entire 64-byte cache line. But because the next piece of data it needs is in a completely different memory region, the other 56 bytes in that cache line are effectively wasted. This is <strong>CACHE WASTE</strong>, and it absolutely kills your memory bandwidth and efficiency.
+  </p>
+  <p>
+    Now, look at our "Excellent Cache Utilization" on the right. Because all the data for Layer 5 is contiguous, when the CPU loads a cache line, it's extremely likely to use all of the data in it. There's no waste. This simple principle is the secret to achieving 90-95% cache efficiency.
+  </p>
+  <p>
+    [PAUSE]
+  </p>
+  <p>
+    Understanding this concept of cache utilization is fundamental to writing any kind of high-performance code. If this is starting to click for you, maybe take a quick second to hit that like button and subscribe for more deep dives like this. It really helps the channel out and lets me know you're finding this valuable.
+  </p>
+</aside>
+	<svg id="f8c55afe-a1b8-4d68-81d7-f7a5c763e80d" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 633.28"><path d="M26.2,20.51H1771.73c3.43,0,6.21,5.75,6.21,12.85V607.15c0,7.1-2.78,12.85-6.21,12.85H26.2c-3.42,0-6.2-5.75-6.2-12.85V33.36C20,26.26,22.78,20.51,26.2,20.51Z" style="fill:#f8f9fa;stroke:#dee2e6;stroke-width:2px"/><text transform="translate(621.92 55)" style="isolation:isolate;font-size:18px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Memory Utilization<tspan x="160.01" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="164.35" y="0">Analysis: Block-per-</tspan><tspan x="338.4" y="0" style="letter-spacing:-0.07421875em">T</tspan><tspan x="348.06" y="0">ensor vs Layer-by-Layer</tspan></text><rect x="50" y="80" width="1700" height="100" rx="6" style="fill:#fff3e0;stroke:#ff9800;stroke-width:2px"/><text transform="translate(702.06 110)" style="isolation:isolate;font-size:16px;fill:#f57c00;font-family:Arial-BoldMT, Arial;font-weight:700">CLARIFIC<tspan x="74.66" y="0" style="letter-spacing:-0.07421875em">A</tspan><tspan x="85.02" y="0">TION: </tspan><tspan x="133.02" y="0" style="letter-spacing:-0.07421875em">T</tspan><tspan x="141.6" y="0">otal Memory Usage is IDENTICA</tspan><tspan x="386.1" y="0" style="letter-spacing:-0.01806640625em">L</tspan></text><text transform="translate(70 135)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:ArialMT, Arial">Both approaches allocate exactly the same amount of memor<tspan x="326.17" y="0" style="letter-spacing:-0.07421875em">y</tspan><tspan x="331.28" y="0">.</tspan><tspan x="334.62" y="0" style="letter-spacing:-0.01806640625em"> </tspan><tspan x="337.73" y="0">The di</tspan><tspan x="371.09" y="0" style="letter-spacing:-0.01806640625em">f</tspan><tspan x="374.2" y="0">ference is in HOW EFFECTIVE</tspan><tspan x="540.9" y="0" style="letter-spacing:-0.07421875em">L</tspan><tspan x="546.69" y="0" style="letter-spacing:-0.01806640625em">Y</tspan><tspan x="554.47" y="0" xml:space="preserve"> that memory is used by the CPU/cache system.</tspan></text><text transform="translate(70 155)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:ArialMT, Arial">&quot;Better memory utilization&quot; = Better cache utilization + Memory bandwidth e<tspan x="400.04" y="0" style="letter-spacing:-0.01806640625em">f</tspan><tspan x="403.15" y="0">ficiency + Reduced waste from cache misses</tspan></text><rect x="50" y="200" width="850" height="400" rx="6" style="fill:#ffeaa7;stroke:#fdcb6e;stroke-width:2px"/><text transform="translate(301.66 230)" style="isolation:isolate;font-size:16px;fill:#e17055;font-family:Arial-BoldMT, Arial;font-weight:700">BLOCK-PER-TENSOR: Poor Cache Utilization</text><text transform="translate(70 260)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Memory Layout:</text><rect x="90" y="270" width="400" height="30" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(104.64 290)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">QK<tspan x="14.45" y="0" style="letter-spacing:-0.037109375em">V</tspan><tspan x="20.75" y="0">: [L0|L1|L2|L3|L4|L5|L6|L7|L8|L9|L10|L</tspan><tspan x="191.13" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="195.95" y="0">1]</tspan></text><rect x="90" y="310" width="400" height="30" style="fill:#2ecc71;stroke:#27ae60"/><text transform="translate(101.57 330)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">FC: [L0|L1|L2|L3|L4|L5|L6|L7|L8|L9|L10|L<tspan x="183.72" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="188.54" y="0">1]</tspan></text><rect x="90" y="350" width="400" height="30" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(101.57 370)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">LN: [L0|L1|L2|L3|L4|L5|L6|L7|L8|L9|L10|L<tspan x="183.17" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="187.99" y="0">1]</tspan></text><text transform="translate(70 410)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Processing Layer 5:</text><rect x="90" y="420" width="60" height="20" style="fill:#74b9ff;stroke:#0984e3"/><text transform="translate(93.25 435)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">Cache Line</text><rect x="90" y="450" width="400" height="30" style="fill:#ddd;stroke:#999"/><rect x="320" y="450" width="33" height="30" style="fill:#ff7675;stroke:#d63031"/><text transform="translate(104.64 470)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">QK<tspan x="14.45" y="0" style="letter-spacing:-0.037109375em">V</tspan><tspan x="20.75" y="0">: [L0|L1|L2|L3|L4|L5|L6|L7|L8|L9|L10|L</tspan><tspan x="191.13" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="195.95" y="0">1]</tspan></text><rect x="90" y="490" width="400" height="30" style="fill:#ddd;stroke:#999"/><rect x="320" y="490" width="33" height="30" style="fill:#ff7675;stroke:#d63031"/><text transform="translate(101.57 510)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">FC: [L0|L1|L2|L3|L4|L5|L6|L7|L8|L9|L10|L<tspan x="183.72" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="188.54" y="0">1]</tspan></text><rect x="90" y="530" width="400" height="30" style="fill:#ddd;stroke:#999"/><rect x="320" y="530" width="33" height="30" style="fill:#ff7675;stroke:#d63031"/><text transform="translate(101.57 550)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">LN: [L0|L1|L2|L3|L4|L5|L6|L7|L8|L9|L10|L<tspan x="183.17" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="187.99" y="0">1]</tspan></text><rect x="520" y="420" width="320" height="140" style="fill:#fab1a0;stroke:#e17055"/><text transform="translate(639.36 445)" style="isolation:isolate;font-size:11px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">CACHE <tspan x="42.17" y="0" style="letter-spacing:-0.05517578125em">W</tspan><tspan x="51.94" y="0">ASTE</tspan></text><text transform="translate(530 465)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">• CPU loads 64-byte cache lines</text><text transform="translate(530 480)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">• Only uses Layer 5 data (~8 bytes)</text><text transform="translate(530 495)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">• <tspan x="5.65" y="0" style="letter-spacing:-0.037109375em">W</tspan><tspan x="13.81" y="0">astes Layer 0-4, 6-</tspan><tspan x="88.85" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="93.19" y="0">1 data (56 bytes)</tspan></text><text transform="translate(530 510)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">• 87.5% of loaded data unused!</text><text transform="translate(530 530)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">Cache E<tspan x="34.52" y="0" style="letter-spacing:-0.01806640625em">f</tspan><tspan x="36.86" y="0">ficiency: ~12.5%</tspan></text><text transform="translate(530 545)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">Multiple cache misses per layer</text><rect x="950" y="200" width="800" height="400" rx="6" style="fill:#d5f4e6;stroke:#27ae60;stroke-width:2px"/><text transform="translate(1174.55 230)" style="isolation:isolate;font-size:16px;fill:#27ae60;font-family:Arial-BoldMT, Arial;font-weight:700">L<tspan x="9.77" y="0" style="letter-spacing:-0.091796875em">A</tspan><tspan x="19.86" y="0">YER-B</tspan><tspan x="69.64" y="0" style="letter-spacing:-0.05517578125em">Y</tspan><tspan x="79.43" y="0">-L</tspan><tspan x="94.53" y="0" style="letter-spacing:-0.091796875em">A</tspan><tspan x="104.62" y="0">YER: Excellent Cache Utilization</tspan></text><text transform="translate(970 260)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Memory Layout:</text><rect x="990" y="270" width="120" height="50" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(1027.23 285)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">Layer 0</text><text transform="translate(1020.41 300)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">QKV|FC|LN</text><text transform="translate(1022.66 315)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">Acts|Grads</text><rect x="1120" y="270" width="120" height="50" style="fill:#2ecc71;stroke:#27ae60"/><text transform="translate(1157.23 285)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">Layer 1</text><text transform="translate(1150.41 300)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">QKV|FC|LN</text><text transform="translate(1152.66 315)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">Acts|Grads</text><text transform="translate(1236.96 300)" style="isolation:isolate;font-size:12px;fill:#7f8c8d;font-family:MyriadPro-Regular, Myriad Pro">...</text><rect x="1300" y="270" width="120" height="50" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(1341.35 285)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">Layer 5</text><text transform="translate(1330.41 300)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">QKV|FC|LN</text><text transform="translate(1332.66 315)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">Acts|Grads</text><text transform="translate(1416.96 300)" style="isolation:isolate;font-size:12px;fill:#7f8c8d;font-family:MyriadPro-Regular, Myriad Pro">...</text><rect x="1480" y="270" width="120" height="50" style="fill:#9b59b6;stroke:#8e44ad"/><text transform="translate(1511.47 285)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">Layer <tspan x="25.01" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="29.35" y="0">1</tspan></text><text transform="translate(1510.41 300)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">QKV|FC|LN</text><text transform="translate(1512.66 315)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">Acts|Grads</text><text transform="translate(970 350)" style="isolation:isolate;font-size:12px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Processing Layer 5:</text><rect x="990" y="360" width="600" height="40" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(1016.5 385)" style="isolation:isolate;font-size:11px;fill:#fff;font-family:ArialMT, Arial">Layer 5: [QKV_weights|FC_weights|LN_weights|Activations|Gradients] -<tspan x="350.14" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="352.59" y="0">AL</tspan><tspan x="366.05" y="0" style="letter-spacing:-0.037109375em">L</tspan><tspan x="371.75" y="0" xml:space="preserve"> CONTIGUOUS</tspan></text><rect x="990" y="420" width="600" height="120" style="fill:#00b894;stroke:#00a085"/><text transform="translate(1223.18 445)" style="isolation:isolate;font-size:11px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">OPTIMA<tspan x="42.78" y="0" style="letter-spacing:-0.01806640625em">L</tspan><tspan x="49.3" y="0" xml:space="preserve"> CACHE USAGE</tspan></text><text transform="translate(1000 465)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">• CPU loads 64-byte cache lines sequentially</text><text transform="translate(1000 480)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">• Uses<tspan x="26.16" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="28.16" y="0">AL</tspan><tspan x="39.17" y="0" style="letter-spacing:-0.037109375em">L</tspan><tspan x="43.84" y="0" xml:space="preserve"> 64 bytes of each cache line</tspan></text><text transform="translate(1000 495)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">• Perfect spatial locality - no data waste</text><text transform="translate(1000 510)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">Cache E<tspan x="34.52" y="0" style="letter-spacing:-0.01806640625em">f</tspan><tspan x="36.86" y="0">ficiency: ~95%</tspan></text><text transform="translate(1000 525)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialMT, Arial">Single cache miss loads useful data</text></svg>
+</section>
+<!-- Slide 5: GTP-2 Memory Layout Optimization: Cache Hierarchy and Performance Analysis -->
+<section style="transform: scale(1.3);">
+	<aside class="notes">
+  <p>
+    To understand *why* this choice is so critical, we have to look at the hardware. At the top of this slide is a simplified CPU Cache Hierarchy. We have the super-fast but small L1 and L2 caches private to each core, and the larger, slower L3 cache shared by all cores. This is the arena where the battle for performance is fought.
+  </p>
+  <p>
+    Now, look at the bottom section. With the Block-per-Tensor approach, to process a single layer, the CPU has to jump all over main memory. It needs to grab QKV weights from one block, then MLP weights from another, then LayerNorm data from a third. Each jump is a potential cache miss, which stalls the CPU while it waits for data from slow RAM. This is why it results in high cache misses.
+  </p>
+  <p>
+    In contrast, our optimized Layer-by-Layer approach ensures all the data is sequential. The CPU can just march through a single block of memory, which leads to very few cache misses and massive performance gains.
+  </p>
+</aside>
+	<svg id="a8b7387b-60c2-4052-931b-98b0e012cad8" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1731.36 757.36"><text transform="translate(521.92 35)" style="isolation:isolate;font-size:18px;fill:#e8e8e8;font-family:Arial-BoldMT, Arial;font-weight:700">GP<tspan x="26.01" y="0" style="letter-spacing:-0.05517578125em">T</tspan><tspan x="36.01" y="0">-2 Memory Layout Optimization: Cache Hierarchy and Performance</tspan><tspan x="609.15" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="613.49" y="0">Analysis</tspan></text><path d="M471.68,60h788c3.31,0,6,3.47,6,7.74V439.45c0,4.27-2.69,7.74-6,7.74h-788c-3.31,0-6-3.47-6-7.74V67.74C465.68,63.47,468.37,60,471.68,60Z" style="fill:#e3f2fd;stroke:#2196f3;stroke-width:2px"/><text transform="translate(783.42 90)" style="isolation:isolate;font-size:16px;fill:#1976d2;font-family:Arial-BoldMT, Arial;font-weight:700">CPU Cache Hierarchy</text><rect x="765.68" y="110" width="200" height="60" style="fill:#42a5f5;stroke:#1976d2"/><text transform="translate(837.68 135)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">CPU Core</text><text transform="translate(828.85 155)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialNarrow-Bold, Arial;font-weight:700">Processing Unit</text><rect x="735.68" y="225.83" width="260" height="40" style="fill:#66bb6a;stroke:#4caf50"/><text transform="translate(760.08 244.83)" style="isolation:isolate;font-size:11px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">L1 Cache: 48KB Data + 32KB Instruction</text><text transform="translate(766.59 257.83)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow-Bold, Arial;font-weight:700">1-2 cycles latency | Private per core</text><rect x="685.68" y="311.66" width="360" height="40" style="fill:#ff9800;stroke:#f57c00"/><text transform="translate(806.09 330.66)" style="isolation:isolate;font-size:11px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">L2 Cache: 2MB Unified</text><text transform="translate(759.19 343.66)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow-Bold, Arial;font-weight:700">10-15 cycles latency | Private per core</text><rect x="585.68" y="390" width="560" height="40" style="fill:#e91e63;stroke:#c2185b"/><text transform="translate(751.06 409)" style="isolation:isolate;font-size:11px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">L3 Cache: 504MB Shared (Intel Xeon 6980P)</text><text transform="translate(745.44 422)" style="isolation:isolate;font-size:9px;fill:#fff;font-family:ArialNarrow-Bold, Arial;font-weight:700">40-60 cycles latency | Shared across all cores</text><polygon points="858.68 202.72 865.68 182.72 872.68 202.72 858.68 202.72" style="fill:#2196f3"/><polygon points="858.68 300 865.68 280 872.68 300 858.68 300" style="fill:#2196f3"/><polygon points="858.68 383.32 865.68 363.32 872.68 383.32 858.68 383.32" style="fill:#2196f3"/><text transform="translate(925.68 540)" style="font-size:12px;font-family:MyriadPro-Regular, Myriad Pro"><tspan xml:space="preserve"> I can c</tspan><tspan x="33.7" y="0" style="letter-spacing:-0.010009765625em">r</tspan><tspan x="37.5" y="0" style="letter-spacing:0.00008138020833333333em">e</tspan><tspan x="43.51" y="0" style="letter-spacing:-0.004069010416666667em">a</tspan><tspan x="49.25" y="0" style="letter-spacing:-0.005940755208333333em">t</tspan><tspan x="53.15" y="0">e it visually based on the stru</tspan><tspan x="197.54" y="0" style="letter-spacing:0.012939453125em">c</tspan><tspan x="203.07" y="0">tu</tspan><tspan x="213.66" y="0" style="letter-spacing:-0.010009765625em">r</tspan><tspan x="217.46" y="0" style="letter-spacing:0.00008138020833333333em">e ab</tspan><tspan x="238.63" y="0" style="letter-spacing:-0.006998697916666667em">o</tspan><tspan x="245.13" y="0" style="letter-spacing:-0.009928385416666666em">v</tspan><tspan x="250.78" y="0" style="letter-spacing:-0.012044270833333334em">e</tspan><tspan x="256.65" y="0" style="letter-spacing:0.00008138020833333333em">.</tspan></text><path d="M21.68,466.11h1688c3.31,0,6,1.87,6,4.17V740.42c0,2.31-2.69,4.18-6,4.18H21.68c-3.31,0-6-1.87-6-4.18V470.28C15.68,468,18.37,466.11,21.68,466.11Z" style="fill:#f3e5f5;stroke:#9c27b0;stroke-width:2px"/><text transform="translate(672.16 496.11)" style="isolation:isolate;font-size:16px;fill:#7b1fa2;font-family:Arial-BoldMT, Arial;font-weight:700">Memory Layout Optimization: Cache Miss<tspan x="317.38" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="321.23" y="0">Analysis</tspan></text><rect x="45.68" y="516.11" width="800" height="196.83" style="fill:#ffcdd2;stroke:#f44336"/><text transform="translate(253.93 541.11)" style="isolation:isolate;font-size:14px;fill:#d32f2f;font-family:Arial-BoldMT, Arial;font-weight:700">Current<tspan x="50.56" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="53.93" y="0">Approach: Block-per-</tspan><tspan x="197.05" y="0" style="letter-spacing:-0.07421875em">T</tspan><tspan x="204.57" y="0">ensor (High Cache Misses)</tspan></text><rect x="65.68" y="556.11" width="180" height="30" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(116.42 576.11)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialNarrow-Bold, Arial;font-weight:700">All QKV <tspan x="32.81" y="0" style="letter-spacing:-0.01416015625em">W</tspan><tspan x="40.41" y="0">eights</tspan></text><rect x="265.68" y="556.11" width="180" height="30" style="fill:#2ecc71;stroke:#27ae60"/><text transform="translate(308.35 576.11)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialNarrow-Bold, Arial;font-weight:700">All ML<tspan x="24.6" y="0" style="letter-spacing:-0.01416015625em">P</tspan><tspan x="29.93" y="0"> </tspan><tspan x="32.21" y="0" style="letter-spacing:-0.01416015625em">W</tspan><tspan x="39.8" y="0">eights</tspan></text><rect x="465.68" y="556.11" width="180" height="30" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(512.6 576.11)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialNarrow-Bold, Arial;font-weight:700">All LayerNorm</text><rect x="665.68" y="556.11" width="160" height="30" style="fill:#f39c12;stroke:#e67e22"/><text transform="translate(704.4 576.11)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialNarrow-Bold, Arial;font-weight:700">All<tspan x="10.48" y="0" style="letter-spacing:-0.02978515625em"> </tspan><tspan x="12.46" y="0">Activations</tspan></text><text transform="translate(65.68 606.11)" style="isolation:isolate;font-size:11px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Processing Layer 5:</text><rect x="65.68" y="616.11" width="760" height="15" style="fill:#ecf0f1;stroke:#bdc3c7"/><text transform="translate(386.06 628.11)" style="isolation:isolate;font-size:9px;fill:#7f8c8d;font-family:ArialNarrow-Bold, Arial;font-weight:700">64-byte Cache Line</text><rect x="115.68" y="636.11" width="20" height="15" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(119.1 648.11)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">L5</text><text transform="translate(65.68 666.11)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialNarrow-Bold, Arial;font-weight:700">QK<tspan x="11.07" y="0" style="letter-spacing:-0.044921875em">V</tspan><tspan x="15.59" y="0">: Only 8 bytes used, 56 bytes wasted per cache line</tspan></text><rect x="315.68" y="636.11" width="20" height="15" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(319.1 648.11)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">L5</text><text transform="translate(265.68 666.11)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialNarrow-Bold, Arial;font-weight:700">MLP: Jump to different memory region</text><rect x="515.68" y="636.11" width="20" height="15" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(519.1 648.11)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">L5</text><text transform="translate(465.68 666.11)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:ArialNarrow-Bold, Arial;font-weight:700">LayerNorm:<tspan x="41.41" y="0" style="letter-spacing:-0.02978515625em"> </tspan><tspan x="43.2" y="0">Another cache miss</tspan></text><text transform="translate(65.68 686.11)" style="isolation:isolate;font-size:10px;fill:#d32f2f;font-family:Arial-BoldMT, Arial;font-weight:700">Cache Efficiency: ~12-15% | Multiple cache misses per layer</text><rect x="887.38" y="516.11" width="800" height="196.83" style="fill:#c8e6c9;stroke:#4caf50"/><text transform="translate(1094.18 541.11)" style="isolation:isolate;font-size:14px;fill:#2e7d32;font-family:Arial-BoldMT, Arial;font-weight:700">Optimized<tspan x="67.67" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="71.04" y="0">Approach: Layer-by-Layer (Low Cache Misses)</tspan></text><rect x="905.68" y="556.11" width="150" height="30" style="fill:#42a5f5;stroke:#1976d2"/><text transform="translate(939.84 576.11)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">Layer 0 Data</text><rect x="1075.68" y="556.11" width="150" height="30" style="fill:#42a5f5;stroke:#1976d2"/><text transform="translate(1109.84 576.11)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">Layer 1 Data</text><rect x="1245.68" y="556.11" width="150" height="30" style="fill:#e91e63;stroke:#c2185b"/><text transform="translate(1284.41 576.11)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">Layer 5 Data</text><rect x="1415.68" y="556.11" width="150" height="30" style="fill:#42a5f5;stroke:#1976d2"/><text transform="translate(1443.44 576.11)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:Arial-BoldMT, Arial;font-weight:700">Layer <tspan x="29.46" y="0" style="letter-spacing:-0.05517578125em">1</tspan><tspan x="34.47" y="0">1 Data</tspan></text><rect x="1245.68" y="596.11" width="150" height="80" style="fill:#fce4ec;stroke:#e91e63"/><text transform="translate(1282.67 611.11)" style="isolation:isolate;font-size:9px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Layer 5 Contents:</text><text transform="translate(1255.68 626.11)" style="isolation:isolate;font-size:8px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">QKV <tspan x="19.56" y="0" style="letter-spacing:-0.01806640625em">W</tspan><tspan x="26.96" y="0">eights</tspan></text><text transform="translate(1255.68 641.11)" style="isolation:isolate;font-size:8px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">ML<tspan x="11.55" y="0" style="letter-spacing:-0.01806640625em">P</tspan><tspan x="16.74" y="0"> </tspan><tspan x="18.96" y="0" style="letter-spacing:-0.01806640625em">W</tspan><tspan x="26.37" y="0">eights</tspan></text><text transform="translate(1255.68 656.11)" style="isolation:isolate;font-size:8px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">LayerNorm</text><text transform="translate(1255.68 671.11)" style="isolation:isolate;font-size:8px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Activations</text><polygon points="1400.68 625.61 1430.68 636.11 1400.68 646.61 1400.68 625.61" style="fill:#2196f3"/><polygon points="1213.06 625.61 1243.06 636.11 1213.06 646.61 1213.06 625.61" style="fill:#2196f3"/><polygon points="1058.43 625.61 1088.43 636.11 1058.43 646.61 1058.43 625.61" style="fill:#2196f3"/><text transform="translate(1194.42 691.11)" style="isolation:isolate;font-size:10px;fill:#2e7d32;font-family:Arial-BoldMT, Arial;font-weight:700">Sequential Memory<tspan x="91.69" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="94.1" y="0">Access: 90-95% Cache Efficiency</tspan></text></svg>
+</section>
+</section>
+<!-- Part 2	-->
+<section>
+	<section>
+		<aside class="notes">
+  <p>
+    Okay, so in Part 1, we established the two main choices for memory layout. Now, in Part 2, we’re going to look at the real, tangible consequences of making the wrong choice.
+  </p>
+  <p>
+    This isn't just a theoretical exercise. The performance difference is massive, and it all comes down to how well we align our software design with the realities of the underlying hardware.
+  </p>
+  <p>
+    [CUE: Let's look at the data.]
+  </p>
+</aside>
+		<h2>Part 2: The Consequence of a Bad Layout</h2></section>
+  <!-- Stream Count vs Performance Impact Chart Section -->
+<section>
+<aside class="notes">
+  <p>
+    This chart really says it all. It compares the performance of the traditional Karpathy layout in red against our optimized layout in green, across the main stages of a transformer layer.
+  </p>
+  <p>
+    Look at the red bars. The performance starts okay with LayerNorm, but then it completely falls off a cliff. The performance degrades with each subsequent operation. Why? Because, as noted at the bottom, each operation adds more concurrent memory streams, and the hardware's stream tracker gets completely overwhelmed.
+  </p>
+  <p>
+    I've marked QKV as the "tipping point" because this is where the hardware prefetcher's confidence completely collapses. In stark contrast, our layout maintains consistent, high performance throughout because our slab layout prevents this entire cascade of failure by processing one tensor type at a time.
+  </p>
+</aside>
+	<h4>Stream Count vs Performance Impact</h4>
+
+  <div class="chart-container" style="position: relative; height: 400px; width: 80%; margin: 0 auto;">
+    <canvas id="streamChart"></canvas>
+  </div>
+  
+  <!-- Key insights with fragments -->
+  <div class="insights" style="background: #181717; border: 2px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 5px; font-size:18px;">
+    <p class="fragment fade-in" data-fragment-index="1">
+      <strong>Each operation adds more concurrent streams</strong> → Stream tracker gets overwhelmed
+    </p>
+    <p class="fragment fade-in" data-fragment-index="2">
+      <strong style="color: #dc3545;">QKV is the tipping point</strong> where hardware prefetcher confidence collapses completely
+    </p>
+    <p class="fragment fade-in" data-fragment-index="3">
+      <strong style="color: #28a745;">Slab layout prevents this cascade</strong> by processing one tensor type at a time
+    </p>
+  </div>
+</section>
+	<!-- Slide 6: Progressive stream explosion -->
+  <section style="transform: scale(1.4);">
+	<aside class="notes">
+  <p>
+    So, let's break down exactly what that "stream explosion" looks like. This slide shows the cause of the performance degradation we just saw in the graph.
+  </p>
+  <p>
+    On the left, you can see the traditional layout in action. For LayerNorm, it's manageable with 3 active memory streams. But then you hit QKV Attention, and suddenly the CPU is trying to read and write from 8 or more different memory locations at once—the input, the weights, the query, key, and value outputs... it's a total disaster. The hardware prefetcher, which might only be designed to track 4 streams, simply gives up.
+  </p>
+  <p>
+    Now, look at our optimized approach on the right. By processing each part of the computation in blocked, sequential phases, we keep the number of active memory streams to a minimum—usually just one or two. The prefetcher can predict the access patterns perfectly, its confidence stays above 95%, and we get a 3-5x performance boost just from this.
+  </p>
+  <p>
+    [PAUSE]
+  </p>
+  <p>
+    This is such a key concept for getting performance out of modern hardware. If you're enjoying this level of detail and want to see more content that bridges the gap between software and hardware, hitting that subscribe button is the best way to let me know you find this valuable.
+  </p>
+</aside>
+<svg id="ad8936e3-9133-45e6-9443-05334f992237" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1400 674.21"><defs><linearGradient id="f953c05a-7c22-49ad-afdc-77b44ff30f7d" x1="-258.6" y1="1139.83" x2="-257.6" y2="1139.83" gradientTransform="matrix(650, 0, 0, -180, 168141, 205480)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff3e0"/><stop offset="1" stop-color="#e74c3c" stop-opacity="0.8"/></linearGradient><linearGradient id="a3a8146f-e1bd-4986-bf31-06e1ca8ec979" x1="-258.59" y1="1139.6" x2="-257.59" y2="1139.6" gradientTransform="matrix(630, 0, 0, -580, 163631, 661340)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#e8f5e8"/><stop offset="1" stop-color="#27ae60" stop-opacity="0.3"/></linearGradient></defs><text transform="translate(355.88 30)" style="isolation:isolate;font-size:24px;fill:#b9bec4;font-family:Arial-BoldMT, Arial;font-weight:700">Progressive Stream Explosion: Why QKV Breaks Everything</text><text transform="translate(417.25 55)" style="isolation:isolate;font-size:16px;fill:#7f8c8d;font-family:Arial-BoldMT, Arial;font-weight:700">How Each Operation<tspan x="156.47" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="160.32" y="0">Adds Memory Streams in Karpathy&apos;s Layout</tspan></text><rect x="50" y="80" width="650" height="120" style="fill:#f8f9fa;stroke:#6c757d;stroke-width:2px"/><text transform="translate(70 105)" style="isolation:isolate;font-size:18px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Stage 1: LayerNorm - Manageable (3 streams)</text><g id="f9b41746-b5d2-406a-bf93-7c896b8362c8" data-name="layernorm-streams"><text transform="translate(70 130)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Active Memory Streams:</text><rect x="70" y="140" width="80" height="25" style="fill:#bbdefb;stroke:#3498db;stroke-width:2px"/><text transform="translate(81.26 157)" style="isolation:isolate;font-size:11px;font-family:ArialMT, Arial">Input[B,<tspan x="37.91" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="43.41" y="0">,C]</tspan></text><rect x="160" y="140" width="60" height="25" style="fill:#ffcdd2;stroke:#e74c3c;stroke-width:2px"/><text transform="translate(180.22 157)" style="isolation:isolate;font-size:11px;font-family:ArialMT, Arial">γ[C]</text><rect x="230" y="140" width="60" height="25" style="fill:#ffcdd2;stroke:#e74c3c;stroke-width:2px"/><text transform="translate(249.81 157)" style="isolation:isolate;font-size:11px;font-family:ArialMT, Arial">β[C]</text><rect x="350" y="135" width="320" height="35" style="fill:#d5f4e6;stroke:#27ae60"/><text transform="translate(360 155)" style="isolation:isolate;font-size:12px;fill:#2e7d32;font-family:ArialMT, Arial">Stream<tspan x="38.68" y="0" style="letter-spacing:-0.01806640625em"> </tspan><tspan x="41.79" y="0" style="letter-spacing:-0.037109375em">T</tspan><tspan x="48.68" y="0">racker: 3/4 slots used - Still manageable </tspan><tspan x="265.45" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text></g><rect x="70" y="175" width="600" height="20" style="fill:#ecf0f1;stroke:#bdc3c7"/><text transform="translate(80 188)" style="isolation:isolate;font-size:10px;fill:#2c3e50;font-family:CourierNewPSMT, Courier New">out[i] = (input[i] - mean) * rstd * gamma[i] + beta[i];</text><rect x="50" y="220" width="650" height="180" style="stroke:#e74c3c;stroke-width:3px;fill:url(#f953c05a-7c22-49ad-afdc-77b44ff30f7d)"/><text transform="translate(70 245)" style="isolation:isolate;font-size:18px;fill:#c0392b;font-family:Arial-BoldMT, Arial;font-weight:700">Stage 2: QKV<tspan x="114.03" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="118.36" y="0">Attention - STREAM EXPLOSION! (6-8 streams)</tspan></text><g id="aefc2181-6683-4d11-9ac3-8b8c00ee2425" data-name="qkv-streams"><text transform="translate(70 270)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Active Memory Streams:</text><rect x="70" y="280" width="70" height="20" style="fill:#bbdefb;stroke:#3498db"/><text transform="translate(81.49 293)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Input[B,<tspan x="31.02" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="35.52" y="0">,C]</tspan></text><rect x="150" y="280" width="80" height="20" style="fill:#fff3e0;stroke:#ff9800"/><text transform="translate(166 293)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Wqkv[3C,C]</text><rect x="240" y="280" width="60" height="20" style="fill:#fff3e0;stroke:#ff9800"/><text transform="translate(251.74 293)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Bqkv[3C]</text><rect x="70" y="310" width="50" height="20" style="fill:#e1f5fe;stroke:#0277bd"/><text transform="translate(78 323)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Q[B,<tspan x="18" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="22.5" y="0">,C]</tspan></text><rect x="130" y="310" width="50" height="20" style="fill:#e8f5e8;stroke:#388e3c"/><text transform="translate(138.5 323)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">K[B,<tspan x="17.01" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="21.51" y="0">,C]</tspan></text><rect x="190" y="310" width="50" height="20" style="fill:#fce4ec;stroke:#c2185b"/><text transform="translate(198.5 323)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">V[B,<tspan x="17.01" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="21.51" y="0">,C]</tspan></text><rect x="250" y="310" width="70" height="20" style="fill:#f3e5f5;stroke:#7b1fa2"/><text transform="translate(253.49 323)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Scores[B,H,<tspan x="48.01" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="52.51" y="0">,T]</tspan></text><rect x="330" y="310" width="60" height="20" style="fill:#e0f2f1;stroke:#00695c"/><text transform="translate(334.49 323)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Attn[B,H,<tspan x="36.01" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="40.51" y="0">,T]</tspan></text><rect x="400" y="280" width="270" height="50" style="fill:#ffebee;stroke:#e74c3c;stroke-width:2px"/><text transform="translate(410 300)" style="isolation:isolate;font-size:12px;fill:#c62828;font-family:MyriadPro-Regular, Myriad Pro">⚠️<tspan x="6" y="0" xml:space="preserve" style="font-family:Arial-BoldMT, Arial;font-weight:700"> Stream </tspan><tspan x="53.36" y="0" style="font-family:Arial-BoldMT, Arial;font-weight:700;letter-spacing:-0.05517578125em">T</tspan><tspan x="60.02" y="0" style="font-family:Arial-BoldMT, Arial;font-weight:700">racker: 8/4 slots - OVERLOADED!</tspan></text><text transform="translate(410 318)" style="isolation:isolate;font-size:11px;fill:#d32f2f;font-family:ArialMT, Arial">Streams being evicted every few cache lines</text></g><rect x="70" y="340" width="600" height="50" style="fill:#ffcdd2;stroke:#e74c3c"/><text transform="translate(80 375)" style="isolation:isolate;font-size:11px;fill:#d32f2f;font-family:ArialMT, Arial">CPU rapidly switches: Input → Wqkv → Q_out → K_out → V_out → Scores →<tspan x="383.31" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="385.76" y="0">Attention weights</tspan></text><text transform="translate(80 385)" style="isolation:isolate;font-size:11px;fill:#d32f2f;font-family:ArialMT, Arial">Stream tracker can&apos;t keep up - prefetcher confidence collapses to ~30%</text><rect x="50" y="420" width="650" height="100" style="fill:#fff8e1;stroke:#ff9800;stroke-width:2px"/><text transform="translate(70 445)" style="isolation:isolate;font-size:18px;fill:#ef6c00;font-family:Arial-BoldMT, Arial;font-weight:700">Stage 3:<tspan x="70.02" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="74.36" y="0">Attention Projection - Still Bad (4 streams)</tspan></text><g id="a64a65a3-b399-4579-9e25-ef792062b163" data-name="proj-streams"><text transform="translate(70 470)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Active Memory Streams:</text><rect x="70" y="480" width="80" height="20" style="fill:#e1f5fe;stroke:#0277bd"/><text transform="translate(79.73 493)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Attn_out[B,<tspan x="44.53" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="49.03" y="0">,C]</tspan></text><rect x="160" y="480" width="60" height="20" style="fill:#fff3e0;stroke:#ff9800"/><text transform="translate(168 493)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Wproj[C,C]</text><rect x="230" y="480" width="50" height="20" style="fill:#fff3e0;stroke:#ff9800"/><text transform="translate(238.74 493)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Bproj[C]</text><rect x="290" y="480" width="60" height="20" style="fill:#bbdefb;stroke:#3498db"/><text transform="translate(292.99 493)" style="isolation:isolate;font-size:9px;font-family:ArialMT, Arial">Output[B,<tspan x="38.02" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="42.52" y="0">,C]</tspan></text><rect x="400" y="475" width="250" height="30" style="fill:#ffe0b2;stroke:#f57c00"/><text transform="translate(410 495)" style="isolation:isolate;font-size:11px;fill:#ef6c00;font-family:ArialMT, Arial">Stream<tspan x="35.45" y="0" style="letter-spacing:-0.01806640625em"> </tspan><tspan x="38.31" y="0" style="letter-spacing:-0.037109375em">T</tspan><tspan x="44.62" y="0">racker: Still overloaded, patterns broken</tspan></text></g><rect x="50" y="540" width="650" height="120" style="fill:#ffebee;stroke:#e74c3c;stroke-width:2px"/><text transform="translate(70 565)" style="isolation:isolate;font-size:18px;fill:#c62828;font-family:Arial-BoldMT, Arial;font-weight:700">Stage 4: MLP/FC - The Final Straw (5-6 streams)</text><g id="a38af68b-018d-4eb9-a54d-9332c80d8d18" data-name="mlp-streams"><text transform="translate(70 590)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Active Memory Streams:</text><rect x="70" y="600" width="60" height="18" style="fill:#bbdefb;stroke:#3498db"/><text transform="translate(79.1 612)" style="isolation:isolate;font-size:8px;font-family:ArialMT, Arial">Input[B,<tspan x="27.57" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="31.57" y="0">,C]</tspan></text><rect x="140" y="600" width="60" height="18" style="fill:#fff3e0;stroke:#ff9800"/><text transform="translate(152.66 612)" style="isolation:isolate;font-size:8px;font-family:ArialMT, Arial">W1[C,4C]</text><rect x="210" y="600" width="50" height="18" style="fill:#fff3e0;stroke:#ff9800"/><text transform="translate(222.77 612)" style="isolation:isolate;font-size:8px;font-family:ArialMT, Arial">B1[4C]</text><rect x="270" y="600" width="60" height="18" style="fill:#f3e5f5;stroke:#7b1fa2"/><text transform="translate(274.88 612)" style="isolation:isolate;font-size:8px;font-family:ArialMT, Arial">GELU[B,<tspan x="31.57" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="35.57" y="0">,4C]</tspan></text><rect x="340" y="600" width="60" height="18" style="fill:#fff3e0;stroke:#ff9800"/><text transform="translate(352.66 612)" style="isolation:isolate;font-size:8px;font-family:ArialMT, Arial">W2[4C,C]</text><rect x="410" y="600" width="50" height="18" style="fill:#fff3e0;stroke:#ff9800"/><text transform="translate(425 612)" style="isolation:isolate;font-size:8px;font-family:ArialMT, Arial">B2[C]</text><rect x="470" y="600" width="60" height="18" style="fill:#bbdefb;stroke:#3498db"/><text transform="translate(475.99 612)" style="isolation:isolate;font-size:8px;font-family:ArialMT, Arial">Output[B,<tspan x="33.8" y="0" style="letter-spacing:-0.11083984375em">T</tspan><tspan x="37.8" y="0">,C]</tspan></text><rect x="70" y="625" width="600" height="25" style="fill:#ffcdd2;stroke:#e74c3c"/></g><text transform="translate(75.13 641.13)" style="font-size:11px;fill:#d32f2f;font-family:ArialMT, Arial">💀<tspan x="8.25" y="0" xml:space="preserve" style="letter-spacing:-0.01806640625em"> T</tspan><tspan x="17.63" y="0">O</tspan><tspan x="26.18" y="0" style="letter-spacing:-0.07421875em">T</tspan><tspan x="32.09" y="0">A</tspan><tspan x="39.42" y="0" style="letter-spacing:-0.037109375em">L</tspan><tspan x="45.13" y="0" xml:space="preserve"> DISASTER: 12+ concurrent streams across all operations - Hardware prefetcher gives up</tspan></text><rect x="720" y="80" width="630" height="580" style="stroke:#27ae60;stroke-width:3px;fill:url(#a3a8146f-e1bd-4986-bf31-06e1ca8ec979)"/><g id="f6c5376c-ceb5-4e81-a250-b39f6b590d57" data-name="optimized-stages"><rect x="740" y="120" width="590" height="80" style="fill:#e8f5e8;stroke:#4caf50"/><text transform="translate(750 140)" style="isolation:isolate;font-size:14px;fill:#2e7d32;font-family:Arial-BoldMT, Arial;font-weight:700">Stage 1: LayerNorm (Sequential)</text><text transform="translate(750 160)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase<tspan x="31.19" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="33.64" y="0">A: Process all γ[0..C] → One stream</tspan></text><text transform="translate(750 175)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase B: Process all β[0..C] → One stream</text><text transform="translate(750 190)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Result: Perfect prefetching, 95% hit rate <tspan x="197.49" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><rect x="740" y="210" width="590" height="100" style="fill:#e8f5e8;stroke:#4caf50"/><text transform="translate(750 230)" style="isolation:isolate;font-size:14px;fill:#2e7d32;font-family:Arial-BoldMT, Arial;font-weight:700">Stage 2: QKV (Blocked Processing)</text><text transform="translate(750 250)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase<tspan x="31.19" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="33.64" y="0">A:</tspan><tspan x="44.03" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="46.48" y="0">All Wqkv weights for current tile → One stream</tspan></text><text transform="translate(750 265)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase B:<tspan x="44.64" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="47.09" y="0">All input data for current tile → One stream</tspan></text><text transform="translate(750 280)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase C: Compute Q,K,V outputs sequentially → One stream</text><text transform="translate(750 295)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Result: 2-3 streams max, perfect prediction <tspan x="212.75" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><rect x="740" y="320" width="590" height="80" style="fill:#e8f5e8;stroke:#4caf50"/><text transform="translate(750 340)" style="isolation:isolate;font-size:14px;fill:#2e7d32;font-family:Arial-BoldMT, Arial;font-weight:700">Stage 3: Projection (<tspan x="135.36" y="0" style="letter-spacing:-0.01806640625em">T</tspan><tspan x="143.66" y="0">iled)</tspan></text><text transform="translate(750 360)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase<tspan x="31.19" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="33.64" y="0">A:</tspan><tspan x="44.03" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="46.48" y="0">All projection weights → One stream</tspan></text><text transform="translate(750 375)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase B:<tspan x="44.64" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="47.09" y="0">All attention outputs → One stream</tspan></text><text transform="translate(750 390)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Result: Perfect sequential access <tspan x="165.69" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><rect x="740" y="410" width="590" height="100" style="fill:#e8f5e8;stroke:#4caf50"/><text transform="translate(750 430)" style="isolation:isolate;font-size:14px;fill:#2e7d32;font-family:Arial-BoldMT, Arial;font-weight:700">Stage 4: ML<tspan x="78.57" y="0" style="letter-spacing:-0.01806640625em">P</tspan><tspan x="87.65" y="0" xml:space="preserve"> (Staged)</tspan></text><text transform="translate(750 450)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase<tspan x="31.19" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="33.64" y="0">A: FC1 weights + input →</tspan><tspan x="158.67" y="0" style="letter-spacing:-0.01806640625em"> </tspan><tspan x="161.52" y="0" style="letter-spacing:-0.05517578125em">T</tspan><tspan x="167.64" y="0">wo streams</tspan></text><text transform="translate(750 465)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase B: GELU activation → One stream</text><text transform="translate(750 480)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Phase C: FC2 weights + intermediate →<tspan x="196.56" y="0" style="letter-spacing:-0.01806640625em"> </tspan><tspan x="199.42" y="0" style="letter-spacing:-0.05517578125em">T</tspan><tspan x="205.53" y="0">wo streams</tspan></text><text transform="translate(750 495)" style="isolation:isolate;font-size:11px;fill:#388e3c;font-family:ArialMT, Arial">Result: Max 2 streams per phase <tspan x="164.46" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">✓</tspan></text><rect x="740" y="520" width="590" height="130" style="fill:#d4edda;stroke:#28a745;stroke-width:2px"/><text transform="translate(750 570)" style="isolation:isolate;font-size:13px;fill:#155724;font-family:ArialMT, Arial">• Stream<tspan x="50.06" y="0" style="letter-spacing:-0.01806640625em"> </tspan><tspan x="53.44" y="0" style="letter-spacing:-0.037109375em">T</tspan><tspan x="60.9" y="0">racker: Never overloaded (1-2 active streams)</tspan></text><text transform="translate(750 590)" style="isolation:isolate;font-size:13px;fill:#155724;font-family:ArialMT, Arial">• Prefetcher Confidence: 95%+ (perfect patterns)</text><text transform="translate(750 610)" style="isolation:isolate;font-size:13px;fill:#155724;font-family:ArialMT, Arial">• Cache Hit Rate: L1=90%, L2=97%</text><text transform="translate(750 630)" style="isolation:isolate;font-size:13px;fill:#155724;font-family:Arial-BoldMT, Arial;font-weight:700">• Performance: 3-5x faster than Karpathy</text></g></svg>
+  </section>
+
+</section>
+<!-- Part 3 -->
+ <section>
+	<section><h2>Part 3: The Elegant Solution: A Perfect Memory Pipeline</h2>
+<aside class="notes">
+  <p>
+    Okay, so we've seen the problem and the disastrous consequences of a bad memory layout. Now, for the fun part. In Part 3, we're going to build our elegant solution from the ground up.
+  </p>
+  <p>
+    This isn't about applying a bunch of disconnected hacks. It's about a single, coherent strategy that I call a 'Perfect Memory Pipeline'. Let's dive in.
+  </p>
+  <p>
+    [CUE: Advance to the next slide]
+  </p>
+</aside>	
+	</section>
+<!-- Slide 1: Key Insight -->
+<section>
+	<aside class="notes">
+  <p>
+    Here's the key insight that makes everything else possible. The entire solution boils down to the combination of two simple concepts: <strong>Bump Allocation and Offset Management</strong>.
+  </p>
+  <p>
+    [cite_start]Our `TrulyOptimalLayer` struct, which we'll look at next, uses offsets instead of pointers for instant, O(1) access to any tensor[cite: 123]. [cite_start]Then, the bump allocator ensures that our memory layout perfectly matches the computation order[cite: 124].
+  </p>
+  <p>
+    [cite_start]The diagram shows it all: the struct on the left maps directly to a sequential memory layout in the middle, which enables a perfectly cache-friendly and prefetch-ready access pattern that results in massive speedups[cite: 145, 147].
+  </p>
+</aside>
+  <div class="section-box purple-box">
+    <div class="section-title">🔑 Key Insight: Bump Allocation + Offset Management = Perfect Memory Pipeline</div>
+    <div class="formula-text">• TrulyOptimalLayer stores offsets for O(1) access to any tensor</div>
+    <div class="formula-text">• Bump allocator ensures sequential layout matching computation order</div>
+    <div class="formula-text">• Pipeline: LayerNorm → QKV → Attention → Projection → MLP (all sequential in memory)</div>
+    
+    <div class="flow-diagram">
+The Complete System:
+
+    TrulyOptimalLayer              Memory Layout              Access Pattern
+┌─────────────────────┐        ┌─────────────────┐         ┌─────────────────┐
+│ layer_input_offset  │──────▶ │ [Layer Input]   │◀────────│ base + offset   │
+│ ln1_output_offset   │──────▶ │ [LN1 Output]    │◀────────│ O(1) access     │
+│ qkv_output_offset   │──────▶ │ [QKV Output]    │◀────────│ Cache-friendly  │
+│ attention_offset    │──────▶ │ [Attention]     │◀────────│ Prefetch-ready  │
+│ residual1_offset    │──────▶ │ [Residual]      │◀────────│ NUMA-aware      │
+└─────────────────────┘        └─────────────────┘         └─────────────────┘
+
+Result: 95% cache hits, 10-100x speedup!
+    </div>
+  </div>
+</section>
+<!-- Slide 6: TrulyOptimalLayer Structure -->
+			<section>
+				<aside class="notes">
+  <p>
+    [cite_start]Before we dive into the complex details of the execution flow, I want to quickly recap our core data structure, the `TrulyOptimalLayer`[cite: 1564]. Everything we're about to discuss is built on top of this simple but powerful design.
+  </p>
+
+  <p>
+    The first and most important thing to notice here is what's missing: there are <strong>no pointers</strong>. A traditional approach would use a `float*` for every tensor, leading to scattered memory allocations. [cite_start]Instead, we are only storing `size_t` offsets[cite: 1553, 1555, 1557, 1559, 1562, 1563].
+  </p>
+
+  <p>
+    These members are our 'table of contents' for a single layer. Each offset tells us the precise location of a tensor—the weights, the biases, the activations, and all the intermediate results—within the single, massive, contiguous memory block we've allocated for the model.
+  </p>
+
+  <p>
+    This design gives us instant, O(1) access to any piece of data simply by adding the offset to our memory block's base address. More importantly, it guarantees that all the data needed for one layer is packed together sequentially. This is the key to achieving the perfect cache locality and predictable memory access patterns that the hardware needs to perform at its best.
+  </p>
+
+  <p>
+    So, keep this offset-based structure in mind. It’s the simple idea that unlocks all the complex performance gains we're about to break down.
+  </p>
+</aside>
+				<!-- 1. TrulyOptimalLayer Structure -->
+			  <pre data-id="struct-animation"><code class="hljs c" data-trim data-line-numbers="">
+typedef struct {
+  size_t token_emb_offset, pos_emb_offset, embedded_input_offset;
+  size_t ln1_weight_offset, ln1_bias_offset;
+  size_t layer_input_offset, ln1_output_offset;
+  size_t qkv_weight_offset, qkv_bias_offset, qkv_output_offset;
+  size_t proj_weight_offset, proj_bias_offset;
+  size_t attention_output_offset, residual1_output_offset;
+} TrulyOptimalLayer;
+  </code></pre>	
+</section>
+
+<!-- Slide 2: Bump Allocation Strategy -->
+<section>
+	<aside class="notes">
+  <p>
+    So how do we populate the offsets in that struct? [cite_start]With a simple bump allocator, as shown in the code at the top [cite: 83-89].
+  </p>
+  <p>
+    [cite_start]We start with an offset of zero[cite: 84]. Every time we need to allocate a tensor, we call `bump()`. [cite_start]It simply takes the current offset, ensures it's aligned to a cache boundary, and then 'bumps' it forward by the size of the tensor[cite: 85, 88]. [cite_start]The visualization at the bottom shows how this creates a perfect sequential slab layout in memory, exactly matching our computation order [cite: 92-101].
+  </p>
+  <p>
+    [cite_start]This layout creates a memory access pattern that the hardware's prefetcher can predict perfectly[cite: 90]. If this powerful yet simple idea makes sense to you, hit that like button to let me know!
+  </p>
+</aside>
+  <div class="section-box red-box">
+    <div class="section-title">Sequential Processing with Bump Allocation</div>
+    <pre data-id="bump-animation"><code class="hljs c" data-trim data-line-numbers="1-8|2|3|4|5|6|7|8">
+// Sequential slab layout matching computation order
+size_t offset = 0;
+L->layer_input_offset = bump(&offset, seq_len*embed_dim, CACHE_ALIGN);
+L->ln1_output_offset = bump(&offset, seq_len*embed_dim, CACHE_ALIGN);
+L->qkv_output_offset = bump(&offset, 3*seq_len*embed_dim, CACHE_ALIGN);
+L->attention_output_offset = bump(&offset, seq_len*embed_dim, CACHE_ALIGN);
+L->residual1_output_offset = bump(&offset, seq_len*embed_dim, CACHE_ALIGN);
+// Perfect sequential access pattern matches prefetcher
+    </code></pre>
+    
+    <div class="flow-diagram">
+Memory Layout Visualization:
+
+Memory Block: [████████████████████████████████████████████████]
+              ^        ^        ^        ^        ^
+              │        │        │        │        │
+          layer_in  ln1_out  qkv_out  attn_out residual1
+          offset:0   +X      +Y       +Z       +W
+
+Each bump() call advances offset → Perfect sequential layout!
+    </div>
+  </div>
+</section>
+<!-- Slide 3: Sequential Processing Pipeline -->
+<section>
+ <aside class="notes">
+  <p>
+    [cite_start]And the direct result of that bump allocation is this: a <strong>Sequential Processing Pipeline</strong>[cite: 67].
+  </p>
+  <p>
+    The data flows seamlessly through the transformer layer. [cite_start]The output from LayerNorm is physically located right next to the memory region for the Attention step's input [cite: 69-72]. [cite_start]The output of Attention is right next to the input for Projection, and so on[cite: 72, 73].
+  </p>
+  <p>
+    [cite_start]As the memory access pattern shows, we just move from `offset+0` to `offset+X` to `offset+Y`[cite: 79, 80]. [cite_start]It's a simple, predictable, and incredibly cache-friendly flow[cite: 81].
+  </p>
+</aside> 
+	<div class="section-box orange-box">
+    <div class="section-title">Sequential Processing Pipeline Based on TrulyOptimalLayer</div>
+    <div class="flow-diagram">
+Pipeline Flow (Sequential Memory Layout):
+
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│ LayerNorm   │───▶│ Attention   │───▶│ Projection  │───▶│    MLP      │
+│             │    │             │    │             │    │             │
+│1.layer_input│    │3.qkv_output │    │5.residual1  │    │7.mlp_output │
+│2.ln1_output │    │4.attn_output│    │6.ln2_output │    │8.residual2  │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+
+Memory Access Pattern:
+offset+0 ──▶ offset+X ──▶ offset+Y ──▶ offset+Z
+         Sequential, predictable, cache-friendly!
+    </div>
+  </div>
+</section>
+<!-- Slide 4: Mathematical Operations -->
+<section>
+	<aside class="notes">
+  <p>
+    [cite_start]Let's drill down into a specific, demanding computation to see this in action: the Query-Key dot product, or QK^T[cite: 43].
+  </p>
+  <p>
+    [cite_start]The actual computation requires taking a row from the Q matrix and performing a dot product with a column from the K matrix[cite: 45, 48]. Because our data is laid out sequentially, the CPU accesses the rows of Q and the columns of K in a simple, linear fashion.
+  </p>
+  <p>
+    [cite_start]We can see in the code how we get pointers to our Q and K vectors simply by adding our pre-calculated offsets to the base address[cite: 46]. [cite_start]This approach is perfect for cache prefetching[cite: 49].
+  </p>
+</aside>
+  <div class="section-box blue-box">
+    <div class="section-title">Step-by-Step Mathematical Operations</div>
+    <div class="teal-box" style="padding: 10px; margin: 10px 0;">
+      <div class="formula-text"><strong>Step 1: Compute QK^T (Query-Key Dot Products)</strong></div>
+      <pre data-id="math-animation"><code class="hljs c" data-trim data-line-numbers="1-2|3-4">
+qk_scores[seq_len + i] = dot_product(q[i], k[j]);
+// Access pattern: Q rows × K cols sequentially
+
+float *q_ptr = layer->qkv_output_offset;
+float *k_ptr = q_ptr + embed_dim;
+      </code></pre>
+    </div>
+  </div>
+
+  <div class="section-box green-box">
+    <div class="section-title">Memory Access Pattern Analysis</div>
+    <div class="highlight-text">Actual Computation: Q[i] * K[j] (Dot Product Pattern)</div>
+    <pre data-id="pattern-animation"><code class="hljs c" data-trim data-line-numbers="1|2|3">
+// ln1_output -> qkv_output -> attention_output (sequential)
+// Memory Pattern: Process one complete layer sequentially  
+✓ Perfect for bump allocator and cache prefetching
+    </code></pre>
+  </div>
+</section>
+<!-- Slide 5: Memory Access Visualization -->
+<section>
+	<aside class="notes">
+  <p>
+    This visualization makes the benefit even clearer. [cite_start]We multiply the Q matrix by the K-transposed matrix to get our QK^T scores [cite: 51-54].
+  </p>
+  <p>
+    Because of our layout, the memory access pattern is perfectly sequential. [cite_start]We access Row 0 of Q, then Column 0 of K^T, then Row 1 of Q, then Column 1 of K^T, and so on[cite: 57, 60, 61].
+  </p>
+  <p>
+    This is the ideal scenario for the hardware. [cite_start]It allows for perfect prefetching, keeping the CPU's execution units fully fed with data and never having to stall while waiting for memory[cite: 66].
+  </p>
+</aside>
+  <div class="section-box">
+    <div class="section-title">Memory Access Visualization</div>
+    <div class="ascii-art">
+┌─────────┐     ┌─────────┐     ┌─────────┐
+│    Q    │  ×  │   K^T   │  =  │  QK^T   │
+│[seq×emb]│     │[emb×seq]│     │[seq×seq]│
+└─────────┘     └─────────┘     └─────────┘
+    </div>
+    
+    <div class="flow-diagram">
+Memory Layout Impact:
+                                                          
+Q Matrix Access:     K^T Matrix Access:    Result Storage:
+┌─ Row 0 ─┐         ┌─ Col 0 ─┐           ┌─ QK^T ─┐
+├─ Row 1 ─┤   ×     ├─ Col 1 ─┤     =     ├─ [i,j] ─┤
+├─ Row 2 ─┤         ├─ Col 2 ─┤           ├─ ... ─┤
+└─ ... ──┘         └─ ... ──┘           └─ ... ──┘
+
+Sequential access → Perfect prefetching!
+    </div>
+  </div>
+</section>
+ </section>
+
+
+<!-- Part 4 -->
+<section>
+	<section><h2>Part 4: Advanced Topics & Scaling</h2>
+<aside class="notes">
+  <p>
+    Welcome to Part 4. We've built our elegant solution, the 'Perfect Memory Pipeline'. Now we're going to push it further by looking at advanced techniques for scaling this solution on real-world server hardware.
+  </p>
+  <p>
+    We'll start with a deep dive into NUMA to handle multi-CPU systems, and then we'll take a closer look at the CPU's prefetcher to see exactly why our sequential layout is so powerful.
+  </p>
+  <p>
+    [CUE: Advance to the next slide]
+  </p>
+</aside>
+
+	</section>
+<!-- NUMA  -->
+<!-- Slide 7: NUMA-Aware Processing -->
+<section>
+	<aside class="notes">
+  <p>
+    So far, we've mostly treated the CPU as one big unit. But on servers with multiple physical CPU sockets, we have what's called a NUMA, or Non-Uniform Memory Access, architecture.
+  </p>
+  <p>
+    [cite_start]As the diagram shows, accessing memory attached to a remote CPU is significantly slower than local access[cite: 120]. Our offset-based management system is perfect for this. [cite_start]We can split our single logical memory block into chunks and place the memory for Layer 0 on Node 0, Layer 1 on Node 1, and so on, ensuring data access is always fast and local [cite: 112-119].
+  </p>
+</aside>
+  <div class="section-box green-box">
+    <div class="section-title">NUMA-Aware Layer Processing with Offset Management</div>
+    <pre data-id="numa-animation"><code class="hljs c" data-trim data-line-numbers="1-7|2|3|5|6|7">
+// Per-layer processing with memory locality
+TrulyOptimalLayer *layer = &model->layers[layer_id];
+float *base = model->memory_base;
+
+// All data for this layer is contiguous
+float *layer_input = base + layer->layer_input_offset;
+float *qkv_output = base + layer->qkv_output_offset;
+// Perfect cache locality within layer
+    </code></pre>
+    
+    <div class="flow-diagram">
+NUMA Topology & Memory Access:
+
+Node 0          Node 1          Node 2          Node 3
+┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
+│ CPU 0-7 │     │ CPU 8-15│     │CPU 16-23│     │CPU 24-31│
+│ Memory  │     │ Memory  │     │ Memory  │     │ Memory  │
+│ Layer 0 │     │ Layer 1 │     │ Layer 2 │     │ Layer 3 │
+└─────────┘     └─────────┘     └─────────┘     └─────────┘
+     │               │               │               │
+     └───────────────┼───────────────┼───────────────┘
+                     │               │
+            Local access = fast, Remote access = slow
+            
+Offset-based access ensures data stays local to processing core!
+    </div>
+  </div>
+</section>
+ <!-- Slide 8: NUMA Implementation -->
+<section style="transform: scale(1.4);">
+	<aside class="notes">
+  <p>
+    Now, this might sound complicated, but implementing it in C is surprisingly easy once you know the steps. [cite_start]It's really only about 30-50 lines of code[cite: 313].
+  </p>
+  <p>
+    [cite_start]First, you use the `libnuma` library to detect the system's NUMA topology [cite: 320-326]. [cite_start]Second, you allocate your memory, but you use a function like `mbind` to pin specific ranges of that memory to specific NUMA nodes [cite: 314-319]. [cite_start]Third, you launch your worker threads and use `pthread_setaffinity_np` to pin each thread to the cores on the same NUMA node as its data [cite: 327-332]. That's it!
+  </p>
+</aside>
+	<svg id="a249721d-6cbb-4869-9fb3-099d5724b21b" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 515"><text transform="translate(442.56 30)" style="isolation:isolate;font-size:22px;fill:#4caf50;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">NUMA Implementation: Surprisingly Easy!</text><text transform="translate(483.96 55)" style="isolation:isolate;font-size:18px;fill:#ffc107;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">30-50 lines of C once you know the steps</text><rect x="50" y="80" width="650" height="140" rx="8" style="fill:#2c2c54;stroke:#2196f3;stroke-width:2px"/><text transform="translate(70 105)" style="isolation:isolate;font-size:16px;fill:#2196f3;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">1<tspan x="9.6" y="0" style="font-family:MyriadPro-Regular, Myriad Pro;font-weight:400">️⃣</tspan><tspan x="17.6" y="0" xml:space="preserve"> Detect NUMA Topology</tspan></text><text transform="translate(70 125)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">Ask the kernel how many nodes exist and which CPUs belong to each</text><rect x="80" y="135" width="600" height="70" rx="4" style="fill:#1a1a2e;stroke:#40407a"/><text transform="translate(90 150)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">#include &lt;numa.h&gt;</text><text transform="translate(90 165)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">numa_available();</text><text transform="translate(90 180)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">int N = numa_max_node() + 1; // e.g. 4 nodes</text><text transform="translate(90 195)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">numa_node_to_cpus(0, cpus); // fills CPU bitmap</text><rect x="720" y="80" width="630" height="140" rx="8" style="fill:#2c2c54;stroke:#4caf50;stroke-width:2px"/><text transform="translate(740 105)" style="isolation:isolate;font-size:16px;fill:#2196f3;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">2<tspan x="9.6" y="0" style="font-family:MyriadPro-Regular, Myriad Pro;font-weight:400">️⃣</tspan><tspan x="17.6" y="0" xml:space="preserve"> Allocate/Bind Memory per Node</tspan></text><text transform="translate(740 125)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">Either numa_alloc_onnode() OR mmap() + mbind() sub-ranges</text><rect x="750" y="135" width="570" height="70" rx="4" style="fill:#1a1a2e;stroke:#40407a"/><text transform="translate(760 150)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">void *base = mmap(NULL, bytes, PROT_READ|PROT_WRITE,</text><text transform="translate(760 165)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB, -1, 0);</text><text transform="translate(760 180)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">for (int n=0; n&lt;N; ++n) {</text><text transform="translate(760 195)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">mbind(base+n*slice, slice, MPOL_BIND, &amp;mask, 64, 0);</text><polygon points="706 144 722 150 706 156 706 144" style="fill:#4caf50"/><rect x="50" y="240" width="650" height="140" rx="8" style="fill:#2c2c54;stroke:#ff9800;stroke-width:2px"/><text transform="translate(70 265)" style="isolation:isolate;font-size:16px;fill:#2196f3;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">3<tspan x="9.6" y="0" style="font-family:MyriadPro-Regular, Myriad Pro;font-weight:400">️⃣</tspan><tspan x="17.6" y="0" xml:space="preserve"> Launch Worker Threads</tspan></text><text transform="translate(70 285)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">Pin each thread to cores in the same NUMA node</text><rect x="80" y="295" width="600" height="70" rx="4" style="fill:#1a1a2e;stroke:#40407a"/><text transform="translate(90 310)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">void *worker(void *arg) {</text><text transform="translate(90 325)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">int cpu = *(int*)arg; // first CPU in node</text><text transform="translate(90 340)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">cpu_set_t s; CPU_ZERO(&amp;s); CPU_SET(cpu, &amp;s);</text><text transform="translate(90 355)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">pthread_setaffinity_np(pthread_self(), sizeof(s), &amp;s);</text><rect x="720" y="240" width="630" height="140" rx="8" style="fill:#2c2c54;stroke:#9c27b0;stroke-width:2px"/><text transform="translate(740 265)" style="isolation:isolate;font-size:16px;fill:#2196f3;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">4<tspan x="9.6" y="0" style="font-family:MyriadPro-Regular, Myriad Pro;font-weight:400">️⃣</tspan><tspan x="17.6" y="0" xml:space="preserve"> Assign Token/Head Ranges</tspan></text><text transform="translate(740 285)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">Pure bookkeeping - no syscalls involved</text><rect x="750" y="295" width="570" height="70" rx="4" style="fill:#1a1a2e;stroke:#40407a"/><text transform="translate(760 310)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">args[n].base = base + n * slice;</text><text transform="translate(760 325)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">args[n].tok0 = n * T / N; // token start</text><text transform="translate(760 340)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">args[n].ntok = T / N; // token count</text><text transform="translate(760 355)" style="isolation:isolate;font-size:10px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">args[n].head_start = n * H / N; // attention heads</text><polygon points="381 226 375 242 369 226 381 226" style="fill:#4caf50"/><polygon points="706 304 722 310 706 316 706 304" style="fill:#4caf50"/><rect x="400" y="400" width="600" height="100" rx="8" style="fill:#2c2c54;stroke:#ffc107;stroke-width:2px"/><text transform="translate(420 425)" style="isolation:isolate;font-size:16px;fill:#2196f3;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">5<tspan x="9.6" y="0" style="font-family:MyriadPro-Regular, Myriad Pro;font-weight:400">️⃣</tspan><tspan x="17.6" y="0" xml:space="preserve"> Optional: Intel CAT (Cache Allocation)</tspan></text><text transform="translate(420 445)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">Carve LLC ways per NUMA node class</text><rect x="430" y="455" width="540" height="35" rx="4" style="fill:#1a1a2e;stroke:#40407a"/><text transform="translate(440 470)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">pqos -e &apos;llc:1=0x0fff&apos; # give 4 cache ways to node-0</text><text transform="translate(440 485)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">pqos -a &apos;core:1=0-7&apos; # bind cores 0-7 to class 1</text><polygon points="706 386 700 402 694 386 706 386" style="fill:#4caf50"/></svg>
+	</section>
+	<!-- Slide 9: Quick Start -->
+<section style="transform: scale(1.4);">
+	<aside class="notes">
+  <p>
+    Here's something practical you can do right now - test NUMA effects without changing any code. The numactl command ships with every Linux distro and lets you control which CPU and memory nodes your program uses.
+  </p>
+  <p>
+    This is actually how I recommend starting any NUMA optimization work. Run your existing code with different node bindings, measure the performance differences, then decide if the optimization effort is worth it for your specific workload.
+  </p>
+  <p>
+    The pitfalls shown here are the most common issues you'll likely encounter when working with huge pages and NUMA. These are the things to watch out for and be prepared to troubleshoot - especially the huge page allocation failure, which is often a boot-time configuration issue rather than a runtime problem.
+  </p>
+</aside>
+	<svg id="ae0ef956-e1f0-41c7-bffc-9d79c6d1d39c" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 443.96"><rect x="50" y="28" width="600" height="160" rx="8" style="fill:#1e3a8a;stroke:#3b82f6;stroke-width:2px"/><text transform="translate(70 53)" style="isolation:isolate;font-size:18px;fill:#2196f3;font-family:ArialMT, Arial">✨<tspan x="13.5" y="0" xml:space="preserve" style="font-family:CourierNewPS-BoldMT, Courier New;font-weight:700"> Quick Start (No Code Changes)</tspan></text><text transform="translate(70 73)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">Test NUMA effects without embedding libnuma:</text><rect x="80" y="83" width="540" height="90" rx="4" style="fill:#1a1a2e;stroke:#40407a"/><text transform="translate(90 98)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New"># Run on specific NUMA node:</text><text transform="translate(90 113)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">numactl --cpunodebind=0 --membind=0 ./llm_demo</text><text transform="translate(90 133)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New"># Split across multiple nodes:</text><text transform="translate(90 148)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">numactl --cpunodebind=0 --membind=0 ./worker_0 &amp;</text><text transform="translate(90 163)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">numactl --cpunodebind=1 --membind=1 ./worker_1 &amp;</text><rect x="670" y="28" width="680" height="160" rx="8" style="fill:#2c2c54;stroke:#4caf50;stroke-width:2px"/><rect x="700" y="68" width="150" height="15" style="fill:#3742fa;fill-opacity:0.30000001192092896"/><text transform="translate(710 80)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">libnuma (-lnuma)</text><text transform="translate(860 80)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Minimal, ships with every Linux distro</text><rect x="700" y="88" width="150" height="15" style="fill:#ff9800;fill-opacity:0.30000001192092896"/><text transform="translate(710 100)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">hwloc</text><text transform="translate(860 100)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Portable tree of sockets/cores, JSON output</text><rect x="700" y="108" width="150" height="15" style="fill:#9c27b0;fill-opacity:0.30000001192092896"/><text transform="translate(710 120)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">OpenMP</text><text transform="translate(860 120)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">OMP_PLACES=numa:0,1,2 + OMP_PROC_BIND=close</text><rect x="700" y="128" width="150" height="15" style="fill:#4caf50;fill-opacity:0.30000001192092896"/><text transform="translate(710 140)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">TBB/oneTBB</text><text transform="translate(860 140)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">NUMA-aware task arenas, VTune integration</text><rect x="700" y="148" width="150" height="15" style="fill:#f44336;fill-opacity:0.30000001192092896"/><text transform="translate(710 160)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Intel oneAPI</text><text transform="translate(860 160)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Full ecosystem: compiler + libraries + tools</text><rect x="50" y="208" width="1300" height="180" rx="8" style="fill:#2c2c54;stroke:#f44336;stroke-width:2px"/><text transform="translate(70 233)" style="isolation:isolate;font-size:18px;fill:#f44336;font-family:MyriadPro-Regular, Myriad Pro">⚠️<tspan x="9" y="0" xml:space="preserve" style="font-family:CourierNewPS-BoldMT, Courier New;font-weight:700"> Common Pitfalls &amp; Fixes</tspan></text><rect x="80" y="253" width="380" height="120" rx="4" style="fill:#f44336;fill-opacity:0.10000000149011612;stroke:#f44336"/><text transform="translate(90 273)" style="isolation:isolate;font-size:12px;fill:#f44336;font-family:ArialMT, Arial">❌<tspan x="9" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Huge-page allocation fails</tspan></text><text transform="translate(90 293)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Symptom: ENOMEM error</text><text transform="translate(90 308)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">You forgot to reserve huge pages</text><text transform="translate(90 328)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">echo 4096 &gt; /proc/sys/vm/nr_hugepages</text><text transform="translate(90 343)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">or boot with hugepagesz=1G</text><text transform="translate(90 358)" style="isolation:isolate;font-size:10px;fill:#4caf50;font-family:ArialMT, Arial">✅<tspan x="7.5" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Reserve pages at boot time</tspan></text><rect x="480" y="253" width="380" height="120" rx="4" style="fill:#ff9800;fill-opacity:0.10000000149011612;stroke:#ff9800"/><text transform="translate(490 273)" style="isolation:isolate;font-size:12px;fill:#ff9800;font-family:ArialMT, Arial">❌<tspan x="9" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Pages end up remote</tspan></text><text transform="translate(490 293)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Symptom: VTune &quot;Remote DRAM&quot; spikes</text><text transform="translate(490 308)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Thread that faults page not pinned</text><text transform="translate(490 328)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">mbind(..., MPOL_MF_STRICT)</text><text transform="translate(490 343)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">Pin BEFORE first access</text><text transform="translate(490 358)" style="isolation:isolate;font-size:10px;fill:#4caf50;font-family:ArialMT, Arial">✅<tspan x="7.5" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Pin threads before allocation</tspan></text><rect x="880" y="253" width="380" height="120" rx="4" style="fill:#9c27b0;fill-opacity:0.10000000149011612;stroke:#9c27b0"/><text transform="translate(890 273)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:ArialMT, Arial">❌<tspan x="9" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> False sharing after split</tspan></text><text transform="translate(890 293)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Symptom: L1/L2 bandwidth stalls</text><text transform="translate(890 308)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Token boundaries cross cache lines</text><text transform="translate(890 328)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">Use padding trick (round to 64B)</text><text transform="translate(890 343)" style="isolation:isolate;font-size:11px;fill:#ffe082;font-family:CourierNewPSMT, Courier New">padded = align_up(size, 64)</text><text transform="translate(890 358)" style="isolation:isolate;font-size:10px;fill:#4caf50;font-family:ArialMT, Arial">✅<tspan x="7.5" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Cache-line aligned tokens</tspan></text><rect x="200" y="424.26" width="1000" height="2.08" style="fill:#4caf50"/><rect x="50" y="393" width="300" height="20.84" style="fill:#4caf50;fill-opacity:0.20000000298023224"/><text transform="translate(133.99 407)" style="isolation:isolate;font-size:10px;fill:#4caf50;font-family:CourierNewPSMT, Courier New">30-50 lines of C total</text><rect x="370" y="393" width="300" height="20.84" style="fill:#2196f3;fill-opacity:0.20000000298023224"/><text transform="translate(429.99 407)" style="isolation:isolate;font-size:10px;fill:#2196f3;font-family:CourierNewPSMT, Courier New">layout_transformer() unchanged</text><rect x="690" y="393" width="300" height="20.84" style="fill:#ffc107;fill-opacity:0.20000000298023224"/><text transform="translate(770.99 407)" style="isolation:isolate;font-size:10px;fill:#ff9800;font-family:CourierNewPSMT, Courier New">Test with numactl first</text><rect x="1010" y="393" width="300" height="20.84" style="fill:#9c27b0;fill-opacity:0.20000000298023224"/><text transform="translate(1081.99 407)" style="isolation:isolate;font-size:10px;fill:#a200c9;font-family:CourierNewPSMT, Courier New">Profile to verify benefits</text></svg>
+	</section>
+	<!-- Slide 10: NUMA Strategy -->
+<section style="transform: scale(1.4);">
+	<aside class="notes">
+  <p>
+    This slide is key to understanding the mental model. At layout time, during the design phase, nothing changes. [cite_start]We still have one simple, contiguous layout with global offsets[cite: 373].
+  </p>
+  <p>
+    [cite_start]Then, at runtime, we create separate physical memory arenas for each NUMA node[cite: 389]. [cite_start]We assign different ranges of our data—like tokens or attention heads—to be processed on each node [cite: 390-408]. The offsets remain global and simple, but they now point to data in different physical memory locations that are local to the processing core. It's the best of both worlds: simple logic and high-performance, hardware-aware execution.
+  </p>
+</aside>
+	<svg id="a7847e6c-589e-4b83-870b-574904c7d5d1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 495.43"><text transform="translate(341.96 30)" style="isolation:isolate;font-size:20px;fill:#4caf50;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">NUMA Strategy: Layout vs Runtime Separation</text><rect x="50" y="60" width="1100" height="180" rx="8" style="fill:#2c2c54;stroke:#40407a;stroke-width:2px"/><text transform="translate(70 85)" style="isolation:isolate;font-size:16px;fill:#ffc107;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">1. Layout Phase: Simple Global Offsets (Your Current Code Unchanged)</text><rect x="80" y="100" width="150" height="30" style="fill:#3742fa;stroke:#fff"/><text transform="translate(121.99 120)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">LN Weights</text><text transform="translate(128 145)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">offset: 0</text><rect x="250" y="100" width="150" height="30" style="fill:#3742fa;stroke:#fff"/><text transform="translate(288.69 120)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">QKV Weights</text><text transform="translate(288.99 145)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">offset: 1024</text><rect x="420" y="100" width="200" height="30" style="fill:#9c27b0;stroke:#fff"/><text transform="translate(440.79 120)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">Layer Input (All Tokens)</text><text transform="translate(480.99 145)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">offset: 50000</text><rect x="640" y="100" width="200" height="30" style="fill:#9c27b0;stroke:#fff"/><text transform="translate(664.09 120)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">MLP Output (All Tokens)</text><text transform="translate(697.99 145)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">offset: 150000</text><path d="M853.78,100h275.7a3.9,3.9,0,0,1,3.78,4v82a3.9,3.9,0,0,1-3.78,4H853.78a3.89,3.89,0,0,1-3.78-4V104A3.89,3.89,0,0,1,853.78,100Z" style="fill:#1a1a2e;stroke:#40407a"/><text transform="translate(860 120)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Color Legend:</text><rect x="860" y="125" width="15" height="10" style="fill:#3742fa"/><text transform="translate(880 134)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Shared Weights</text><rect x="860" y="140" width="15" height="10" style="fill:#4caf50"/><text transform="translate(880 149)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">NUMA Node 0</text><rect x="860" y="155" width="15" height="10" style="fill:#ff9800"/><text transform="translate(880 164)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">NUMA Node 1</text><rect x="1000" y="125" width="15" height="10" style="fill:#9c27b0"/><text transform="translate(1020 134)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">NUMA Node 2</text><rect x="1000" y="140" width="15" height="10" style="fill:#f44336"/><text transform="translate(1020 149)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">NUMA Node 3</text><rect x="1000" y="155" width="15" height="10" style="fill:#ffc107"/><text transform="translate(1020 164)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Attention Heads</text><text transform="translate(80 165)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">L-&gt;ln1_weight_offset = bump(&amp;off, embed_dim, CACHE_ALIGN);</text><text transform="translate(80 180)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">L-&gt;layer_input_offset = bump(&amp;off, context_window * embed_dim, CACHE_ALIGN);</text><text transform="translate(80 195)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">L-&gt;mlp_output_offset = bump(&amp;off, context_window * embed_dim, CACHE_ALIGN);</text><text transform="translate(600 215)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:ArialMT, Arial">✅<tspan x="7.5" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Simple O(L) complexity, same as your current code</tspan></text><text transform="translate(80 225)" style="isolation:isolate;font-size:10px;fill:#2196f3;font-family:CourierNewPSMT, Courier New">All offsets virtual → identical for every thread</text><rect x="50" y="260" width="1100" height="220" rx="8" style="fill:#2c2c54;stroke:#40407a;stroke-width:2px"/><text transform="translate(70 285)" style="isolation:isolate;font-size:16px;fill:#ffc107;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">2. Runtime Phase: NUMA Arenas + Thread Assignment</text><rect x="80" y="310" width="250" height="130" rx="4" style="fill:#4caf50;fill-opacity:0.20000000298023224;stroke:#4caf50;stroke-width:2px"/><text transform="translate(85 325)" style="isolation:isolate;font-size:11px;fill:#4caf50;font-family:CourierNewPSMT, Courier New">NUMA Node 0 (Cores 0-7)</text><rect x="90" y="330" width="60" height="20" style="fill:#4caf50"/><text transform="translate(94.8 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">T 0-999</text><rect x="160" y="330" width="60" height="20" style="fill:#4caf50"/><text transform="translate(172 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">H 0-7</text><rect x="230" y="330" width="60" height="20" style="fill:#4caf50"/><text transform="translate(245.6 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">MLP<tspan x="21.6" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">₀</tspan></text><text transform="translate(90 365)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">scratch_base[0] = mmap(...)</text><text transform="translate(90 380)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">mbind(..., MPOL_BIND, node_0_mask)</text><text transform="translate(90 395)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">pthread_setaffinity(cores 0-7)</text><text transform="translate(90 410)" style="isolation:isolate;font-size:11px;fill:#4caf50;font-family:CourierNewPSMT, Courier New">ptr = scratch_base[0] + offset</text><rect x="350" y="310" width="250" height="130" rx="4" style="fill:#ff9800;fill-opacity:0.20000000298023224;stroke:#ff9800;stroke-width:2px"/><text transform="translate(355 325)" style="isolation:isolate;font-size:11px;fill:#ff9800;font-family:CourierNewPSMT, Courier New">NUMA Node 1 (Cores 8-15)</text><rect x="360" y="330" width="70" height="30.62" style="fill:#ff9800"/><text transform="translate(373.33 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">T 1000-<tspan x="0" y="14.4">1999</tspan></text><rect x="440" y="330" width="60" height="20" style="fill:#ff9800"/><text transform="translate(448.4 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">H 8-15</text><rect x="510" y="330" width="60" height="20" style="fill:#ff9800"/><text transform="translate(525.6 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">MLP<tspan x="21.6" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">₁</tspan></text><rect x="620" y="310" width="250" height="130" rx="4" style="fill:#9c27b0;fill-opacity:0.20000000298023224;stroke:#9c27b0;stroke-width:2px"/><text transform="translate(625 325)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">NUMA Node 2 (Cores 16-23)</text><rect x="630" y="330" width="70" height="30.96" style="fill:#9c27b0"/><text transform="translate(640 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">T 2000<tspan x="0" y="14.4">-2999</tspan></text><rect x="710" y="330" width="60" height="20" style="fill:#9c27b0"/><text transform="translate(714.8 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">H 16-23</text><rect x="780" y="330" width="60" height="20" style="fill:#9c27b0"/><text transform="translate(795.6 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">MLP<tspan x="21.6" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">₂</tspan></text><rect x="890" y="310" width="250" height="130" rx="4" style="fill:#f44336;fill-opacity:0.20000000298023224;stroke:#f44336;stroke-width:2px"/><text transform="translate(895 325)" style="isolation:isolate;font-size:11px;fill:#f44336;font-family:CourierNewPSMT, Courier New">NUMA Node 3 (Cores 24-31)</text><rect x="900" y="330" width="70" height="30.96" style="fill:#f44336"/><text transform="translate(912.35 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">T 3000<tspan x="0" y="14.4">-3999</tspan></text><rect x="980" y="330" width="60" height="20" style="fill:#f44336"/><text transform="translate(984.8 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">H 24-31</text><rect x="1050" y="330" width="60" height="20" style="fill:#f44336"/><text transform="translate(1065.6 343)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:CourierNewPSMT, Courier New">MLP<tspan x="21.6" y="0" style="font-family:MyriadPro-Regular, Myriad Pro">₃</tspan></text><line x1="562.11" y1="241.13" x2="562.11" y2="301.67" style="fill:none;stroke:#ffc107;stroke-width:2px"/><path d="M562.11,300.86c2.09-2.09,6.22-3.08,9.09-3.17a27.25,27.25,0,0,0-9.09,11.1c-1.81-4.51-5.37-8.07-9.09-11.1C556.09,297.94,559.81,298.69,562.11,300.86Z" style="fill:#ffc107"/><text transform="translate(570 274.5)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Same global offsets,</text><text transform="translate(570 289.5)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">different physical memory</text></svg>
+</section>
+<!-- Slide 11: Cache Line Padding Problem -->
+<section style="transform: scale(1.4);">
+	<aside class="notes">
+  <p>
+    Let's zoom back in from the system level to a very fine-grained detail. [cite_start]Even with our great layout, there's a potential for 'false sharing' where a single 64-byte cache line contains the end of one token's data and the beginning of the next [cite: 409-413].
+  </p>
+  <p>
+    If two different cores are working on these two adjacent tokens, they'll constantly fight over that shared cache line. [cite_start]The solution is simple: we pad each token's embedding size up to the nearest multiple of 64 bytes [cite: 415-422]. [cite_start]This might add 2-5% memory overhead, but it guarantees perfect isolation between tokens and eliminates this last source of false sharing[cite: 421].
+  </p>
+</aside>
+	<svg id="a5458f77-2566-40c2-ab72-dad2ce6aee2b" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 327.83"><rect x="50" y="20.91" width="550" height="180" rx="8" style="fill:#2c2c54;stroke:#40407a;stroke-width:2px"/><text transform="translate(70 45.91)" style="isolation:isolate;font-size:16px;fill:#ffc107;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">3. Cache Line Padding Problem</text><text transform="translate(70 70.91)" style="isolation:isolate;font-size:11px;fill:#f44336;font-family:ArialMT, Arial">❌<tspan x="8.25" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Problem: Token boundaries cross cache lines</tspan></text><rect x="80" y="80.91" width="500" height="40" style="fill:#333;stroke:#666"/><line x1="80" y1="80.91" x2="80" y2="120.91" style="fill:none;stroke:#fff"/><line x1="144" y1="80.91" x2="144" y2="120.91" style="fill:none;stroke:#fff"/><line x1="208" y1="80.91" x2="208" y2="120.91" style="fill:none;stroke:#fff"/><line x1="272" y1="80.91" x2="272" y2="120.91" style="fill:none;stroke:#fff"/><line x1="336" y1="80.91" x2="336" y2="120.91" style="fill:none;stroke:#fff"/><line x1="400" y1="80.91" x2="400" y2="120.91" style="fill:none;stroke:#fff"/><line x1="464" y1="80.91" x2="464" y2="120.91" style="fill:none;stroke:#fff"/><line x1="528" y1="80.91" x2="528" y2="120.91" style="fill:none;stroke:#fff"/><line x1="580" y1="80.91" x2="580" y2="120.91" style="fill:none;stroke:#fff"/><rect x="80" y="85.91" width="200" height="15" style="fill:#f44336;fill-opacity:0.699999988079071"/><text transform="translate(122.99 96.92)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Token 0 (1000 dims)</text><rect x="280" y="85.91" width="200" height="15" style="fill:#f44336;fill-opacity:0.699999988079071"/><text transform="translate(322.99 96.92)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Token 1 (1000 dims)</text><rect x="270" y="100.91" width="20" height="15" style="fill:#ffc107"/><text transform="translate(259 111.92)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">OVERLAP</text><text transform="translate(80 140.91)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">embed_dim = 1000 → 4000 bytes per token</text><text transform="translate(80 155.91)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">4000 ÷ 64 = 62.5 cache lines per token</text><text transform="translate(80 170.91)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:ArialMT, Arial">❌<tspan x="7.5" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Token boundaries are NOT cache-aligned!</tspan></text><text transform="translate(80 185.91)" style="isolation:isolate;font-size:10px;fill:#2196f3;font-family:CourierNewPSMT, Courier New">CL = 64 B (cache line size)</text><rect x="620" y="20.91" width="530" height="180" rx="8" style="fill:#2c2c54;stroke:#40407a;stroke-width:2px"/><text transform="translate(640 45.91)" style="isolation:isolate;font-size:16px;fill:#ffc107;font-family:CourierNewPS-BoldMT, Courier New;font-weight:700">4. Solution: Pad Tokens to Cache Lines</text><text transform="translate(640 70.91)" style="isolation:isolate;font-size:11px;fill:#4caf50;font-family:ArialMT, Arial">✅<tspan x="8.25" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Solution: Pad each token to 64-byte boundary</tspan></text><rect x="650" y="80.91" width="480" height="40" style="fill:#333;stroke:#666"/><line x1="650" y1="80.91" x2="650" y2="120.91" style="fill:none;stroke:#fff"/><line x1="714" y1="80.91" x2="714" y2="120.91" style="fill:none;stroke:#fff"/><line x1="778" y1="80.91" x2="778" y2="120.91" style="fill:none;stroke:#fff"/><line x1="842" y1="80.91" x2="842" y2="120.91" style="fill:none;stroke:#fff"/><line x1="906" y1="80.91" x2="906" y2="120.91" style="fill:none;stroke:#fff"/><line x1="970" y1="80.91" x2="970" y2="120.91" style="fill:none;stroke:#fff"/><line x1="1034" y1="80.91" x2="1034" y2="120.91" style="fill:none;stroke:#fff"/><line x1="1098" y1="80.91" x2="1098" y2="120.91" style="fill:none;stroke:#fff"/><line x1="1130" y1="80.91" x2="1130" y2="120.91" style="fill:none;stroke:#fff"/><rect x="650" y="85.91" width="128" height="15" style="fill:#4caf50;fill-opacity:0.699999988079071"/><text transform="translate(665.99 96.92)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Token 0 (padded)</text><rect x="778" y="85.91" width="128" height="15" style="fill:#4caf50;fill-opacity:0.699999988079071"/><text transform="translate(793.99 96.92)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Token 1 (padded)</text><rect x="906" y="85.91" width="128" height="15" style="fill:#4caf50;fill-opacity:0.699999988079071"/><text transform="translate(921.99 96.92)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Token 2 (padded)</text><text transform="translate(640 140.91)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">padded = align_up(embed_dim * 4, 64) / 4; // bytes → floats</text><text transform="translate(640 155.91)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">L-&gt;layer_input_offset = bump(&amp;off, context_window * padded, CACHE_ALIGN);</text><text transform="translate(640 170.91)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:ArialMT, Arial">✅<tspan x="7.5" y="0" xml:space="preserve" style="font-family:CourierNewPSMT, Courier New"> Each token owns complete cache lines</tspan></text><text transform="translate(640 185.91)" style="isolation:isolate;font-size:10px;fill:#ccc;font-family:CourierNewPSMT, Courier New">Memory overhead: ~2-5% for perfect isolation</text><rect x="50" y="220.91" width="1100" height="90" rx="8" style="fill:#1e3a8a;stroke:#3b82f6;stroke-width:2px"/><text transform="translate(80 270.91)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">1. layout_transformer() → Global offsets (O(L) complexity, simple)</text><text transform="translate(80 285.91)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">2. Runtime setup → NUMA arenas + thread assignment (separate concern)</text><text transform="translate(600 270.91)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">3. Optional padding → Eliminate cache line sharing (if needed)</text><text transform="translate(600 285.91)" style="isolation:isolate;font-size:11px;fill:#e8f5e8;font-family:CourierNewPSMT, Courier New">4. LOCAL_PTR(node, offset) → Translate global offset to local pointer</text><text transform="translate(80 300.91)" style="isolation:isolate;font-size:10px;fill:#2196f3;font-family:CourierNewPSMT, Courier New">Note: Huge pages and mbind() done AFTER layout</text></svg>
+</section>
+<!-- Slide 12: Prefetcher Overview -->
+<section style="transform: scale(1.4);">
+	<aside class="notes">
+  <p>
+    Now let's visualize exactly why our sequential layout is so fast by looking at the CPU's prefetcher. [cite_start]This is the 'Good Path'[cite: 426]. [cite_start]The CPU requests data at address 1000 [cite: 428-431]. When it then asks for data at address 1064, the hardware prefetcher detects a simple, predictable stride. It says, 'Aha! Sequential access!' and starts speculatively loading the next addresses into the cache *before* the CPU even asks for them. When the CPU does ask, it's a fast cache hit. [cite_start]The pipeline never stalls [cite: 456-460].
+  </p>
+  <p>
+    [cite_start]Now, let's contrast that with the 'Bad Path' of an interleaved layout[cite: 427]. [cite_start]The CPU requests data at address 1000, but its next request is for an activation at address 80,000—a huge jump [cite: 438-445]! The prefetcher is completely confused. It has no pattern to follow. [cite_start]This leads to continuous cache misses, and the compute units spend most of their time idle, waiting for data [cite: 462-465].
+  </p>
+</aside>
+<svg id="fa49e661-3640-477f-94f1-7ae7363f2c8d" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 512.4"><text transform="translate(322.09 30)" style="isolation:isolate;font-size:24px;fill:#edf0f2;font-family:Arial-BoldMT, Arial;font-weight:700">CPU Prefetcher: Pattern Recognition Engine</text><text transform="translate(365.83 55)" style="isolation:isolate;font-size:16px;fill:#7f8c8d;font-family:ArialMT, Arial">How Memory<tspan x="94.23" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="97.8" y="0">Access Patterns Make or Break Performance</tspan></text><rect x="50" y="80" width="500" height="40" style="fill:#d5f4e6;stroke:#27ae60;stroke-width:2px"/><rect x="60" y="140" width="480" height="60" style="fill:#f8fffe;stroke:#bdc3c7"/><text transform="translate(70 160)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Step 1: Initial Read</text><text transform="translate(70 180)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">CPU core needs data at address 1000 (first LayerNorm weight)</text><text transform="translate(70 195)" style="isolation:isolate;font-size:12px;fill:#e67e22;font-family:MyriadPro-Regular, Myriad Pro">⏱️<tspan x="6" y="0" xml:space="preserve" style="font-family:ArialMT, Arial"> Slow read from DRAM (~300 cycles)</tspan></text><rect x="365" y="149" width="40" height="20" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(373.88 162)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">1000</text><polygon points="345 152 365 159 345 166 345 152" style="fill:#3498db"/><text transform="translate(278.85 162.12)" style="isolation:isolate;font-size:10px;fill:#3498db;font-family:ArialMT, Arial">CPU Request</text><rect x="60" y="210" width="480" height="60" style="fill:#f8fffe;stroke:#bdc3c7"/><text transform="translate(70 230)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Step 2: Pattern Detection</text><text transform="translate(70 250)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">Next request at address 1064 (next cache line). Prefetcher detects stride-1 pattern!</text><rect x="350" y="220" width="40" height="20" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(358.88 233)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">1000</text><rect x="414" y="220" width="40" height="20" style="fill:#27ae60;stroke:#229954"/><text transform="translate(422.88 233)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">1064</text><polygon points="392 223 412 230 392 237 392 223" style="fill:#27ae60"/><text transform="translate(70.49 265.05)" style="isolation:isolate;font-size:12px;fill:#27ae60;font-family:ArialMT, Arial">🧠 Prefetcher: &quot;Aha! Sequential access detected</text><rect x="60" y="280" width="480" height="70" style="fill:#f8fffe;stroke:#bdc3c7"/><text transform="translate(70 300)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Step 3: Speculative Prefetching</text><text transform="translate(70 320)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">Prefetcher runs ahead, loading addresses <tspan x="226.14" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="231.93" y="0">128, </tspan><tspan x="258.62" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="264.4" y="0">192, 1256... into cache</tspan></text><rect x="396.88" y="290" width="30" height="15" style="fill:#27ae60;stroke:#229954"/><text transform="translate(403.28 300)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial"><tspan style="letter-spacing:-0.07421875em">1</tspan><tspan x="3.86" y="0">128</tspan></text><rect x="438" y="290" width="30" height="15" style="fill:#27ae60;stroke:#229954"/><text transform="translate(444.4 300)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial"><tspan style="letter-spacing:-0.07421875em">1</tspan><tspan x="3.86" y="0">192</tspan></text><rect x="480" y="290" width="30" height="15" style="fill:#27ae60;stroke:#229954"/><text transform="translate(486.1 300)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">1256</text><text transform="translate(515 300)" style="isolation:isolate;font-size:8px;fill:#27ae60;font-family:ArialMT, Arial">...</text><polygon points="385.88 293.5 395.88 297 385.88 300.5 385.88 293.5" style="fill:#27ae60"/><polygon points="428 293.5 438 297 428 300.5 428 293.5" style="fill:#27ae60"/><polygon points="469 293.5 479 297 469 300.5 469 293.5" style="fill:#27ae60"/><text transform="translate(70.49 341.68)" style="isolation:isolate;font-size:12px;fill:#27ae60;font-family:ArialMT, Arial">🚀 Prefetcher confidence: 95%+</text><rect x="60" y="360" width="480" height="60" style="fill:#f8fffe;stroke:#bdc3c7"/><text transform="translate(70 380)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Step 4: The Hit</text><text transform="translate(70 400)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">CPU asks for address <tspan x="120.04" y="0" style="letter-spacing:-0.07421875em">1</tspan><tspan x="125.82" y="0">128 - it&apos;s already in L2 cache!</tspan></text><text transform="translate(70 415)" style="isolation:isolate;font-size:12px;fill:#27ae60;font-family:ArialMT, Arial">⚡ Cache hit: ~10 cycles instead of ~300</text><rect x="400" y="370.26" width="52.57" height="20" style="fill:#f39c12;stroke:#e67e22"/><text transform="translate(403.51 383)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">L2 Cache</text><line x1="331.81" y1="380.26" x2="384.66" y2="380.26" style="fill:#f39c12;stroke:#e67e22"/><polygon points="380 373 400 380 380 387 380 373" style="fill:#3498db"/><text transform="translate(280 375)" style="isolation:isolate;font-size:10px;fill:#f39c12;font-family:ArialMT, Arial">Fast Hit!</text><rect x="60" y="430" width="480" height="60" style="fill:#d5f4e6;stroke:#27ae60;stroke-width:2px"/><text transform="translate(70 450)" style="isolation:isolate;font-size:14px;fill:#27ae60;font-family:Arial-BoldMT, Arial;font-weight:700">Step 5: Full Pipeline Efficiency</text><text transform="translate(70 470)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">Prefetcher stays ahead, cache always full, CPU never waits</text><text transform="translate(70 484.83)" style="isolation:isolate;font-size:12px;fill:#27ae60;font-family:ArialMT, Arial">🎯 Result: Maximum throughput, ~95% compute utilization</text><text transform="translate(70 105.3)" style="isolation:isolate;font-size:17px;fill:#27ae60;font-family:ArialMT, Arial">🟢<tspan x="12.75" y="0" xml:space="preserve" style="font-family:Arial-BoldMT, Arial;font-weight:700"> THE GOOD </tspan><tspan x="112.87" y="0" style="font-family:Arial-BoldMT, Arial;font-weight:700;letter-spacing:-0.07421875em">PA</tspan><tspan x="133.96" y="0" style="font-family:Arial-BoldMT, Arial;font-weight:700">TH: Sequential Layout</tspan></text><rect x="600" y="80" width="550" height="40" style="fill:#ffebee;stroke:#e74c3c;stroke-width:2px"/><text transform="translate(620 105.3)" style="isolation:isolate;font-size:14px;fill:#e74c3c;font-family:ArialMT, Arial">🔴<tspan x="10.5" y="0" xml:space="preserve" style="font-family:Arial-BoldMT, Arial;font-weight:700"> THE BAD </tspan><tspan x="80.5" y="0" style="font-family:Arial-BoldMT, Arial;font-weight:700;letter-spacing:-0.07421875em">PA</tspan><tspan x="97.87" y="0" style="font-family:Arial-BoldMT, Arial;font-weight:700">TH: Interleaved Layout (Karpathy&apos;s Current)</tspan></text><rect x="610" y="140" width="530" height="60" style="fill:#fffefe;stroke:#bdc3c7"/><text transform="translate(620 160)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Step 1: Initial Read</text><text transform="translate(620 180)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">CPU core needs data at address 1000 (LayerNorm weight)</text><text transform="translate(620 195)" style="isolation:isolate;font-size:12px;fill:#e67e22;font-family:MyriadPro-Regular, Myriad Pro">⏱️<tspan x="6" y="0" xml:space="preserve" style="font-family:ArialMT, Arial"> Slow read from DRAM (~300 cycles)</tspan></text><rect x="950" y="150" width="40" height="20" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(958.88 163)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">1000</text><polygon points="930 153 950 160 930 167 930 153" style="fill:#3498db"/><rect x="610" y="210" width="530" height="60" style="fill:#fffefe;stroke:#bdc3c7"/><path d="M989.32,228.18c0-7.17,8.34-11.88,18.35-13,11.67-1.27,20.19.72,25.67,3.74" style="fill:none;stroke:#e74c3c;stroke-miterlimit:10"/><text transform="translate(620 230)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Step 2: Pattern Disruption</text><text transform="translate(620 250)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">Next data needed: activation at address 80000 (huge jump!)</text><rect x="950" y="220" width="40" height="20" style="fill:#3498db;stroke:#2980b9"/><text transform="translate(958.88 233)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">1000</text><rect x="1050" y="220" width="50" height="20" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(1061.1 233)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">80000</text><polygon points="1037.24 213.08 1050 230 1029.48 224.73 1037.24 213.08" style="fill:#e74c3c"/><text transform="translate(1001.45 224.83)" style="isolation:isolate;font-size:8px;fill:#e74c3c;font-family:ArialMT, Arial">JUMP!</text><text transform="translate(620 265.05)" style="isolation:isolate;font-size:12px;fill:#e74c3c;font-family:ArialMT, Arial">🤔 Prefetcher: &quot;What pattern?<tspan x="154" y="0" style="letter-spacing:-0.01806640625em"> </tspan><tspan x="157.11" y="0">This looks random!&quot;</tspan></text><rect x="610" y="280" width="530" height="70" style="fill:#fffefe;stroke:#bdc3c7"/><text transform="translate(620 300)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Step 3: Prefetcher Confusion</text><text transform="translate(620 320)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">Prefetcher guesses 80064, but next access is back to 2500</text><rect x="1050" y="290" width="40" height="15" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(1058.88 300)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">80064</text><text transform="translate(1100 300)" style="isolation:isolate;font-size:8px;fill:#e74c3c;font-family:ArialMT, Arial">❌ <tspan x="8.22" y="0" style="letter-spacing:-0.01806640625em">W</tspan><tspan x="15.63" y="0">rong!</tspan></text><rect x="940.45" y="308.36" width="30" height="15" style="fill:#e74c3c;stroke:#c0392b"/><text transform="translate(946.55 318.36)" style="isolation:isolate;font-size:8px;fill:#fff;font-family:ArialMT, Arial">2500</text><polygon points="988.98 326.64 970.45 316.36 991.34 312.84 988.98 326.64" style="fill:#e74c3c"/><text transform="translate(985 340)" style="isolation:isolate;font-size:8px;fill:#e74c3c;font-family:ArialMT, Arial">Another jump!</text><text transform="translate(620 341.99)" style="isolation:isolate;font-size:12px;fill:#e74c3c;font-family:ArialMT, Arial">📉 Prefetcher confidence: ~30%</text><path d="M1070,305c0,20.31-7.47,25.11-28.4,22.81-4-.44-27.83-3.32-51.6-7.81" style="fill:none;stroke:#e74c3c"/><rect x="610" y="360" width="530" height="60" style="fill:#fffefe;stroke:#bdc3c7"/><text transform="translate(620 380)" style="isolation:isolate;font-size:14px;fill:#2c3e50;font-family:Arial-BoldMT, Arial;font-weight:700">Step 4: The Stall</text><text transform="translate(620 400)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">CPU asks for next data - cache miss! Pipeline stalls...</text><text transform="translate(620 415)" style="isolation:isolate;font-size:12px;fill:#e74c3c;font-family:ArialMT, Arial">⏳ Cold miss: ~300 cycles wait time</text><rect x="950" y="370" width="60" height="20" style="fill:#95a5a6;stroke:#7f8c8d"/><text transform="translate(962.78 383)" style="isolation:isolate;font-size:10px;fill:#fff;font-family:ArialMT, Arial">EMPT<tspan x="27.78" y="0" style="letter-spacing:-0.01806640625em">Y</tspan></text><path d="M920,380h30" style="stroke:#95a5a6;stroke-width:2px;stroke-dasharray:5,5"/><text transform="translate(860 375)" style="isolation:isolate;font-size:10px;fill:#95a5a6;font-family:ArialMT, Arial">Cache Miss</text><rect x="610" y="430" width="530" height="60" style="fill:#ffebee;stroke:#e74c3c;stroke-width:2px"/><text transform="translate(620 450)" style="isolation:isolate;font-size:14px;fill:#e74c3c;font-family:Arial-BoldMT, Arial;font-weight:700">Step 5: Stalled Pipeline</text><text transform="translate(620 470)" style="isolation:isolate;font-size:12px;fill:#34495e;font-family:ArialMT, Arial">Compute units idle 60% of the time waiting for data</text><text transform="translate(620.49 484.83)" style="isolation:isolate;font-size:12px;fill:#e74c3c;font-family:ArialMT, Arial">💥 Result: Memory-bound, ~40% compute utilization</text></svg>
+</section>
+<!-- Slide 13: Prefetcher Performance Impact -->
+<section style="transform: scale(1.4);">
+	<aside class="notes">
+  <p>
+    [cite_start]So, the core principle is this: The CPU prefetcher is essentially a pattern recognition engine that runs in hardware[cite: 466, 467]. [cite_start]It's like a chess grandmaster—it can see many moves ahead if the pattern is clear, but it struggles with chaos[cite: 481].
+  </p>
+  <p>
+    [cite_start]Our job as performance engineers is to create simple, predictable patterns that let the hardware shine[cite: 482]. The difference is stark: a sequential layout leads to ~95% compute utilization, while an interleaved layout can drop you to 40% compute and 60% memory wait time. [cite_start]This is where our 3-5x speedup comes from [cite: 470-478].
+  </p>
+</aside>
+	<svg id="b8f5f3b4-bc46-4f45-b115-c970b7ea91ba" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 447.32"><rect x="50" y="18.11" width="1100" height="80" style="fill:#f8f9fa;stroke:#6c757d;stroke-width:2px"/><text transform="translate(354.48 68.11)" style="isolation:isolate;font-size:14px;fill:#6c757d;font-family:ArialMT, Arial">The CPU prefetcher is essentially a pattern recognition<tspan x="339.28" y="0" style="letter-spacing:-0.05517578125em"> </tspan><tspan x="342.4" y="0">AI that runs in hardware</tspan></text><g style="isolation:isolate"><text transform="translate(310.96 88.11)" style="isolation:isolate;font-size:14px;fill:#e74c3c;font-family:Arial-BoldMT, Arial;font-weight:700">It excels at simple patterns</text><text transform="translate(489.92 88.11)" style="font-size:14px;fill:#6c757d;font-family:ArialMT, Arial"><tspan xml:space="preserve"> (stride-1, stride-2) but </tspan></text><text transform="translate(631.52 88.11)" style="isolation:isolate;font-size:14px;fill:#e74c3c;font-family:Arial-BoldMT, Arial;font-weight:700">fails catastrophically with randomness</text></g><text transform="translate(454.24 43.27)" style="isolation:isolate;font-size:18px;fill:#2c3e50;font-family:ArialMT, Arial">🧠<tspan x="13.5" y="0" xml:space="preserve" style="font-family:Arial-BoldMT, Arial;font-weight:700"> The Pattern Recognition Engine</tspan></text><text transform="translate(462.46 128.11)" style="isolation:isolate;font-size:18px;fill:#edf0f2;font-family:Arial-BoldMT, Arial;font-weight:700">Performance Impact Breakdown</text><text transform="translate(139.71 158.11)" style="isolation:isolate;font-size:14px;fill:#27ae60;font-family:Arial-BoldMT, Arial;font-weight:700">Sequential Layout</text><rect x="100" y="168.11" width="200" height="20" style="fill:#27ae60"/><text transform="translate(110 183.11)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:ArialMT, Arial">Compute: 95%</text><rect x="100" y="198.11" width="20" height="20" style="fill:#e74c3c"/><text transform="translate(130 213.11)" style="isolation:isolate;font-size:12px;fill:#e0e0e0;font-family:ArialMT, Arial">Memory <tspan x="46.67" y="0" style="letter-spacing:-0.037109375em">W</tspan><tspan x="57.55" y="0">ait: 5%</tspan></text><text transform="translate(140.47 230.11)" style="isolation:isolate;font-size:12px;fill:#27ae60;font-family:ArialMT, Arial">Cache Hit Rate: ~95%</text><text transform="translate(638.15 158.11)" style="isolation:isolate;font-size:14px;fill:#e74c3c;font-family:Arial-BoldMT, Arial;font-weight:700">Interleaved Layout</text><rect x="600" y="168.11" width="80" height="20" style="fill:#27ae60"/><text transform="translate(610 183.11)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:ArialMT, Arial">Compute: 40%</text><rect x="680" y="168.11" width="120" height="20" style="fill:#e74c3c"/><text transform="translate(690 183.11)" style="isolation:isolate;font-size:12px;fill:#fff;font-family:ArialMT, Arial">Memory <tspan x="46.67" y="0" style="letter-spacing:-0.037109375em">W</tspan><tspan x="57.55" y="0">ait: 60%</tspan></text><text transform="translate(640.47 230.11)" style="isolation:isolate;font-size:12px;fill:#e74c3c;font-family:ArialMT, Arial">Cache Hit Rate: ~35%</text><polygon points="490 167.11 550 188.11 490 209.11 490 167.11" style="fill:#3498db"/><text transform="translate(363.27 168.11)" style="isolation:isolate;font-size:16px;fill:#f39c12;font-family:Arial-BoldMT, Arial;font-weight:700">3-5x Faster!</text><line x1="341.32" y1="188.11" x2="488.68" y2="188.11" style="fill:none;stroke:#f39c12;stroke-miterlimit:10;stroke-width:7px"/><rect x="50" y="248.11" width="1100" height="100" style="fill:#fff3cd;stroke:#ffc107;stroke-width:2px"/><text transform="translate(339.46 303.11)" style="isolation:isolate;font-size:14px;fill:#856404;font-family:ArialMT, Arial">Modern CPUs are prediction machines.<tspan x="244.33" y="0" style="letter-spacing:-0.01806640625em"> </tspan><tspan x="247.97" y="0">The prefetcher is like a chess grandmaster -</tspan></text><g style="isolation:isolate"><text transform="translate(350.22 323.11)" style="isolation:isolate;font-size:14px;fill:#856404;font-family:Arial-BoldMT, Arial;font-weight:700">it can see many moves ahead if the pattern is clear</text><text transform="translate(687.92 323.11)" style="font-size:14px;fill:#856404;font-family:ArialMT, Arial">, but struggles with chaos.</text></g><g style="isolation:isolate"><text transform="translate(496.44 273.76)" style="isolation:isolate;font-size:21px;fill:#856404;font-family:ArialMT, Arial">💡<tspan x="15.75" y="0" xml:space="preserve" style="font-family:Arial-BoldMT, Arial;font-weight:700"> The Core Principle</tspan></text></g><text transform="translate(358.58 343.11)" style="isolation:isolate;font-size:14px;fill:#dc3545;font-family:Arial-BoldMT, Arial;font-weight:700"><tspan style="letter-spacing:-0.07421875em">Y</tspan><tspan x="8.3" y="0">our job: Create simple, predictable patterns that let the hardware shine.</tspan></text><text transform="translate(474.2 378.11)" style="isolation:isolate;font-size:16px;fill:#edf0f2;font-family:Arial-BoldMT, Arial;font-weight:700"><tspan style="letter-spacing:-0.01806640625em">T</tspan><tspan x="9.48" y="0">imeline: What</tspan><tspan x="113.49" y="0" style="letter-spacing:-0.037109375em"> </tspan><tspan x="117.34" y="0">Actually Happens</tspan></text><text transform="translate(130.9 403.11)" style="isolation:isolate;font-size:12px;fill:#27ae60;font-family:Arial-BoldMT, Arial;font-weight:700">Sequential:</text><rect x="200" y="393.11" width="15" height="15" style="fill:#3498db"/><rect x="220" y="393.11" width="15" height="15" style="fill:#27ae60"/><rect x="240" y="393.11" width="15" height="15" style="fill:#27ae60"/><rect x="260" y="393.11" width="15" height="15" style="fill:#27ae60"/><rect x="280" y="393.11" width="15" height="15" style="fill:#27ae60"/><text transform="translate(200 423.11)" style="isolation:isolate;font-size:10px;fill:#e5e5e5;font-family:ArialMT, Arial">Read|Hit |Hit |Hit |Hit</text><text transform="translate(450 403.11)" style="isolation:isolate;font-size:12px;fill:#e74c3c;font-family:Arial-BoldMT, Arial;font-weight:700">Interleaved:</text><rect x="520" y="393.11" width="15" height="15" style="fill:#3498db"/><rect x="540" y="393.11" width="15" height="15" style="fill:#e74c3c"/><rect x="560" y="393.11" width="15" height="15" style="fill:#e74c3c"/><rect x="580" y="393.11" width="15" height="15" style="fill:#e74c3c"/><rect x="600" y="393.11" width="15" height="15" style="fill:#e74c3c"/><text transform="translate(520 423.11)" style="isolation:isolate;font-size:10px;fill:#e5e5e5;font-family:ArialMT, Arial">Read|Miss|Miss|Miss|Miss</text><rect x="700" y="393.11" width="15" height="15" style="fill:#3498db"/><text transform="translate(720 405.11)" style="isolation:isolate;font-size:10px;fill:#e5e5e5;font-family:ArialMT, Arial">First Read</text><rect x="700" y="413.11" width="15" height="15" style="fill:#27ae60"/><text transform="translate(720 425.11)" style="isolation:isolate;font-size:10px;fill:#e5e5e5;font-family:ArialMT, Arial">Cache Hit (~10 cycles)</text><rect x="850" y="413.11" width="15" height="15" style="fill:#e74c3c"/><text transform="translate(870 425.11)" style="isolation:isolate;font-size:10px;fill:#e5e5e5;font-family:ArialMT, Arial">Cache Miss (~300 cycles)</text></svg>
+</section>
+</section>
+<!-- Slide 7: Performance Benefits -->
+<section>
+	<aside class="notes">
+  <p>
+    So, after all that deep, technical work—the offset management, the NUMA awareness, the cache line padding, and the prefetcher analysis—what is the final payoff? What do we get for all this effort?
+  </p>
+  <p>
+    This slide summarizes the incredible performance benefits. With our cache-optimal approach, we're not just getting small, incremental gains. We are fundamentally changing the performance characteristics of the application.
+  </p>
+  <p>
+    [cite_start]We see our **Cache Hit Rate** jump to over 95%, compared to maybe 60% in a traditional, interleaved layout[cite: 158]. [cite_start]Our **Prefetcher Accuracy** also hits over 95% because we've designed perfectly predictable memory access patterns[cite: 150, 158]. [cite_start]And our **TLB Hit Rate** is over 95%, thanks to our use of huge pages and sequential access[cite: 153, 158].
+  </p>
+  <p>
+    [PAUSE]
+  </p>
+  <p>
+    The comparison at the bottom makes it crystal clear. [cite_start]We go from a 'Traditional Approach' that is **memory-bound** with random access, where the CPU is constantly waiting for data[cite: 159]. [cite_start]We move to 'Our Optimized Approach' that is **cache-optimal** with sequential access, where every part of the memory hierarchy works in perfect harmony[cite: 160].
+  </p>
+  <p>
+    And the final result? [cite_start]An overall speedup of <strong>10 to 100 times</strong> compared to a naive implementation[cite: 154, 158]. This is the power of hardware-aware software design. We've transformed a memory-bound problem into a compute-bound one, and we've unlocked the true potential of the CPU.
+  </p>
+</aside>
+  <div class="section-box teal-box">
+    <div class="section-title">📊 Performance Benefits: Cache + TLB + Prefetcher Optimization</div>
+    <div style="display: flex; gap: 40px;">
+      <div>
+        <div class="formula-text">• Cache Hit Rate: 95%+ (vs 60% with interleaved layout)</div>
+        <div class="formula-text">• Prefetcher Accuracy: 95%+ (predictable patterns)</div>
+      </div>
+      <div>
+        <div class="formula-text">• TLB Hit Rate: 95%+ (huge pages + sequential access)</div>
+        <div class="formula-text">• Overall Speedup: 10-100x vs naive implementation</div>
+      </div>
+    </div>
+    
+    <div class="flow-diagram">
+Performance Comparison:
+
+Traditional Approach:        Our Optimized Approach:
+┌─────────────────┐         ┌─────────────────┐
+│ Cache: 60% hits │         │ Cache: 95% hits │
+│ TLB: 40% hits   │    VS   │ TLB: 95% hits   │  
+│ Prefetch: 30%   │         │ Prefetch: 95%   │
+│ Perf: 1x        │         │ Perf: 10-100x   │
+└─────────────────┘         └─────────────────┘
+       ↓                             ↓
+  Memory-bound,                Cache-optimal,
+  Random access               Sequential access
+    </div>
+  </div>
+</section>
+
+  
+  <style>
+    .chart-container {
+      background: white;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .insights {
+      font-size: 0.9em;
+      text-align: left;
+    }
+    
+    .insights p {
+      margin: 10px 0;
+    }
+  </style>
+</section>
+		</div>
+	</div>
+
+	<script src="../reveal.js/dist/reveal.js"></script>
+	<script src="../reveal.js/plugin/zoom/zoom.js"></script>
+	<script src="../reveal.js/plugin/notes/notes.js"></script>
+	<script src="../reveal.js/plugin/search/search.js"></script>
+	<script src="../reveal.js/plugin/markdown/markdown.js"></script>
+	<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/DrawSVGPlugin.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/MotionPathHelper.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/MotionPathPlugin.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/MorphSVGPlugin.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Physics2DPlugin.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/TextPlugin.min.js"></script>
+
+	<!-- RoughEase, ExpoScaleEase and SlowMo are all included in the EasePack file -->
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
+	<script src="../js/script.js">	</script>
+  <script>
+    // Initialize chart when this slide becomes active
+    Reveal.addEventListener('slidechanged', function(event) {
+      if (event.currentSlide.querySelector('#streamChart')) {
+        initStreamChart();
+      }
+    });
+    
+    function initStreamChart() {
+      const ctx = document.getElementById('streamChart').getContext('2d');
+      
+      // Chart data based on your image
+      const data = {
+        labels: ['LayerNorm', 'QKV', 'Projection', 'MLP'],
+        datasets: [{
+          label: 'Karpathy (degrading)',
+          data: [78, 42, 30, 18],
+          backgroundColor: '#dc3545',
+          borderColor: '#dc3545',
+          borderWidth: 1
+        }, {
+          label: 'Your Layout (consistent)',
+          data: [92, 92, 92, 92],
+          backgroundColor: '#28a745',
+          borderColor: '#28a745',
+          borderWidth: 1
+        }]
+      };
+      
+      const config = {
+        type: 'bar',
+        data: data,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: {
+            duration: 0 // Disable default animations
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                font: {
+                  size: 14
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                callback: function(value) {
+                  return value + '%';
+                }
+              },
+              title: {
+                display: true,
+                text: 'Performance %'
+              }
+            }
+          }
+        }
+      };
+      
+      const chart = new Chart(ctx, config);
+      
+      // Add stream count labels on bars
+      setTimeout(() => {
+        addStreamLabels();
+        animateChart();
+      }, 100);
+    }
+    
+    function addStreamLabels() {
+      // Add "2 stream" labels above the green bars
+      const canvas = document.getElementById('streamChart');
+      const labels = ['2 stream', '2 stream', '2 stream', '2 stream'];
+      
+      // This would typically be done with Chart.js plugins or custom drawing
+      // For simplicity, you can add CSS positioned elements
+    }
+    
+    function animateChart() {
+      // GSAP animations for reveal
+      gsap.from('.chart-container', {
+        y: 50,
+        opacity: 0,
+        duration: 1,
+        ease: "power2.out"
+      });
+      
+      // Animate bars sequentially
+      gsap.from('#streamChart', {
+        scale: 0.8,
+        opacity: 0,
+        duration: 0.8,
+        delay: 0.3,
+        ease: "back.out(1.7)"
+      });
+    }
+  </script>
+</body>
+
+</html>
