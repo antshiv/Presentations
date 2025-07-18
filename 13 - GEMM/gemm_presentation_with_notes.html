@@ -1,0 +1,1599 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>CPU-Optimized LLM Runtime: GEMM Kernels</title>
+
+    
+    
+  <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+  <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+  <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+  <!-- Theme used for syntax highlighting of code -->
+  <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+  <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+
+
+    <style>
+        /* Custom styles for better readability and aesthetics */
+        .reveal {
+            font-family: 'Inter', sans-serif;
+            font-size: 28px; /* Base font size for the entire presentation */
+        }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4, .reveal h5, .reveal h6 {
+            text-transform: none; /* Prevent uppercase transformation */
+            font-weight: 700;
+        }
+        .reveal section img {
+            margin: 15px 0px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 4px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+        }
+        .reveal .slides section .fragment {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s ease-in-out;
+        }
+        .reveal .slides section .fragment.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .reveal pre {
+            width: 90%;
+            margin: 20px auto;
+            font-size: 0.6em; /* Smaller font for code blocks */
+            line-height: 1.2;
+        }
+        .reveal code {
+            font-family: 'Fira Code', monospace;
+        }
+        .reveal .r-stack {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 0.9em; /* Slightly smaller for r-stack content */
+        }
+        .reveal .r-stack p, .reveal .r-stack ul li, .reveal .r-stack ol li {
+            font-size: 0.9em; /* Ensure paragraphs and list items are smaller within r-stack */
+            line-height: 1.4;
+        }
+
+        .matrix-svg {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            margin: 20px auto;
+            display: block;
+        }
+        .kernel-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .kernel-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: left;
+            font-size: 0.8em; /* Smaller font for kernel item descriptions */
+        }
+        .kernel-item h3 {
+            color: #42affa;
+            margin-bottom: 10px;
+        }
+        .kernel-item ul {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+        .kernel-item li {
+            margin-bottom: 5px;
+        }
+        .benchmark-table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            font-size: 0.7em; /* Smaller font for table content */
+        }
+        .benchmark-table th, .benchmark-table td {
+            border: 1px solid #555;
+            padding: 8px;
+            text-align: center;
+        }
+        .benchmark-table th {
+            background-color: #333;
+            color: #eee;
+        }
+        .benchmark-table tr:nth-child(even) {
+            background-color: #222;
+        }
+        .recommendation {
+            margin-top: 30px;
+            font-size: 0.8em; /* Smaller font for recommendation text */
+            color: #42affa;
+        }
+
+        /* Styles for the Pipe Analogy SVG */
+        .analogy-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        .analogy-stage {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            width: 90%;
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        .analogy-stage svg {
+            flex-shrink: 0;
+            margin-right: 20px;
+        }
+        .analogy-text {
+            text-align: left;
+            font-size: 0.7em; /* Smaller font for analogy descriptions */
+        }
+        .analogy-text h4 {
+            color: #42affa;
+            margin-bottom: 5px;
+        }
+        .analogy-text p {
+            margin-bottom: 5px;
+        }
+
+        /* SVG specific styles for analogy */
+        .pipe { fill: #555; }
+        .water { fill: #00BFFF; }
+        .bucket { fill: #777; stroke: #FFF; stroke-width: 2; }
+        .clog { fill: #FF4500; }
+        .arrow { fill: none; stroke: #00BFFF; stroke-width: 3; marker-end: url(#arrowhead); }
+        .small-pipe { fill: #444; }
+        .wide-pipe { fill: #777; }
+        .clean-pipe { fill: #999; }
+        .multiple-pipes .pipe { fill: #666; }
+        .multiple-pipes .bucket { fill: #888; }
+        .label-text { font-family: 'Inter', sans-serif; font-size: 10px; fill: #FFF; } /* Adjusted for mini SVGs */
+
+        /* Memory Layout SVG styles */
+        .mem-matrix-cell {
+            fill: #333;
+            stroke: #666;
+            stroke-width: 0.5;
+        }
+        .mem-matrix-header-fill {
+            fill: #42affa;
+        }
+        .mem-matrix-header-text {
+            fill: #FFF;
+            font-size: 9px; /* Adjusted */
+        }
+        .mem-matrix-highlight {
+            fill: #00BFFF;
+        }
+        .mem-matrix-text {
+            fill: #FFF;
+            font-size: 9px; /* Adjusted */
+        }
+        .mem-arrow {
+            stroke: #FFC107;
+            stroke-width: 2;
+            marker-end: url(#mem-arrowhead);
+        }
+        .mem-label {
+            fill: #FFF;
+            font-size: 12px; /* Adjusted */
+        }
+
+        /* DNA of AI SVG styles */
+        .dna-matrix-rect { fill: #333; stroke: #666; stroke-width: 1; }
+        .dna-matrix-text { fill: #FFF; font-size: 9px; text-anchor: middle; } /* Adjusted */
+        .dna-arrow { stroke: #FFF; stroke-width: 2; marker-end: url(#dna-arrowhead); }
+        .dna-op-label { fill: #FFF; font-size: 11px; text-anchor: middle; } /* Adjusted */
+        .dna-highlight-rect { fill: #4CAF50; opacity: 0.7; }
+        .dna-highlight-text { fill: #FFF; font-size: 10px; text-anchor: middle; }
+        .dna-qkv-color-q { fill: #FFC107; }
+        .dna-qkv-color-k { fill: #2196F3; }
+        .dna-qkv-color-v { fill: #E91E63; }
+        .dna-qkv-text { fill: #FFF; font-size: 9px; text-anchor: middle; } /* Adjusted */
+
+        /* Styles for the Combined Benchmark/Analogy Slide */
+        .combined-benchmark-slide {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            padding: 20px;
+        }
+        .analogy-column {
+            flex: 0 0 30%; /* Fixed width for analogy column */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            height: 90%;
+            padding-right: 20px;
+        }
+        .analogy-mini-stage {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        .analogy-mini-stage svg {
+            width: 80px; /* Smaller SVG size */
+            height: 40px;
+            margin-bottom: 5px;
+        }
+        .analogy-mini-stage p {
+            font-size: 0.55em; /* Even smaller for mini analogy text */
+            text-align: center;
+            line-height: 1.2;
+        }
+        .chart-column {
+            flex: 1; /* Takes remaining space */
+            height: 90%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative; /* For GSAP animation */
+        }
+        .chart-container {
+            width: 95%;
+            height: 45%; /* Adjust height for two charts */
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .chart-container canvas {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 10px;
+        }
+        .chart-title {
+            font-size: 1.1em; /* Smaller chart titles */
+            margin-bottom: 10px;
+            color: #42affa;
+        }
+
+        /* Styles for the Combined Benchmark/Analogy Slide - FIXED */
+        .combined-benchmark-slide {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: stretch;
+            height: 100vh;
+            width: 100vw;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden; /* Prevent overflow */
+        }
+        
+        .analogy-column {
+            flex: 0 0 280px; /* Fixed width instead of percentage */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            height: 100%;
+            padding-right: 20px;
+            box-sizing: border-box;
+        }
+        
+        .analogy-mini-stage {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 250px;
+        }
+        
+        .analogy-mini-stage svg {
+            width: 100px;
+            height: 50px;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+        
+        .analogy-mini-stage p {
+            font-size: 0.5em;
+            text-align: center;
+            line-height: 1.2;
+            margin: 0;
+            word-wrap: break-word;
+        }
+        
+        .chart-column {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            min-width: 0; /* Allow flex item to shrink */
+            overflow: hidden;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 45%;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        
+        .chart-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+        }
+        
+        .chart-title {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #42affa;
+            text-align: center;
+        }
+
+
+        /* Pipe analogy SVG styles */
+        .pipe { fill: #555; }
+        .water { fill: #00BFFF; }
+        .bucket { fill: #777; stroke: #FFF; stroke-width: 2; }
+        .clog { fill: #FF4500; }
+        .arrow { fill: none; stroke: #00BFFF; stroke-width: 3; marker-end: url(#arrowhead); }
+        .small-pipe { fill: #444; }
+        .wide-pipe { fill: #777; }
+        .clean-pipe { fill: #999; }
+        .multiple-pipes .pipe { fill: #666; }
+        .multiple-pipes .bucket { fill: #888; }
+        .label-text { font-family: 'Inter', sans-serif; font-size: 10px; fill: #FFF; }
+
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Title Slide -->
+            <section>
+                <h1>CPU-Optimized LLM Runtime</h1>
+                <h2>The DNA of AI: Understanding GEMM Kernels</h2>
+                <p><small>A Deep Dive into High-Performance Matrix Multiplication</small></p>
+                <aside class="notes">
+                  <p>Welcome, everyone. Today, we're going to look under the hood of my C-Transformer project and focus on the engine of all modern AI: GEMM, or General Matrix Multiply.</p>
+                  <p>We'll explore how I've implemented and optimized this crucial operation to run efficiently on a CPU. The goal is to show you the real code and the practical steps taken to achieve significant performance gains.</p>
+                </aside>
+            </section>
+
+            <!-- What is GEMM? -->
+            <section>
+                <h2>What is GEMM?</h2>
+                <h3>General Matrix Multiply: The "Atom" of Modern AI</h3>
+                <div class="r-stack">
+                    <p class="fragment">At its core, GEMM is a fundamental operation: $C = lpha A B + eta C$.</p>
+                    <p class="fragment">It's the workhorse behind almost every operation in neural networks:</p>
+                    <ul class="fragment">
+                        <li><strong>Linear Layers:</strong> The primary component of Transformer models.</li>
+                        <li><strong>Attention Mechanisms:</strong> Calculating Query-Key-Value projections.</li>
+                        <li><strong>Convolutional Layers:</strong> Often reformulated as GEMM.</li>
+                    </ul>
+                    <p class="fragment"><strong>Why is it the "DNA" or "Atom"?</strong></p>
+                    <p class="fragment">Because optimizing GEMM means optimizing the very foundation of AI inference and training, leading to massive performance gains.</p>
+
+                    <!-- SVG Infographic for Matrix Multiplication -->
+                    <svg class="matrix-svg fragment" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#8BC34A;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#03A9F4;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#FFC107;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#FFEB3B;stop-opacity:1" />
+                            </linearGradient>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" />
+                            </marker>
+                            <marker id="dna-arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#FFF" />
+                            </marker>
+                        </defs>
+
+                        <!--2Matrix A -->
+                        <rect x="50" y="50" width="100" height="100" fill="url(#grad1)" rx="10" ry="10"/>
+                        <text x="100" y="100" font-family="Arial" font-size="24" fill="#FFF" text-anchor="middle" alignment-baseline="middle">A</text>
+                        <text x="100" y="170" font-family="Arial" font-size="18" fill="#FFF" text-anchor="middle">($M 	imes K$)</text>
+
+                        <!-- Multiplication Sign -->
+                        <text x="180" y="100" font-family="Arial" font-size="36" fill="#FFF" text-anchor="middle" alignment-baseline="middle">×</text>
+
+                        <!-- Matrix B -->
+                        <rect x="230" y="50" width="100" height="100" fill="url(#grad2)" rx="10" ry="10"/>
+                        <text x="280" y="100" font-family="Arial" font-size="24" fill="#FFF" text-anchor="middle" alignment-baseline="middle">B</text>
+                        <text x="280" y="170" font-family="Arial" font-size="18" fill="#FFF" text-anchor="middle">($K 	imes N$)</text>
+
+                        <!-- Equals Sign -->
+                        <text x="360" y="100" font-family="Arial" font-size="36" fill="#FFF" text-anchor="middle" alignment-baseline="middle">=</text>
+
+                        <!-- Matrix C -->
+                        <rect x="410" y="50" width="100" height="100" fill="url(#grad3)" rx="10" ry="10"/>
+                        <text x="460" y="100" font-family="Arial" font-size="24" fill="#FFF" text-anchor="middle" alignment-baseline="middle">C</text>
+                        <text x="460" y="170" font-family="Arial" font-size="18" fill="#FFF" text-anchor="middle">($M 	imes N$)</text>
+
+                        <!-- AI Icon -->
+                        <g transform="translate(530, 20)">
+                            <circle cx="30" cy="30" r="25" fill="#E0F7FA" stroke="#00BCD4" stroke-width="2"/>
+                            <path d="M20 20 L40 20 L40 40 L20 40 Z" fill="#00BCD4"/>
+                            <circle cx="25" cy="25" r="3" fill="#FFF"/>
+                            <circle cx="35" cy="25" r="3" fill="#FFF"/>
+                            <path d="M25 35 Q30 38 35 35" stroke="#00BCD4" stroke-width="2" fill="none"/>
+                            <text x="30" y="65" font-family="Arial" font-size="14" fill="#FFF" text-anchor="middle">AI</text>
+                        </g>
+                    </svg>
+                </div>
+                <aside class="notes">
+                  <p>So what is GEMM? It's the fundamental operation C = A * B + bias. I call it the "atom" of AI because nearly every operation in a neural network, from linear layers to attention, is built on it.</p>
+                  <p>Optimizing GEMM means we're optimizing the foundation of the entire model. In C-Transformer, this shows up in two key places: the MLP layers and the QKV projections for attention.</p>
+                </aside>
+            </section>
+
+            <!-- Matrix Multiplication: The DNA of AI -->
+            <section>
+                <h2>Matrix Multiplication: The DNA of AI</h2>
+                <h3>The Fundamental Pattern: $y = wx + b$</h3>
+                <div class="r-stack">
+                    <p class="fragment">Every neural computation starts from this basic linear transformation.</p>
+
+                    <svg width="100%" height="450" viewBox="0 0 900 480" class="fragment">
+                        <defs>
+                            <marker id="dna-arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#FFF" />
+                            </marker>
+                        </defs>
+
+                        <!-- Fundamental Pattern -->
+                        <rect x="300" y="20" width="300" height="50" rx="10" ry="10" fill="#222" stroke="#4CAF50" stroke-width="2"/>
+                        <text x="450" y="50" class="dna-op-label" font-size="18">The Fundamental Pattern: $y = wx + b$</text>
+
+                        <!-- 1. Linear Layers (Feed-Forward) -->
+                        <text x="150" y="120" class="dna-op-label">1. Linear Layers (Feed-Forward)</text>
+                        <!-- Input x -->
+                        <rect x="50" y="150" width="40" height="80" class="dna-matrix-rect" fill="#00BCD4"/>
+                        <text x="70" y="195" class="dna-matrix-text">x</text>
+                        <text x="70" y="245" class="dna-matrix-text">Input</text>
+                        <text x="70" y="260" class="dna-matrix-text">($D_{in} 	imes 1$)</text>
+                        <path d="M90 190 H120" class="dna-arrow"/>
+                        <text x="105" y="185" class="dna-op-label" font-size="16">×</text>
+
+                        <!-- Weights w -->
+                        <rect x="130" y="150" width="80" height="80" class="dna-matrix-rect" fill="#E91E63"/>
+                        <text x="170" y="195" class="dna-matrix-text">w</text>
+                        <text x="170" y="245" class="dna-matrix-text">Weights</text>
+                        <text x="170" y="260" class="dna-matrix-text">($D_{out} 	imes D_{in}$)</text>
+                        <path d="M210 190 H240" class="dna-arrow"/>
+                        <text x="225" y="185" class="dna-op-label" font-size="16">+</text>
+
+                        <!-- Bias b -->
+                        <rect x="250" y="150" width="40" height="80" class="dna-matrix-rect" fill="#FFC107"/>
+                        <text x="270" y="195" class="dna-matrix-text">b</text>
+                        <text x="270" y="245" class="dna-matrix-text">Bias</text>
+                        <text x="270" y="260" class="dna-matrix-text">($D_{out} 	imes 1$)</text>
+                        <path d="M290 190 H320" class="dna-arrow"/>
+                        <text x="305" y="185" class="dna-op-label" font-size="16">=</text>
+
+                        <!-- Output y -->
+                        <rect x="330" y="150" width="40" height="80" class="dna-matrix-rect" fill="#9C27B0"/>
+                        <text x="350" y="195" class="dna-matrix-text">y</text>
+                        <text x="350" y="245" class="dna-matrix-text">Output</text>
+                        <text x="350" y="260" class="dna-matrix-text">($D_{out} 	imes 1$)</text>
+
+                        <!-- 2. Attention: Query x Key x Value -->
+                        <text x="650" y="120" class="dna-op-label">2. Attention: Query × Key × Value</text>
+                        <!-- Input -->
+                        <rect x="450" y="150" width="40" height="80" class="dna-matrix-rect" fill="#00BCD4"/>
+                        <text x="470" y="195" class="dna-matrix-text">Input</text>
+                        <path d="M490 190 H520" class="dna-arrow"/>
+
+                        <!-- W_qkv -->
+                        <rect x="530" y="150" width="80" height="80" class="dna-matrix-rect" fill="#E91E63"/>
+                        <text x="570" y="195" class="dna-matrix-text">W_qkv</text>
+                        <path d="M610 190 H640" class="dna-arrow"/>
+
+                        <!-- Q, K, V -->
+                        <rect x="650" y="150" width="20" height="80" class="dna-matrix-rect dna-qkv-color-q"/>
+                        <text x="660" y="195" class="dna-qkv-text">Q</text>
+                        <rect x="670" y="150" width="20" height="80" class="dna-matrix-rect dna-qkv-color-k"/>
+                        <text x="680" y="195" class="dna-qkv-text">K</text>
+                        <rect x="690" y="150" width="20" height="80" class="dna-matrix-rect dna-qkv-color-v"/>
+                        <text x="700" y="195" class="dna-qkv-text">V</text>
+                        <text x="675" y="245" class="dna-matrix-text">3 x embed_dim</text>
+
+                        <!-- Q x K.T = Scores -->
+                        <rect x="640" y="280" width="40" height="40" class="dna-matrix-rect dna-qkv-color-q"/>
+                        <text x="660" y="300" class="dna-qkv-text">Q</text>
+                        <text x="690" y="300" class="dna-op-label" font-size="16">×</text>
+                        <rect x="700" y="280" width="40" height="40" class="dna-matrix-rect dna-qkv-color-k"/>
+                        <text x="720" y="300" class="dna-qkv-text">K.T</text>
+                        <text x="750" y="300" class="dna-op-label" font-size="16">=</text>
+                        <rect x="760" y="280" width="40" height="40" class="dna-matrix-rect" fill="#8BC34A"/>
+                        <text x="780" y="300" class="dna-qkv-text">Scores</text>
+                        <path d="M805 300 H820" class="dna-arrow"/>
+                        <text x="830" y="280" class="dna-op-label" font-size="12">Softmax</text>
+                        <path d="M865 300 H880" class="dna-arrow"/>
+                        <text x="854" y="303" class="dna-op-label" font-size="16">×</text>
+                        <rect x="830" y="340" width="40" height="40" class="dna-matrix-rect dna-qkv-color-v"/>
+                        <text x="850" y="360" class="dna-qkv-text">V</text>
+                        <path d="M853 345 V327" class="dna-arrow"/>
+                        <text x="910" y="303" class="dna-op-label" font-size="16">=</text>
+                        <rect x="920" y="280" width="40" height="40" class="dna-matrix-rect" fill="#9C27B0"/>
+                        <text x="940" y="300" class="dna-qkv-text">Output</text>
+
+
+                        <!-- Bottom Summary -->
+                        <rect x="50" y="390" width="800" height="70" rx="10" ry="10" fill="#222" stroke="#4CAF50" stroke-width="2"/>
+                        <text x="450" y="410" class="dna-op-label" font-size="15px">🎉 Every AI Operation = Matrix Multiplication ($wx + b$)</text>
+                        <text x="450" y="425" class="dna-op-label" font-size="13px">Linear layers, attention, embeddings, projections - all variations of the same fundamental pattern</text>
+                        <text x="450" y="440" class="dna-op-label" font-size="13px">Optimize matrix multiplication → Optimize all of AI!</text>
+                    </svg>
+                </div>
+                <aside class="notes">
+                  <p>This slide illustrates how that fundamental pattern, y = wx + b, is the DNA of AI. On the left, you see a standard feed-forward linear layer. On the right, the attention mechanism.</p>
+                  <p>It looks more complex, but it's just a series of matrix multiplications to get the Q, K, and V vectors, and then more multiplications to get the final output. This is why focusing on a single, highly-optimized GEMM implementation is so effective.</p>
+                </aside>
+            </section>
+
+
+            <!-- Memory Layout Optimization -->
+            <section>
+                <h2>Memory Layout: Math vs. Memory for Optimization</h2>
+                <h3>Smart Storage = No Transpose Needed</h3>
+                <div class="r-stack" style="transform: scale(0.8) translate(0, -15%);">
+                    <p class="fragment">The mathematical definition of matrix multiplication often implies transposes. However, for performance, we optimize memory layout to avoid these costly runtime operations.</p>
+
+                    <svg width="100%" height="550" viewBox="0 0 900 550" class="fragment">
+                        <defs>
+                            <marker id="mem-arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#FFC107" />
+                            </marker>
+                        </defs>
+
+                        <!-- Mathematical View (On Paper) -->
+                        <text x="450" y="20" class="mem-label" font-size="17px">Mathematical View: $A 	imes B^T = C$ (on paper)</text>
+
+                        <!-- Matrix A (Input) - Conceptual -->
+                        <rect x="50" y="60" width="100" height="100" class="dna-matrix-rect" fill="#00BCD4"/>
+                        <text x="100" y="115" class="dna-matrix-text">Matrix A (Input)</text>
+                        <text x="100" y="130" class="dna-matrix-text">($N_{ctx} 	imes D_{embed}$)</text>
+                        <text x="170" y="115" font-size="24" fill="#FFF">×</text>
+
+                        <!-- Matrix B.T (Weights) - Conceptual -->
+                        <rect x="200" y="60" width="100" height="100" class="dna-matrix-rect" fill="#E91E63"/>
+                        <text x="250" y="115" class="dna-matrix-text">Matrix B.T (Weights)</text>
+                        <text x="250" y="130" class="dna-matrix-text">($D_{embed} 	imes D_{output}$)</text>
+                        <text x="320" y="115" font-size="24" fill="#FFF">=</text>
+
+                        <!-- Matrix C (Output) - Conceptual -->
+                        <rect x="350" y="60" width="100" height="100" class="dna-matrix-rect" fill="#9C27B0"/>
+                        <text x="400" y="115" class="dna-matrix-text">Matrix C (Output)</text>
+                        <text x="400" y="130" class="dna-matrix-text">($N_{ctx} 	imes D_{output}$)</text>
+
+                        <!-- Problem Box -->
+                        <rect x="500" y="60" width="350" height="100" rx="10" ry="10" fill="rgba(255, 69, 0, 0.1)" stroke="#FF4500" stroke-width="2"/>
+                        <text x="675" y="85" class="mem-label" font-size="15px">Problem:</text>
+                        <text x="675" y="105" class="mem-matrix-text" text-anchor="middle" font-size="12px">B/T means transpose!</text>
+                        <text x="675" y="120" class="mem-matrix-text" text-anchor="middle" font-size="12px">Expensive memory access</text>
+                        <text x="675" y="135" class="mem-matrix-text" text-anchor="middle" font-size="12px">Cache misses galore</text>
+
+                        <!-- Memory Layout View (Smart Storage) -->
+                        <text x="450" y="220" class="mem-label" font-size="17px">Memory Layout: Smart Storage = No Transpose Needed</text>
+
+                        <!-- Matrix A in Memory (X) -->
+                        <text x="100" y="250" class="mem-label" font-size="13px">Matrix A in Memory (X)</text>
+                        <text x="100" y="265" class="mem-matrix-text" font-size="11px">Row-major: token by token</text>
+                        <rect x="50" y="280" width="100" height="100" class="mem-matrix-cell" stroke="#00BFFF" stroke-width="2"/>
+                        <rect x="50" y="280" width="100" height="20" class="mem-matrix-highlight"/>
+                        <text x="100" y="292" class="mem-matrix-text" font-size="10px">Token 0</text>
+                        <rect x="50" y="300" width="100" height="20" class="mem-matrix-highlight"/>
+                        <text x="100" y="312" class="mem-matrix-text" font-size="10px">Token 1</text>
+                        <text x="100" y="350" class="mem-matrix-text" font-size="10px">...</text>
+                        <path d="M155 330 H180" class="mem-arrow"/>
+                        <text x="100" y="395" class="mem-matrix-text" font-size="11px">Sequential memory access ✅</text>
+
+                        <!-- Matrix B in Memory (W.T) -->
+                        <text x="350" y="250" class="mem-label" font-size="13px">Matrix B in Memory (W.T)</text>
+                        <text x="350" y="265" class="mem-matrix-text" font-size="11px">Pre-transposed, row-major</text>
+                        <rect x="200" y="280" width="200" height="100" class="mem-matrix-cell" stroke="#4CAF50" stroke-width="2"/>
+                        <rect x="200" y="280" width="20" height="100" class="mem-matrix-highlight"/>
+                        <text x="180" y="330" class="mem-matrix-text" transform="rotate(-90 210 330)" font-size="10px">Output Dim 0</text>
+                        <rect x="220" y="280" width="20" height="100" class="mem-matrix-highlight"/>
+                        <text x="200" y="330" class="mem-matrix-text" transform="rotate(-90 230 330)" font-size="10px">Output Dim 1</text>
+                        <text x="300" y="330" class="mem-matrix-text" font-size="10px">...</text>
+                        <rect x="380" y="280" width="20" height="100" class="mem-matrix-highlight"/>
+                        <text x="360" y="330" class="mem-matrix-text" transform="rotate(-90 390 330)" font-size="10px">Output Dim D-1</text>
+                        <path d="M405 330 H430" class="mem-arrow"/>
+                        <text x="300" y="395" class="mem-matrix-text" font-size="11px">W stored as W.T ✅</text>
+
+                        <!-- Matrix C in Memory (Output) -->
+                        <text x="590" y="250" class="mem-label" font-size="13px">Matrix C in Memory (Output)</text>
+                        <text x="590" y="265" class="mem-matrix-text" font-size="11px">Row-major output</text>
+                        <rect x="440" y="280" width="100" height="100" class="mem-matrix-cell" stroke="#FFC107" stroke-width="2"/>
+                        <rect x="440" y="280" width="100" height="20" class="mem-matrix-highlight"/>
+                        <text x="450" y="292" class="mem-matrix-text" font-size="10px">Output Token 0</text>
+                        <rect x="440" y="300" width="100" height="20" class="mem-matrix-highlight"/>
+                        <text x="450" y="312" class="mem-matrix-text" font-size="10px">Output Token 1</text>
+                        <text x="490" y="350" class="mem-matrix-text" font-size="10px">...</text>
+                        <text x="590" y="395" class="mem-matrix-text" font-size="11px">Cache-friendly layout ✅</text>
+
+                        <!-- Low-Level Optimization Insight -->
+                        <rect x="50" y="450" width="800" height="90" rx="10" ry="10" fill="#222" stroke="#4CAF50" stroke-width="2"/>
+                        <text x="150" y="470" class="mem-label" font-size="15px">Low-Level Optimization Insight: Math $
+eq$ Memory Layout</text>
+                        <text x="150" y="490" class="mem-matrix-text" font-size="13px">Mathematical notation $A 	imes B^T$ suggests transpose, but smart storage pre-transposes B.</text>
+                        <text x="150" y="505" class="mem-matrix-text" font-size="13px">Your Token-Parallel kernel achieves 6x speedup by combining: smart layout + cache blocking + core distribution.</text>
+                        <text x="150" y="520" class="mem-matrix-text" font-size="13px">Memory bandwidth >> Compute Throughput in modern AI workloads.</text>
+                    </svg>
+                </div>
+                <aside class="notes">
+                  <p>Now let's bridge theory and implementation. Math equations often show A times B-transpose, but executing a transpose at runtime is slow because it causes non-sequential memory access. In C-Transformer, I avoid this by storing the weight matrix 'B' in a pre-transposed format.</p>
+                  <p>This ensures that when the CPU computes the dot product, it can read data from both matrices sequentially, which is much more cache-friendly. This is a key optimization, and if you find this kind of low-level detail interesting, consider liking the video or leaving a comment below. It really helps me know what content to create next.</p>
+                </aside>
+            </section>
+
+
+            <!-- The Four Kernels -->
+            <section>
+                <h2>The Four Kernels Developed</h2>
+                <p>We've engineered distinct GEMM kernels, each embodying different optimization strategies:</p>
+                <div class="kernel-grid" style="font-size:18px;">
+                    <div class="kernel-item fragment fade-in-then-semi-out">
+                        <h3>1. Naive Parallel GEMM</h3>
+                        <ul>
+                            <li>Basic triple-loop implementation.</li>
+                            <li>Parallelized using OpenMP for outer loops.</li>
+                            <li>Serves as the baseline for performance and accuracy.</li>
+                        </ul>
+                    </div>
+                    <div class="kernel-item fragment fade-in-then-semi-out">
+                        <h3>2. Simple AVX-512 Parallel GEMM</h3>
+                        <ul>
+                            <li>Introduces AVX-512 intrinsics for vectorization.</li>
+                            <li>Processes 16 floats simultaneously.</li>
+                            <li>Still relies on OpenMP for thread-level parallelism.</li>
+                            <li><em>(1.19x Speedup)</em></li>
+                        </ul>
+                    </div>
+                    <div class="kernel-item fragment fade-in-then-semi-out">
+                        <h3>3. Fine-Grained Blocked GEMM</h3>
+                        <ul>
+                            <li>Combines AVX-512 with cache blocking (64x64 blocks).</li>
+                            <li>Aims to improve data locality and cache utilization.</li>
+                            <li>OpenMP `collapse(3)` for multi-level parallelism.</li>
+                            <li><em>(4.84x Speedup)</em></li>
+                        </ul>
+                    </div>
+                    <div class="kernel-item fragment fade-in-then-semi-out">
+                        <h3>4. Token-Parallel Orchestration</h3>
+                        <ul>
+                            <li>A higher-level strategy, not a direct GEMM kernel.</li>
+                            <li>Distributes input tokens across multiple cores.</li>
+                            <li>Each core executes a <strong>serial blocked GEMM</strong> on its local token slice.</li>
+                            <li>Leverages `gemm_blocked_serial` internally.</li>
+                            <li><em>(6.19x Speedup)</em></li>
+                        </ul>
+                    </div>
+                </div>
+                <aside class="notes">
+                  <p>To find the best performance, I developed four different GEMM kernels. We start with a 'Naive Parallel' version, which is a direct translation of the math and our baseline.</p>
+                  <p>Then, 'Simple AVX-512' introduces vectorization to process 16 numbers at once. 'Fine-Grained Blocked' improves on this by adding cache-blocking to keep data in the fast L1/L2 caches. Finally, 'Token-Parallel Orchestration' is a higher-level strategy that divides the input tokens among the CPU cores, with each core running its own efficient, serial GEMM.</p>
+                </aside>
+            </section>
+
+            <!-- Optimization Differences (Slide 1) -->
+            <section>
+                <h2>Optimization Differences: Naive vs. Vectorized</h2>
+                <div class="r-stack" style="font-size:18px;">
+                    <div style="display: flex; justify-content: space-around; width: 100%;">
+                        <div style="width: 45%; text-align: left;">
+                            <h3>Naive Parallel GEMM</h3>
+                            <pre><code class="c">void gemm_naive_parallel(...) {
+    #pragma omp parallel for
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            float sum = 0;
+            for (int k = 0; k < K; k++) {
+                sum += A[i * K + k] * B[j * K + k];
+            }
+            C[i * N + j] = sum + bias[j];
+        }
+    }
+}</code></pre>
+                            <ul>
+                                <li><strong>Concept:</strong> Direct translation of matrix multiplication.</li>
+                                <li><strong>Parallelism:</strong> Coarse-grained (outer loops) with OpenMP.</li>
+                                <li><strong>Limitations:</strong> Poor cache utilization, no vectorization.</li>
+                            </ul>
+                        </div>
+                        <div style="width: 45%; text-align: left;">
+                            <h3>Simple AVX-512 Parallel GEMM</h3>
+                            <pre><code class="c">void gemm_avx512_parallel(...) {
+    #pragma omp parallel for
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            __m512 sum_vec = _mm512_setzero_ps();
+            for (k = 0; k &lt;= K - 16; k += 16) {
+                __m512 a_vec = _mm512_loadu_ps(&A[i * K + k]);
+                __m512 b_vec = _mm512_loadu_ps(&B[j * K + k]);
+                sum_vec = _mm512_fmadd_ps(a_vec, b_vec, sum_vec);
+            }
+            float sum = _mm512_reduce_add_ps(sum_vec);
+            // ... handle remainder ...
+            C[i * N + j] = sum + bias[j];
+        }
+    }
+}</code></pre>
+                            <ul>
+                                <li><strong>Concept:</strong> Vectorization using Intel AVX-512 intrinsics.</li>
+                                <li><strong>Parallelism:</strong> Still OpenMP for outer loops, but inner loop is vectorized.</li>
+                                <li><strong>Benefit:</strong> Processes 16 floats per instruction, significant speedup.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <aside class="notes">
+                  <p>Here's a look at the code. The naive version is a simple triple-loop. The AVX-512 version replaces the inner loop with vector intrinsics like _mm512_loadu_ps and _mm512_fmadd_ps.</p>
+                  <p>This allows us to use the full width of the CPU's vector units. However, as the results show, this only gives a modest speedup on its own, because we quickly become limited by memory access, not just computation.</p>
+                </aside>
+            </section>
+
+            <!-- Optimization Differences (Slide 2) -->
+            <section>
+                <h2>Optimization Differences: Blocking & Orchestration</h2>
+                <div class="r-stack" style="font-size:18px;">
+                    <div style="display: flex; justify-content: space-around; width: 100%;">
+                        <div style="width: 45%; text-align: left;">
+                            <h3>Fine-Grained Blocked GEMM</h3>
+                            <pre><code class="c">void gemm_fine_grained_parallel(...) {
+    const int block_size = 64;
+    #pragma omp parallel for collapse(3)
+    for (int ii = 0; ii < M; ii += block_size) {
+        for (int jj = 0; jj < N; jj += block_size) {
+            for (int kk = 0; kk < K; kk += block_size) {
+                // ... block processing with AVX-512 ...
+                // ... atomic update for C[i*N+j] ...
+            }
+        }
+    }
+}</code></pre>
+                            <ul>
+                                <li><strong>Concept:</strong> Divide matrices into smaller blocks (e.g., 64x64).</li>
+                                <li><strong>Benefit:</strong> Improves cache locality by keeping data in faster memory levels.</li>
+                                <li><strong>Parallelism:</strong> OpenMP `collapse(3)` for parallelizing block iterations.</li>
+                                <li><strong>Challenge:</strong> Requires careful handling of partial sums and potential race conditions (e.g., `#pragma omp atomic`).</li>
+                            </ul>
+                        </div>
+                        <div style="width: 45%; text-align: left;">
+                            <h3>Token-Parallel Orchestration</h3>
+                            <pre><code class="c">if (i == 3) { // Special case in benchmark
+    #pragma omp parallel num_threads(M->num_cores)
+    {
+        int core_id = omp_get_thread_num();
+        int token_start = core_id * M->tokens_per_core;
+        int num_tokens = ...;
+        if (num_tokens > 0) {
+            gemm_blocked_serial(A_input + token_start * K, B_weights, bias, C_out + token_start * N, num_tokens, N, K);
+        }
+    }
+}</code></pre>
+                            <ul>
+                                <li><strong>Concept:</strong> Distribute the "M" dimension (tokens) across CPU cores.</li>
+                                <li><strong>Each Core:</strong> Independently computes a slice of the output using `gemm_blocked_serial`.</li>
+                                <li><strong>Benefit:</strong> Maximizes CPU utilization by assigning distinct, non-overlapping work to each core.</li>
+                                <li><strong>Note:</strong> `gemm_blocked_serial` itself is a serial, blocked AVX-512 GEMM, designed for single-core efficiency within this orchestration.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <aside class="notes">
+                  <p>The next two kernels address the memory bottleneck. The 'Fine-Grained Blocked' kernel breaks the matrices into 64x64 blocks that fit into the L1 cache, which you can see in the nested loops. This is a big improvement.</p>
+                  <p>But the 'Token-Parallel Orchestration' is the most effective. It gives each core a separate chunk of tokens to work on. This minimizes cache conflicts and avoids the need for atomic operations, allowing for much better scalability. This was the key insight that led to the 6x performance gain.</p>
+                </aside>
+            </section>
+
+            <!-- Pipe and Buckets Analogy -->
+            <section>
+                <h2>Analogy: Water in a Pipe (Caches & Compute)</h2>
+                <h3>Visualizing GEMM Optimization Strategies</h3>
+                <div class="analogy-container" style="font-size:18px;">
+                    <div class="analogy-stage fragment fade-in">
+                        <svg width="180" height="90" viewBox="0 0 180 90">
+                            <rect x="10" y="35" width="160" height="20" class="pipe small-pipe"/>
+                            <rect x="0" y="25" width="20" height="40" class="bucket"/>
+                            <rect x="160" y="25" width="20" height="40" class="bucket"/>
+                            <circle cx="90" cy="45" r="10" class="clog"/>
+                            <text x="90" y="50" text-anchor="middle" class="label-text">CLOG</text>
+                            <path d="M5 45 H175" class="arrow"/>
+                            <text x="90" y="15" text-anchor="middle" class="label-text">Memory Pool</text>
+                            <text x="90" y="75" text-anchor="middle" class="label-text">9.73 GFLOPS</text>
+                        </svg>
+                        <div class="analogy-text">
+                            <h4>1. Naive Parallel: Clogged Pipe</h4>
+                            <p><strong>Pipe:</strong> Narrow (inefficient compute). <strong>Buckets (Cache):</strong> Small, disorganized. Water (data) flows slowly, gets stuck. Poor throughput. Baseline performance.</p>
+                        </div>
+                    </div>
+
+                    <div class="analogy-stage fragment fade-in">
+                        <svg width="180" height="90" viewBox="0 0 180 90">
+                            <rect x="10" y="35" width="160" height="20" class="pipe wide-pipe"/>
+                            <rect x="0" y="25" width="20" height="40" class="bucket"/>
+                            <rect x="160" y="25" width="20" height="40" class="bucket"/>
+                            <circle cx="90" cy="45" r="8" class="clog" fill="#FFA07A"/>
+                            <text x="90" y="50" text-anchor="middle" class="label-text">LESS CLOG</text>
+                            <path d="M5 45 H175" class="arrow"/>
+                            <text x="90" y="15" text-anchor="middle" class="label-text">Memory Pool</text>
+                            <text x="90" y="75" text-anchor="middle" class="label-text">11.57 GFLOPS (1.19x)</text>
+                        </svg>
+                        <div class="analogy-text">
+                            <h4>2. Simple AVX-512: Wider Pipe, Still Some Clogging</h4>
+                            <p><strong>Pipe:</strong> Wider (vectorized compute with AVX-512) allowing more water per push. But buckets are still disorganized, causing some data bottlenecks. Moderate speedup.</p>
+                        </div>
+                    </div>
+
+                    <div class="analogy-stage fragment fade-in">
+                        <svg width="180" height="90" viewBox="0 0 180 90">
+                            <rect x="10" y="35" width="160" height="20" class="pipe clean-pipe"/>
+                            <rect x="0" y="25" width="20" height="40" class="bucket"/>
+                            <rect x="160" y="25" width="20" height="40" class="bucket"/>
+                            <path d="M5 45 H175" class="arrow"/>
+                            <rect x="40" y="40" width="20" height="10" fill="#00BFFF" opacity="0.5"/>
+                            <rect x="70" y="40" width="20" height="10" fill="#00BFFF" opacity="0.5"/>
+                            <rect x="100" y="40" width="20" height="10" fill="#00BFFF" opacity="0.5"/>
+                            <text x="90" y="15" text-anchor="middle" class="label-text">Memory Pool</text>
+                            <text x="90" y="75" text-anchor="middle" class="label-text">47.09 GFLOPS (4.84x)</text>
+                        </svg>
+                        <div class="analogy-text">
+                            <h4>3. Fine-Grained Blocked: Cleaned Pipe, Organized Buckets</h4>
+                            <p><strong>Pipe:</strong> Optimized (AVX-512). <strong>Buckets:</strong> Organized (cache blocking) ensuring water is ready when needed. Flow is much smoother, reducing idle time. Significant speedup.</p>
+                        </div>
+                    </div>
+
+                    <div class="analogy-stage fragment fade-in">
+                        <svg width="180" height="90" viewBox="0 0 180 90" class="multiple-pipes">
+                            <rect x="10" y="10" width="160" height="10" class="pipe"/>
+                            <rect x="0" y="5" width="10" height="20" class="bucket"/>
+                            <rect x="170" y="5" width="10" height="20" class="bucket"/>
+                            <path d="M5 15 H175" class="arrow"/>
+                            <text x="90" y="25" text-anchor="middle" class="label-text">Core 0 (22 tokens)</text>
+
+                            <rect x="10" y="40" width="160" height="10" class="pipe"/>
+                            <rect x="0" y="35" width="10" height="20" class="bucket"/>
+                            <rect x="170" y="35" width="10" height="20" class="bucket"/>
+                            <path d="M5 45 H175" class="arrow"/>
+                            <text x="90" y="55" text-anchor="middle" class="label-text">Core 1 (22 tokens)</text>
+
+                            <rect x="10" y="70" width="160" height="10" class="pipe"/>
+                            <rect x="0" y="65" width="10" height="20" class="bucket"/>
+                            <rect x="170" y="65" width="10" height="20" class="bucket"/>
+                            <path d="M5 75 H175" class="arrow"/>
+                            <text x="90" y="85" text-anchor="middle" class="label-text">... (188 cores)</text>
+                            <text x="90" y="5" text-anchor="middle" class="label-text">Memory Pool</text>
+                            <text x="90" y="95" text-anchor="middle" class="label-text">60.24 GFLOPS (6.19x)</text>
+                        </svg>
+                        <div class="analogy-text">
+                            <h4>4. Token-Parallel Orchestration: Dedicated Pipes & Buckets</h4>
+                            <p><strong>Multiple Pipes & Buckets:</strong> Each core gets its own dedicated pipe and organized buckets (L1/L2 cache). Water (tokens) flows in parallel with minimal interference. Maximizes overall throughput. Best performance.</p>
+                        </div>
+                    </div>
+                </div>
+                <aside class="notes">
+                  <p>This analogy helps visualize the optimization process. The 'Naive' kernel is a clogged pipe. 'AVX-512' widens the pipe, but it's still clogged by disorganized memory access.</p>
+                  <p>'Fine-Grained Blocked' cleans the pipe by organizing the data in cache. And 'Token-Parallel Orchestration' gives each core its own clean, wide pipe. This illustrates how performance is not just about compute, but about the entire data flow.</p>
+                </aside>
+            </section>
+
+        <div class="slides">
+            <!-- Combined Benchmark and Analogy Slide -->
+            <section style="font-size:16px;">
+                <h2>Real-World Performance: Analogy Meets Data</h2>
+                <div class="combined-benchmark-slide" style="max-width: 1096px; max-height:670px;">
+                    <div class="analogy-column">
+                        <div class="analogy-mini-stage">
+                            <svg width="100" height="50" viewBox="0 0 180 90">
+                                <defs>
+                                    <marker id="arrowhead1" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" />
+                                    </marker>
+                                </defs>
+                                <rect x="10" y="35" width="160" height="20" class="pipe small-pipe"/>
+                                <rect x="0" y="25" width="20" height="40" class="bucket"/>
+                                <rect x="160" y="25" width="20" height="40" class="bucket"/>
+                                <circle cx="90" cy="45" r="10" class="clog"/>
+                                <text x="90" y="50" text-anchor="middle" class="label-text">CLOG</text>
+                                <path d="M5 45 H175" class="arrow" marker-end="url(#arrowhead1)"/>
+                                <text x="90" y="15" text-anchor="middle" class="label-text">Naive</text>
+                            </svg>
+                            <p>Naive Parallel</p>
+                        </div>
+                        
+                        <div class="analogy-mini-stage">
+                            <svg width="100" height="50" viewBox="0 0 180 90">
+                                <defs>
+                                    <marker id="arrowhead2" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" />
+                                    </marker>
+                                </defs>
+                                <rect x="10" y="35" width="160" height="20" class="pipe wide-pipe"/>
+                                <rect x="0" y="25" width="20" height="40" class="bucket"/>
+                                <rect x="160" y="25" width="20" height="40" class="bucket"/>
+                                <circle cx="90" cy="45" r="8" class="clog" fill="#FFA07A"/>
+                                <text x="90" y="50" text-anchor="middle" class="label-text">LESS CLOG</text>
+                                <path d="M5 45 H175" class="arrow" marker-end="url(#arrowhead2)"/>
+                                <text x="90" y="15" text-anchor="middle" class="label-text">AVX-512</text>
+                            </svg>
+                            <p>Simple AVX-512</p>
+                        </div>
+                        
+                        <div class="analogy-mini-stage">
+                            <svg width="100" height="50" viewBox="0 0 180 90">
+                                <defs>
+                                    <marker id="arrowhead3" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" />
+                                    </marker>
+                                </defs>
+                                <rect x="10" y="35" width="160" height="20" class="pipe clean-pipe"/>
+                                <rect x="0" y="25" width="20" height="40" class="bucket"/>
+                                <rect x="160" y="25" width="20" height="40" class="bucket"/>
+                                <path d="M5 45 H175" class="arrow" marker-end="url(#arrowhead3)"/>
+                                <rect x="40" y="40" width="20" height="10" fill="#00BFFF" opacity="0.5"/>
+                                <rect x="70" y="40" width="20" height="10" fill="#00BFFF" opacity="0.5"/>
+                                <rect x="100" y="40" width="20" height="10" fill="#00BFFF" opacity="0.5"/>
+                                <text x="90" y="15" text-anchor="middle" class="label-text">Blocked</text>
+                            </svg>
+                            <p>Fine-Grained Blocked</p>
+                        </div>
+                        
+                        <div class="analogy-mini-stage">
+                            <svg width="100" height="50" viewBox="0 0 180 90" class="multiple-pipes">
+                                <defs>
+                                    <marker id="arrowhead4" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" />
+                                    </marker>
+                                </defs>
+                                <rect x="10" y="15" width="160" height="8" class="pipe"/>
+                                <rect x="0" y="10" width="10" height="18" class="bucket"/>
+                                <rect x="170" y="10" width="10" height="18" class="bucket"/>
+                                <path d="M5 19 H175" class="arrow" marker-end="url(#arrowhead4)"/>
+                                
+                                <rect x="10" y="35" width="160" height="8" class="pipe"/>
+                                <rect x="0" y="30" width="10" height="18" class="bucket"/>
+                                <rect x="170" y="30" width="10" height="18" class="bucket"/>
+                                <path d="M5 39 H175" class="arrow" marker-end="url(#arrowhead4)"/>
+                                
+                                <rect x="10" y="55" width="160" height="8" class="pipe"/>
+                                <rect x="0" y="50" width="10" height="18" class="bucket"/>
+                                <rect x="170" y="50" width="10" height="18" class="bucket"/>
+                                <path d="M5 59 H175" class="arrow" marker-end="url(#arrowhead4)"/>
+                                
+                                <text x="90" y="10" text-anchor="middle" class="label-text">Token-Parallel</text>
+                                <text x="90" y="80" text-anchor="middle" class="label-text">...</text>
+                            </svg>
+                            <p>Token-Parallel Orchestration</p>
+                        </div>
+                    </div>
+
+                    <div class="chart-column">
+                        <div class="chart-container">
+                            <h3 class="chart-title">MLP GEMM Performance (GFLOPS)</h3>
+                            <canvas id="mlpGflopsChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h3 class="chart-title">QKV GEMM Performance (GFLOPS)</h3>
+                            <canvas id="qkvGflopsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <aside class="notes">
+                  <p>Here we see the analogy mapped to the real benchmark data. For both MLP and QKV workloads, the 'Token-Parallel Orchestration' is the clear winner, providing a speedup of over 6x compared to the naive version.</p>
+                  <p>You can see how each optimization step builds on the last. The charts will animate to show these incremental gains. If you're enjoying this breakdown, hitting that subscribe button is the best way to support the channel and see more content like this.</p>
+                </aside>
+            </section>
+
+            <!-- Environment Context -->
+            <section>
+                <h2>Execution Environment Context</h2>
+                <div class="r-stack">
+                    <p class="fragment">The benchmarks were run on a virtualized CPU environment:</p>
+                    <ul class="fragment">
+                        <li><strong>CPU Model:</strong> Intel(R) Xeon(R) Platinum 8468V</li>
+                        <li><strong>Logical Cores:</strong> 192 (96 physical cores with 2 threads per core)</li>
+                        <li><strong>Key CPU Features:</strong> Includes AVX512F, AVX512DQ, AVX512BW, AVX512VL, AVX512_VNNI, AMX_BF16, AMX_TILE, AMX_INT8.</li>
+                        <li><strong>Memory:</strong> 457.81 GiB allocated for the model.</li>
+                    </ul>
+                    <p class="fragment"><strong>Important Note:</strong> This environment is likely shared (e.g., Linux on Kubernetes/JupyterLabs with other tenants). Therefore, the absolute performance numbers might be influenced by system load.</p>
+                    <p class="fragment"><strong>The primary value of these benchmarks lies in the *relative* performance improvements observed between the different optimization strategies.</strong></p>
+                </div>
+                <aside class="notes">
+                  <p>It's important to note the environment these benchmarks were run in. This is a high-end Intel Xeon server CPU with 192 logical cores. Because it's a shared, virtualized environment, the absolute GFLOPS numbers might fluctuate.</p>
+                  <p>However, the *relative* speedup between the kernels is what's truly valuable. A 6x improvement is a 6x improvement, regardless of the underlying hardware.</p>
+                </aside>
+            </section>
+
+            <!-- How Benchmarking Helps -->
+            <section>
+                <h2>How Benchmarking Guides Kernel Selection</h2>
+                <div class="r-stack">
+                    <p class="fragment">Our comprehensive benchmark is designed to quantify performance and identify the optimal kernel for specific operations within the LLM.</p>
+                    <ul class="fragment">
+                        <li><strong>Realistic Workloads:</strong> Tests GEMM kernels on shapes typical of LLM layers (e.g., MLP's FC1, Attention's QKV projections).</li>
+                        <li><strong>Dedicated Memory:</strong> Utilizes the model's bump-allocated memory, ensuring realistic memory access patterns.</li>
+                        <li><strong>Accuracy Validation:</strong> Compares each kernel's output against a "golden reference" (Naive kernel output) to ensure numerical stability (Max Diff, RMSE).</li>
+                    </ul>
+                    <h3 class="fragment">The Process:</h3>
+                    <ol class="fragment">
+                        <li><strong>Golden Reference:</strong> Run the Naive kernel on Layer 0 to establish a ground truth output.</li>
+                        <li><strong>Layer-Specific Testing:</strong> Each of the first four layers is used to test a different kernel strategy.</li>
+                        <li><strong>Consistent Inputs:</strong> The same input data, weights, and biases are copied to each layer's memory for fair comparison.</li>
+                        <li><strong>Metrics Capture:</strong> Time (ms), GFLOPS, Max Difference, and RMSE are recorded.</li>
+                    </ol>
+                    <p class="fragment"><strong>Outcome:</strong> The benchmark provides clear performance metrics (GFLOPS, speedup) for each kernel on different matrix shapes, allowing us to recommend the best-performing kernel for each part of the LLM pipeline on a given CPU architecture.</p>
+                </div>
+                <aside class="notes">
+                  <p>The benchmark framework I built is designed to be a practical tool. It tests realistic workloads from the LLM, uses the model's actual memory layout, and validates the correctness of each kernel against the naive version.</p>
+                  <p>The goal is to provide clear, data-driven recommendations for which kernel to use for a given task on a given CPU. It’s not just about having fast code, but about having a system to prove it’s fast and correct.</p>
+                </aside>
+            </section>
+
+            <!-- Benchmark Results (Original Table Slide - kept for detailed numbers) -->
+            <section>
+                <h2>Benchmark Results: Real-World Performance (Detailed)</h2>
+                <h3>MLP GEMM (FC1 Layer: M=4096, N=32768, K=8192)</h3>
+                <div class="r-stack">
+                    <table class="benchmark-table fragment fade-in">
+                        <thead>
+                            <tr>
+                                <th>Strategy</th>
+                                <th>Time (ms)</th>
+                                <th>GFLOPS</th>
+                                <th>Speedup (vs. Naive)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Naive Parallel</td><td>225958.42</td><td>9.73</td><td>1.00x</td></tr>
+                            <tr><td>Simple AVX-512</td><td>190026.20</td><td>11.57</td><td>1.19x</td></tr>
+                            <tr><td>Fine-Grained Blocked</td><td>46699.02</td><td>47.09</td><td>4.84x</td></tr>
+                            <tr><td>Token-Parallel Orchestration</td><td>36506.94</td><td>60.24</td><td>6.19x</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="recommendation fragment fade-in"><strong>Recommendation for MLP:</strong> 'Token-Parallel Orchestration' (60.24 GFLOPS)</p>
+
+                    <h3 class="fragment fade-in" style="margin-top:25px;">QKV GEMM (Attention Layer: M=4096, N=24576, K=8192)</h3>
+                    <table class="benchmark-table fragment fade-in">
+                        <thead>
+                            <tr>
+                                <th>Strategy</th>
+                                <th>Time (ms)</th>
+                                <th>GFLOPS</th>
+                                <th>Speedup (vs. Naive)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Naive Parallel</td><td>158063.97</td><td>10.43</td><td>1.00x</td></tr>
+                            <tr><td>Simple AVX-512</td><td>136269.97</td><td>12.10</td><td>1.16x</td></tr>
+                            <tr><td>Fine-Grained Blocked</td><td>34986.01</td><td>47.14</td><td>4.52x</td></tr>
+                            <tr><td>Token-Parallel Orchestration</td><td>25129.17</td><td>65.63</td><td>6.29x</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="recommendation fragment fade-in"><strong>Recommendation for QKV:</strong> 'Token-Parallel Orchestration' (65.63 GFLOPS)</p>
+                </div>
+                <aside class="notes">
+                  <p>Here are the final numbers. For the MLP layer, we went from over 225 seconds down to just 36 seconds. For the QKV layer, from 158 seconds down to 25.</p>
+                  <p>The GFLOPS numbers, around 60-65, are quite good for a C-based CPU implementation and show that with careful optimization, CPUs can be a viable platform for AI inference.</p>
+                </aside>
+            </section>
+
+<!-- Vision Slide -->
+<section>
+    <h2>The Bigger Vision: CPU-Native AI Runtime</h2>
+    <h3>Where GEMM Optimization Fits in the Journey</h3>
+    <div class="r-stack" style="font-size: 16px;">
+        <p class="fragment">This GEMM work is the <strong>foundation</strong> of a comprehensive CPU-optimized LLM runtime built from first principles.</p>
+        
+        <div class="fragment" style="display: flex; justify-content: space-around; margin-top: 50px;">
+            <div style="width: 30%; text-align: center;">
+                <div style="background: rgba(76, 175, 80, 0.2); padding: 20px; border-radius: 10px; border: 2px solid #4CAF50;">
+                    <h4 style="color: #4CAF50;">✅ Phase 1: GEMM</h4>
+                    <p style="font-size: 0.8em;">Matrix multiplication kernels<br/>6x speedup achieved<br/>Token-parallel orchestration</p>
+                </div>
+            </div>
+            <div style="width: 30%; text-align: center;">
+                <div style="background: rgba(255, 193, 7, 0.2); padding: 20px; border-radius: 10px; border: 2px solid #FFC107;">
+                    <h4 style="color: #FFC107;">🔄 Phase 2: Full Forward Pass</h4>
+                    <p style="font-size: 0.8em;">LayerNorm, Attention, Softmax<br/>RoPE, GELU activation<br/>End-to-end inference pipeline</p>
+                </div>
+            </div>
+            <div style="width: 30%; text-align: center;">
+                <div style="background: rgba(33, 150, 243, 0.2); padding: 20px; border-radius: 10px; border: 2px solid #2196F3;">
+                    <h4 style="color: #2196F3;">🎯 Phase 3: Training</h4>
+                    <p style="font-size: 0.8em;">Backward pass gradients<br/>Optimizer implementations<br/>Full training pipeline</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="fragment" style="margin-top: 50px;">
+            <h4>Integration Goals:</h4>
+            <ul style="font-size: 0.9em;">
+                <li><strong>Transformer Architecture:</strong> Complete forward/backward pass with optimized kernels</li>
+                <li><strong>Memory Management:</strong> Single 64-byte aligned arena with bump allocation</li>
+                <li><strong>Educational Content:</strong> YouTube series documenting the entire journey</li>
+                <li><strong>Performance Target:</strong> Competitive with GPU inference on commodity hardware</li>
+            </ul>
+        </div>
+
+        <div class="fragment" style="margin-top: 30px; padding: 0px; background: rgba(0, 255, 136, 0.1); border-radius: 10px;">
+            <p style="color: #00ff88; font-size: 1.1em;"><strong>🚀 Ultimate Vision:</strong> Democratize AI by making high-performance inference accessible on any CPU, without specialized hardware dependencies.</p>
+        </div>
+    </div>
+    <aside class="notes">
+      <p>This work on GEMM isn't just an isolated optimization. It's the critical foundation for the entire CPU-native AI runtime. Phase one was about getting this engine right. Now that we have a 6x speedup, we can confidently move to Phase two: building the full forward pass, including LayerNorm, Attention, and activation functions. The ultimate goal is a complete training pipeline, all running efficiently on commodity CPUs.</p>
+    </aside>
+</section>
+
+<!-- Token-Parallel Deep Dive -->
+<section>
+    <h2>Token-Parallel Orchestration: The Key Innovation</h2>
+    <h3>How 188 Cores Work in Perfect Harmony</h3>
+    
+    <svg width="100%" height="600" viewBox="0 0 1200 600" style="margin-top: 0px; transform: scale(1.2);">
+        <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#00ff88"/>
+            </marker>
+        </defs>
+        
+        <!-- Input Matrix Visualization -->
+        <g transform="translate(50, 50)">
+            <text x="150" y="20" text-anchor="middle" fill="#4ecdc4" font-size="16" font-weight="bold">Input Matrix (4096 tokens × 8192 dims)</text>
+            
+            <!-- Large matrix representation -->
+            <rect x="0" y="30" width="300" height="200" fill="#1a1a2e" stroke="#4ecdc4" stroke-width="2"/>
+            
+            <!-- Token slices -->
+            <rect x="0" y="30" width="300" height="20" fill="#4ecdc4" opacity="0.7"/>
+            <text x="5" y="45" fill="#ffff" font-size="10">Tokens 0-21 (Core 0)</text>
+            <rect x="0" y="60" width="300" height="20" fill="#ff6b6b" opacity="0.7"/>
+            <text x="5" y="75" fill="#ffff" font-size="10">Tokens 22-43 (Core 1)</text>
+
+            <rect x="0" y="90" width="300" height="20" fill="#ffe66d" opacity="0.7"/>
+            <text x="5" y="105" fill="#ffff" font-size="10">Tokens 44-65 (Core 2)</text>
+
+            <text x="150" y="120" text-anchor="middle" fill="#ffffff" font-size="12">...</text>
+            
+            <rect x="0" y="210" width="300" height="20" fill="#9b59b6" opacity="0.7"/>
+            <text x="5" y="220" fill="#ffffff" font-size="10">Tokens 4074-4095 (Core 187)</text>
+            
+            <text x="150" y="250" text-anchor="middle" fill="#4ecdc4" font-size="12">~22 tokens per core</text>
+        </g>
+        
+        <!-- Arrow to cores -->
+        <path d="M380 175 L450 175" stroke="#00ff88" stroke-width="3" marker-end="url(#arrow)"/>
+        <text x="415" y="210" text-anchor="middle" fill="#00ff88" font-size="12">Distribute</text>
+        
+        <!-- Core Processing Visualization -->
+        <g transform="translate(480, 50)">
+            <text x="200" y="20" text-anchor="middle" fill="#00ff88" font-size="16" font-weight="bold">188 Cores Processing in Parallel</text>
+            
+            <!-- Core 0 -->
+            <g transform="translate(0, 40)">
+                <rect x="0" y="0" width="120" height="60" fill="#1a2e1a" stroke="#4ecdc4" stroke-width="2" rx="5"/>
+                <text x="60" y="15" text-anchor="middle" fill="#4ecdc4" font-size="12" font-weight="bold">Core 0</text>
+                <text x="60" y="30" text-anchor="middle" fill="#ffffff" font-size="10">22 tokens</text>
+                <text x="60" y="45" text-anchor="middle" fill="#ffffff" font-size="10">gemm_blocked_serial</text>
+                <text x="60" y="55" text-anchor="middle" fill="#ffffff" font-size="9">Private L1/L2 cache</text>
+            </g>
+            
+            <!-- Core 1 -->
+            <g transform="translate(140, 40)">
+                <rect x="0" y="0" width="120" height="60" fill="#2e1a1a" stroke="#ff6b6b" stroke-width="2" rx="5"/>
+                <text x="60" y="15" text-anchor="middle" fill="#ff6b6b" font-size="12" font-weight="bold">Core 1</text>
+                <text x="60" y="30" text-anchor="middle" fill="#ffffff" font-size="10">22 tokens</text>
+                <text x="60" y="45" text-anchor="middle" fill="#ffffff" font-size="10">gemm_blocked_serial</text>
+                <text x="60" y="55" text-anchor="middle" fill="#ffffff" font-size="9">Private L1/L2 cache</text>
+            </g>
+            
+            <!-- Core 2 -->
+            <g transform="translate(280, 40)">
+                <rect x="0" y="0" width="120" height="60" fill="#2e2e1a" stroke="#ffe66d" stroke-width="2" rx="5"/>
+                <text x="60" y="15" text-anchor="middle" fill="#ffe66d" font-size="12" font-weight="bold">Core 2</text>
+                <text x="60" y="30" text-anchor="middle" fill="#ffffff" font-size="10">22 tokens</text>
+                <text x="60" y="45" text-anchor="middle" fill="#ffffff" font-size="10">gemm_blocked_serial</text>
+                <text x="60" y="55" text-anchor="middle" fill="#ffffff" font-size="9">Private L1/L2 cache</text>
+            </g>
+            
+            <!-- Dots -->
+            <text x="200" y="140" text-anchor="middle" fill="#ffffff" font-size="16">...</text>
+            
+            <!-- Core 187 -->
+            <g transform="translate(140, 160)">
+                <rect x="0" y="0" width="120" height="60" fill="#1a1a2e" stroke="#9b59b6" stroke-width="2" rx="5"/>
+                <text x="60" y="15" text-anchor="middle" fill="#9b59b6" font-size="12" font-weight="bold">Core 187</text>
+                <text x="60" y="30" text-anchor="middle" fill="#ffffff" font-size="10">22 tokens</text>
+                <text x="60" y="45" text-anchor="middle" fill="#ffffff" font-size="10">gemm_blocked_serial</text>
+                <text x="60" y="55" text-anchor="middle" fill="#ffffff" font-size="9">Private L1/L2 cache</text>
+            </g>
+        </g>
+        
+        <!-- Arrow to output -->
+        <path d="M780 175 L850 175" stroke="#00ff88" stroke-width="3" marker-end="url(#arrow)"/>
+        <text x="815" y="210" text-anchor="middle" fill="#00ff88" font-size="12">Combine</text>
+        
+        <!-- Output Matrix -->
+        <g transform="translate(900, 50)">
+            <text x="150" y="20" text-anchor="middle" fill="#9b59b6" font-size="16" font-weight="bold">Output Matrix (4096 × 32768)</text>
+            
+            <rect x="0" y="30" width="300" height="200" fill="#1a1a2e" stroke="#9b59b6" stroke-width="2"/>
+            
+            <!-- Output slices matching input -->
+            <rect x="0" y="30" width="300" height="10" fill="#4ecdc4" opacity="0.7"/>
+            <rect x="0" y="45" width="300" height="10" fill="#ff6b6b" opacity="0.7"/>
+            <rect x="0" y="60" width="300" height="10" fill="#ffe66d" opacity="0.7"/>
+            <text x="150" y="90" text-anchor="middle" fill="#ffffff" font-size="12">...</text>
+            <rect x="0" y="210" width="300" height="10" fill="#9b59b6" opacity="0.7"/>
+            
+            <text x="150" y="250" text-anchor="middle" fill="#9b59b6" font-size="12">Perfect parallel assembly</text>
+        </g>
+        
+        <!-- Key advantages -->
+        <g transform="translate(50, 350)">
+            <text x="550" y="20" text-anchor="middle" fill="#00ff88" font-size="18" font-weight="bold">Key Advantages of Token-Parallel Orchestration</text>
+            
+            <g transform="translate(0, 40)">
+                <rect x="0" y="0" width="350" height="140" fill="#0d4f3c" stroke="#00ff88" stroke-width="2" rx="10"/>
+                <text x="175" y="25" text-anchor="middle" fill="#00ff88" font-size="14" font-weight="bold">🚀 Zero Contention</text>
+                <text x="175" y="50" text-anchor="middle" fill="#ffffff" font-size="12">Each core works on completely</text>
+                <text x="175" y="65" text-anchor="middle" fill="#ffffff" font-size="12">independent data slices</text>
+                <text x="175" y="85" text-anchor="middle" fill="#ffffff" font-size="12">No cache conflicts</text>
+                <text x="175" y="100" text-anchor="middle" fill="#ffffff" font-size="12">No memory synchronization</text>
+                <text x="175" y="120" text-anchor="middle" fill="#4ecdc4" font-size="12">Perfect scaling with core count</text>
+            </g>
+            
+            <g transform="translate(370, 40)">
+                <rect x="0" y="0" width="350" height="140" fill="#2e1a1a" stroke="#ff6b6b" stroke-width="2" rx="10"/>
+                <text x="175" y="25" text-anchor="middle" fill="#ff6b6b" font-size="14" font-weight="bold">🧠 Smart Memory Access</text>
+                <text x="175" y="50" text-anchor="middle" fill="#ffffff" font-size="12">Each core's serial GEMM uses</text>
+                <text x="175" y="65" text-anchor="middle" fill="#ffffff" font-size="12">64×64 cache-friendly blocks</text>
+                <text x="175" y="85" text-anchor="middle" fill="#ffffff" font-size="12">AVX-512 vectorization</text>
+                <text x="175" y="100" text-anchor="middle" fill="#ffffff" font-size="12">Sequential memory patterns</text>
+                <text x="175" y="120" text-anchor="middle" fill="#ff6b6b" font-size="12">Optimal bandwidth utilization</text>
+            </g>
+            
+            <g transform="translate(740, 40)">
+                <rect x="0" y="0" width="350" height="140" fill="#1a1a2e" stroke="#ffe66d" stroke-width="2" rx="10"/>
+                <text x="175" y="25" text-anchor="middle" fill="#ffe66d" font-size="14" font-weight="bold">⚡ Enterprise Performance</text>
+                <text x="175" y="50" text-anchor="middle" fill="#ffffff" font-size="12">6.19x speedup on MLP layers</text>
+                <text x="175" y="65" text-anchor="middle" fill="#ffffff" font-size="12">6.29x speedup on QKV layers</text>
+                <text x="175" y="85" text-anchor="middle" fill="#ffffff" font-size="12">Consistent across workloads</text>
+                <text x="175" y="100" text-anchor="middle" fill="#ffffff" font-size="12">Validated on 457 GiB model</text>
+                <text x="175" y="120" text-anchor="middle" fill="#ffe66d" font-size="12">Production-ready scaling</text>
+            </g>
+        </g>
+    </svg>
+    <aside class="notes">
+      <p>This slide shows the key innovation that delivered the biggest performance gains. Instead of having all 188 cores fight over the same large matrix, which causes cache contention, we slice the input matrix by tokens. Each core gets its own independent slice—about 22 tokens in this case—and runs a highly efficient serial GEMM on its own data in its own private L1 and L2 cache. This creates zero contention and allows for perfect, linear scaling with the core count. This is the most important takeaway for anyone doing high-performance CPU computing.</p>
+    </aside>
+</section>
+
+<!-- Next Steps -->
+<section>
+    <h2>Next Steps: Building the Complete Runtime</h2>
+    <h3>From GEMM Foundation to Full AI Training Pipeline</h3>
+    <div class="r-stack" style="font-size: 18px;">
+        <div class="fragment" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
+            <div>
+                <h4 style="color: #ff6b6b;">🔥 Immediate Priorities (Q1 2025)</h4>
+                <div style="background: rgba(255, 107, 107, 0.1); padding: 20px; border-radius: 10px; text-align: left;">
+                    <ul style="font-size: 0.9em;">
+                        <li><strong>LayerNorm Optimization:</strong> Vectorized normalization with AVX-512</li>
+                        <li><strong>Softmax Implementation:</strong> Numerically stable, cache-efficient</li>
+                        <li><strong>Attention Mechanism:</strong> Complete Q×K^T×V pipeline</li>
+                        <li><strong>RoPE (Rotary Positional Encoding):</strong> Efficient rotation matrices</li>
+                        <li><strong>GELU/SwiGLU Activations:</strong> Fast approximation functions</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div>
+                <h4 style="color: #4ecdc4;">🚀 Medium Term (Q2-Q3 2025)</h4>
+                <div style="background: rgba(78, 205, 196, 0.1); padding: 20px; border-radius: 10px; text-align: left;">
+                    <ul style="font-size: 0.9em;">
+                        <li><strong>Complete Forward Pass:</strong> End-to-end transformer inference</li>
+                        <li><strong>Gradient Computation:</strong> Backward pass for all operations</li>
+                        <li><strong>Optimizer Kernels:</strong> Adam, AdamW with momentum</li>
+                        <li><strong>Mixed Precision:</strong> FP16/BF16 training acceleration</li>
+                        <li><strong>Memory Optimization:</strong> Gradient checkpointing, activation recompute</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="fragment" style="margin-top: 40px;">
+            <h4 style="color: #9b59b6;">🎯 Long Term Vision (2025-2026)</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(155, 89, 182, 0.1); padding: 15px; border-radius: 10px; text-align: center;">
+                    <h5 style="color: #9b59b6;">📚 Educational Content</h5>
+                    <p style="font-size: 0.8em;">YouTube series documenting every optimization step. Code walkthroughs, performance analysis, and architectural decisions.</p>
+                </div>
+                <div style="background: rgba(255, 193, 7, 0.1); padding: 15px; border-radius: 10px; text-align: center;">
+                    <h5 style="color: #FFC107;">🏗️ Full Training Pipeline</h5>
+                    <p style="font-size: 0.8em;">Complete LLM training from scratch. Distributed training across multiple CPUs. Model parallelism strategies.</p>
+                </div>
+                <div style="background: rgba(76, 175, 80, 0.1); padding: 15px; border-radius: 10px; text-align: center;">
+                    <h5 style="color: #4CAF50;">🌍 Open Source Release</h5>
+                    <p style="font-size: 0.8em;">Production-ready CPU runtime. Benchmarking suite. Documentation and community building.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <aside class="notes">
+      <p>So what's next? With our GEMM foundation solid, we'll move up the stack. The immediate priority is implementing the rest of the transformer layer components: optimized LayerNorm, Softmax, and positional encodings. In the medium term, we'll assemble the full forward pass for inference, then tackle the backward pass for training. The long-term vision is to open-source a production-ready CPU runtime and create a comprehensive YouTube series documenting the entire journey.</p>
+    </aside>
+</section>
+<section>
+        <div class="" style="margin-top: 40px; padding: 25px; background: rgba(0, 255, 136, 0.1); border-radius: 15px; border: 2px solid #00ff88;">
+            <h4 style="color: #00ff88; margin-bottom: 15px;">🚀 Success Metrics & Goals</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div style="text-align: left;">
+                    <p style="font-size: 0.95em;"><strong>Performance Targets:</strong></p>
+                    <ul style="font-size: 0.85em;">
+                        <li>10x+ speedup over naive implementations</li>
+                        <li>Competitive with GPU inference on similar FLOPS</li>
+                        <li>Efficient scaling to 7B+ parameter models</li>
+                        <li>Sub-second inference for practical applications</li>
+                    </ul>
+                </div>
+                <div style="text-align: left;">
+                    <p style="font-size: 0.95em;"><strong>Community Impact:</strong></p>
+                    <ul style="font-size: 0.85em;">
+                        <li>Democratize AI training on commodity hardware</li>
+                        <li>Educational resource for systems optimization</li>
+                        <li>Reference implementation for CPU-native AI</li>
+                        <li>Bridge between academic research and production</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <aside class="notes">
+      <p>The goal here is ambitious but clear. We're targeting a 10x or greater speedup over naive implementations, aiming for performance that's competitive with GPUs for inference on certain workloads. The larger impact is about democratizing AI. By creating an efficient CPU-native runtime, we can make high-performance training and inference accessible on commodity hardware, bridging the gap between academic research and real-world production systems.</p>
+    </aside>
+</section>
+
+            <!-- Conclusion -->
+            <section>
+                <h2>Conclusion</h2>
+                <div class="r-stack">
+                    <p>Optimizing GEMM is paramount for high-performance LLM runtimes.</p>
+                    <p class="fragment">By systematically developing and benchmarking diverse kernels, from basic parallel to advanced vectorized and blocked approaches, we can precisely identify and utilize the most efficient computational strategies for different parts of the model.</p>
+                    <p class="fragment">This iterative process of design, implementation, and rigorous benchmarking is key to unlocking the full potential of modern CPU architectures for AI.</p>
+                    <p class="fragment">Thank you!</p>
+                    <p class="fragment" style="font-size: 0.6em; margin-top: 50px;">
+                        <em>Note: The C code for the LLM runtime and benchmarks is a separate executable. It needs to be compiled with a C compiler (e.g., GCC) and run in a suitable environment (e.g., Linux terminal) to execute the performance tests. This presentation is for demonstration and visualization purposes.</em>
+                    </p>
+                </div>
+                <aside class="notes">
+                  <p>In conclusion, optimizing GEMM is critical for LLM performance. Through a systematic process of developing and benchmarking different kernels, we achieved a greater than 6x speedup.</p>
+                  <p>This project demonstrates that you can get significant performance from a general-purpose CPU by focusing on memory layout, vectorization, and intelligent parallelization strategies. If you found this video helpful, please give it a like and subscribe for more deep dives into high-performance computing and AI. Thank you.</p>
+                </aside>
+            </section>
+
+        </div>
+    </div>
+
+  <script src="../reveal.js/dist/reveal.js"></script>
+  <script src="../reveal.js/plugin/zoom/zoom.js"></script>
+  <script src="../reveal.js/plugin/notes/notes.js"></script>
+  <script src="../reveal.js/plugin/search/search.js"></script>
+  <script src="../reveal.js/plugin/markdown/markdown.js"></script>
+  <script src="../reveal.js/plugin/highlight/highlight.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/math/math.min.js"></script>
+  <script>
+        // Chart data
+        const mlpData = {
+            labels: ['Naive Parallel', 'Simple AVX-512', 'Fine-Grained Blocked', 'Token-Parallel Orchestration'],
+            datasets: [{
+                label: 'GFLOPS',
+                data: [9.73, 11.57, 47.09, 60.24],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(255, 205, 86, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(153, 102, 255, 0.7)'
+                ],
+                borderColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(255, 205, 86)',
+                    'rgb(75, 192, 192)',
+                    'rgb(153, 102, 255)'
+                ],
+                borderWidth: 1
+            }]
+        };
+
+        const qkvData = {
+            labels: ['Naive Parallel', 'Simple AVX-512', 'Fine-Grained Blocked', 'Token-Parallel Orchestration'],
+            datasets: [{
+                label: 'GFLOPS',
+                data: [10.43, 12.10, 47.14, 65.63],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(255, 205, 86, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(153, 102, 255, 0.7)'
+                ],
+                borderColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(255, 205, 86)',
+                    'rgb(75, 192, 192)',
+                    'rgb(153, 102, 255)'
+                ],
+                borderWidth: 1
+            }]
+        };
+
+        // Chart options with proper responsive settings
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.x.toFixed(2) + ' GFLOPS';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'GFLOPS',
+                        color: '#eee'
+                    },
+                    ticks: {
+                        color: '#eee'
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                },
+                y: {
+                    ticks: {
+                        color: '#eee',
+                        maxTicksLimit: 4
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                }
+            },
+            animation: {
+                duration: 1500,
+                easing: 'easeOutQuart',
+                delay: (context) => {
+                    let delay = 0;
+                    if (context.type === 'data' && context.mode === 'default') {
+                        delay = context.dataIndex * 150;
+                    }
+                    return delay;
+                }
+            }
+        };
+
+        // Initialize Reveal.js
+        document.addEventListener('DOMContentLoaded', function() {
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                center: true,
+                hash: true,
+                transition: 'slide',
+                plugins: [ RevealZoom, RevealHighlight, RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+            });
+
+            // Function to create charts
+            function createCharts() {
+                // Destroy existing charts
+                if (window.mlpChart) {
+                    window.mlpChart.destroy();
+                }
+                if (window.qkvChart) {
+                    window.qkvChart.destroy();
+                }
+
+                // Create new charts
+                const mlpCtx = document.getElementById('mlpGflopsChart');
+                const qkvCtx = document.getElementById('qkvGflopsChart');
+                
+                if (mlpCtx && qkvCtx) {
+                    window.mlpChart = new Chart(mlpCtx, {
+                        type: 'bar',
+                        data: mlpData,
+                        options: chartOptions
+                    });
+
+                    window.qkvChart = new Chart(qkvCtx, {
+                        type: 'bar',
+                        data: qkvData,
+                        options: chartOptions
+                    });
+
+                    // GSAP animations
+                    gsap.fromTo("#mlpGflopsChart", 
+                        { opacity: 0, scale: 0.8 }, 
+                        { opacity: 1, scale: 1, duration: 1, ease: "power2.out" }
+                    );
+
+                    gsap.fromTo("#qkvGflopsChart", 
+                        { opacity: 0, scale: 0.8 }, 
+                        { opacity: 1, scale: 1, duration: 1, ease: "power2.out", delay: 0.2 }
+                    );
+
+                    gsap.from(".analogy-mini-stage", {
+                        opacity: 1,
+                        x: -50,
+                        stagger: 0.1,
+                        duration: 0.8,
+                        ease: "power2.out"
+                    });
+                }
+            }
+
+            // Create charts on slide change
+            Reveal.on('slidechanged', event => {
+                if (event.currentSlide.querySelector('#mlpGflopsChart')) {
+                    setTimeout(createCharts, 100); // Small delay to ensure DOM is ready
+                }
+            });
+
+            // Create charts on ready if we're already on the chart slide
+            Reveal.on('ready', event => {
+                if (event.currentSlide.querySelector('#mlpGflopsChart')) {
+                    setTimeout(createCharts, 100);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

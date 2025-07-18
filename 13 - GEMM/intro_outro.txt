@@ -1,0 +1,35 @@
+  YouTube Intro Script (Revised)
+
+  (Visual: Start with the final, most impressive benchmark chart on screen, showing the 6x speedup)
+
+  "What if I told you we can make matrix multiplication run over six times faster on this massive 192-core CPU? We're going to take a calculation that takes 226 seconds and bring it all the way down to just 36. In
+  this video, I'm going to show you the exact C code and the four optimization strategies that got me there.
+
+  Now, before we dive in, a quick but important note on the hardware. While a 192-core Xeon Platinum sounds like a supercomputer, this is a shared cloud instance. It's likely running on Linux, inside Kubernetes,
+  serving a JupyterLab environment to potentially thousands of other users. So, the absolute GFLOPS numbers we'll see are going to be skewed. The real value here isn't about setting a world record, but about the
+  relative performance difference between our algorithms. That's the data we can trust, and that's what we're here to analyze.
+
+  This video continues our series on building a high-performance AI from first principles, using only C on a CPU. In the previous videos, we spent a lot of time carefully designing the optimal memory layout for
+  our transformer. We organized every single tensor for cache efficiency, which was the critical groundwork for what we're doing today.
+
+  Because today, we build the engine that will run on that memory layout. We are focusing entirely on GEMM—General Matrix Multiplication—which is the absolute heart of any transformer.
+
+  We'll start with a simple, naive parallel implementation and build on it step-by-step: first by adding AVX-512 vectorization, then introducing cache-blocking, and finally, implementing the token-parallel
+  strategy that unlocks that huge 6x speedup.
+
+  I'll walk you through the code for each kernel and the benchmark results that prove it works. So, if you're ready to see how to squeeze every last drop of performance out of a CPU, let's get started."
+
+
+Outro:
+
+"So today, we've conquered the computational core of our transformer: the GEMM kernels. We've seen how moving from a naive implementation to a cache-aware, token-parallel strategy gives us a massive 6x
+performance boost. This is the engine that will power our entire model.
+
+In the next video, we're building on top of everything we've established—the memory layout, the kernel choices—and moving up the stack. We will start designing and implementing all the components of a modern
+LLM, just like GPT-2: the attention mechanism, layer normalization, and the feed-forward blocks, all from scratch.
+
+I hope you're as excited as I am about this low-level HPC AI series and are getting true value from these videos. If you are, please subscribe, as it helps me immensely. And most importantly, this material is
+complex, so I encourage you to ask your questions in the comments below. There's no better way to learn than by asking.
+
+Until next time, take care."
+

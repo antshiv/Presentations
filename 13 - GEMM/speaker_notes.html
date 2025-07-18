@@ -1,0 +1,125 @@
+
+<!-- Speaker Notes for GEMM Presentation -->
+<!-- Copy these <aside> tags into the corresponding slides -->
+
+<!-- Slide 1: Title -->
+<aside class="notes">
+  <p>Welcome to today's presentation on CPU-optimized LLM runtime. I'm going to walk you through the GEMM kernels I've implemented in my C-Transformer project.</p>
+  <p>GEMM - General Matrix Multiply - is the core operation that runs underneath almost every AI computation. When you're doing inference with a language model, you're essentially running thousands of matrix multiplications. So if you can make GEMM faster, you make the entire AI system faster.</p>
+  <p>I've built four different GEMM implementations in C, each with different optimization strategies. We'll look at the actual code, see the performance numbers, and understand why some approaches work better than others.</p>
+  <p>The goal here is practical - this is real code running on real hardware, solving real performance bottlenecks. By the end, you'll understand how to think about optimizing matrix operations for modern CPUs.</p>
+</aside>
+
+<!-- Slide 2: What is GEMM? -->
+<aside class="notes">
+  <p>Let's start with the fundamentals. GEMM stands for General Matrix Multiply, and the mathematical operation is C = alpha * A * B + beta * C. In practice, we usually just care about C = A * B + bias.</p>
+  <p>Why do I call this the "atom" of AI? Because every single operation in a neural network - whether it's a linear layer, attention mechanism, or even convolutions - gets reduced to matrix multiplication. Your GPU is essentially a very fast matrix multiplication machine.</p>
+  <p>In my C-Transformer code, I have two main GEMM patterns. The MLP layers do a matrix multiplication where we take our input tokens and multiply them by weight matrices that are 4 times larger - this expands the representation. The attention layers do QKV projections where we multiply by a weight matrix that's 3 times the embedding dimension.</p>
+  <p>When you optimize GEMM, you're optimizing the foundation that everything else builds on. A 2x improvement in GEMM performance can translate to a 2x improvement in your entire model inference time.</p>
+</aside>
+
+<!-- Slide 3: DNA of AI -->
+<aside class="notes">
+  <p>Let me show you how this fundamental pattern shows up everywhere in AI. Every neural computation starts with y = wx + b - this simple linear transformation.</p>
+  <p>In feed-forward layers, we take our input x, multiply it by weights w, and add a bias b. The dimensions tell the story - if you have 512-dimensional input and want 2048-dimensional output, your weight matrix is 2048 by 512.</p>
+  <p>In attention, it's the same pattern but applied three times simultaneously. We take our input and multiply it by weight matrices to get Query, Key, and Value vectors. Then we do more matrix multiplications - Q times K-transpose gives us attention scores, and those scores times V gives us the output.</p>
+  <p>The key insight is that it's all matrix multiplication. Different shapes, different purposes, but the same fundamental operation. This is why when I built my C-Transformer, I focused on making one really good GEMM implementation rather than trying to optimize each operation separately.</p>
+  <p>Once you have fast matrix multiplication, everything else becomes fast.</p>
+</aside>
+
+<!-- Slide 4: Memory Layout -->
+<aside class="notes">
+  <p>Here's where theory meets practice. The math textbooks show A times B-transpose, but that transpose is expensive - you're jumping around in memory instead of reading sequentially.</p>
+  <p>In my C-Transformer implementation, I store the weight matrices pre-transposed. So instead of transposing at runtime, I store them in the layout I need. This is the difference between mathematical notation and actual implementation.</p>
+  <p>Look at the memory layout diagram. Matrix A - that's my input tokens - is stored row by row. Each row is one token's embedding. Matrix B - that's my weights - I store pre-transposed so each column becomes a row. This way, when I'm doing the dot product, I'm reading both matrices sequentially.</p>
+  <p>This is exactly what you see in my C code in the layout_transformer function. I calculate all the offsets ahead of time, align everything to 64-byte boundaries for cache efficiency, and store everything in one big contiguous block.</p>
+  <p>The mathematical view says A times B-transpose. The implementation view says smart storage means no transpose needed. If you find this kind of low-level optimization interesting, let me know in the comments. It helps me figure out what to cover in future videos.</p>
+</aside>
+
+<!-- Slide 5: Four Kernels -->
+<aside class="notes">
+  <p>I implemented four different GEMM kernels to understand the performance characteristics of different optimization strategies. Each one builds on the previous approach.</p>
+  <p>The Naive Parallel is exactly what you'd expect - three nested loops with OpenMP parallelization. It's simple, correct, and serves as our baseline. This is what you get when you directly translate the mathematical definition into code.</p>
+  <p>Simple AVX-512 introduces vectorization. Instead of processing one float at a time, we process 16 floats simultaneously using Intel's AVX-512 instructions. Same algorithm, but the inner loop is vectorized.</p>
+  <p>Fine-Grained Blocked breaks the matrices into smaller chunks and processes them in blocks. This improves cache locality - instead of working with the entire matrix, we work with 64x64 blocks that fit nicely in cache.</p>
+  <p>Token-Parallel Orchestration is different. Instead of parallelizing within the matrix multiplication, I distribute the input tokens across CPU cores. Each core gets a slice of tokens and does its own matrix multiplication independently.</p>
+  <p>You can see all four implementations in my main.c file. Each one targets a different bottleneck in the computation.</p>
+</aside>
+
+<!-- Slide 6: Naive vs Vectorized -->
+<aside class="notes">
+  <p>Let's look at the actual code differences. The naive implementation is straightforward - three nested loops doing scalar multiply-add operations. The outer loop is parallelized with OpenMP, but the inner computation is scalar.</p>
+  <p>The AVX-512 version looks similar but uses vector intrinsics. Instead of processing one element at a time, _mm512_loadu_ps loads 16 floats, _mm512_fmadd_ps does 16 multiply-adds simultaneously, and _mm512_reduce_add_ps sums them up.</p>
+  <p>The key insight is that modern CPUs have wide vector units. My Intel Xeon has 512-bit wide vector registers. If I'm only using 32 bits at a time, I'm leaving 15/16ths of my computational capability unused.</p>
+  <p>But vectorization isn't automatic. You need to structure your data access patterns so the CPU can load consecutive elements efficiently. This is why the memory layout from the previous slide matters - if your data isn't laid out properly, vectorization doesn't help.</p>
+  <p>In the benchmark results, you can see that AVX-512 gives us about 20% improvement. That's less than the theoretical 16x because we're still memory bound, not compute bound.</p>
+</aside>
+
+<!-- Slide 7: Blocking & Orchestration -->
+<aside class="notes">
+  <p>The Fine-Grained Blocked approach addresses cache locality. Instead of working with the entire matrix, we break it into 64x64 blocks. Why 64x64? Because that fits nicely in L1 cache.</p>
+  <p>The code structure changes - instead of three nested loops, we have six nested loops. The outer three iterate over blocks, the inner three iterate within blocks. OpenMP's collapse(3) parallelizes the block iterations.</p>
+  <p>But there's a challenge - when multiple threads are updating the same output element, you need atomic operations or careful synchronization. That's the #pragma omp atomic you see in the code.</p>
+  <p>Token-Parallel Orchestration takes a different approach. Instead of parallelizing within the matrix multiplication, I distribute the work across cores at a higher level. Each core gets a subset of input tokens and does its own matrix multiplication.</p>
+  <p>This is the key insight that led to the 6x performance improvement. Instead of having cores compete for the same data, each core works on its own data independently. Core 0 handles tokens 0-21, Core 1 handles tokens 22-43, and so on.</p>
+  <p>This approach avoids the atomic operations, reduces cache conflicts, and maximizes CPU utilization. It's the difference between having multiple workers fighting over the same tool versus giving each worker their own tool.</p>
+</aside>
+
+<!-- Slide 8: Pipe Analogy -->
+<aside class="notes">
+  <p>I like to think of GEMM optimization in terms of water flowing through pipes. The pipe represents your computational throughput, and the buckets represent your cache hierarchy.</p>
+  <p>Naive Parallel is like a narrow pipe with small, disorganized buckets. The water - your data - gets stuck and flows slowly. You're not using your CPU's full capability.</p>
+  <p>Simple AVX-512 is like making the pipe wider. Now you can push more water through at once, but the buckets are still disorganized. You get some improvement, but you're still not optimal.</p>
+  <p>Fine-Grained Blocked is like cleaning the pipe and organizing the buckets. Now the water flows smoothly because the data is where you need it when you need it. This is where cache blocking really pays off.</p>
+  <p>Token-Parallel Orchestration is like having multiple dedicated pipes and bucket systems. Each core gets its own pipeline, so there's no interference. This is why it gives the best performance.</p>
+  <p>The analogy helps explain why different optimization strategies work. It's not just about making the computation faster - it's about making the entire data flow efficient.</p>
+</aside>
+
+<!-- Slide 9: Combined Benchmark -->
+<aside class="notes">
+  <p>This slide shows the real performance data from my system. The analogy on the left corresponds to the actual benchmark results on the right.</p>
+  <p>Look at the MLP results - Token-Parallel Orchestration achieves 60.24 GFLOPS, which is 6.19x faster than the naive implementation. The QKV results are similar - 65.63 GFLOPS, or 6.29x speedup.</p>
+  <p>What's interesting is that Fine-Grained Blocked gives us most of the benefit - about 4.8x speedup. The Token-Parallel approach adds another 25% on top of that.</p>
+  <p>The key insight is that these optimizations are cumulative. You need the vectorization, the cache blocking, and the parallel orchestration working together. No single optimization gives you the full benefit.</p>
+  <p>Also notice that the absolute performance numbers are similar between MLP and QKV workloads. This suggests that we're hitting the memory bandwidth limit of the system, not the compute limit. This is typical for AI workloads on modern CPUs.</p>
+  <p>The charts animate to show how each optimization builds on the previous one. It's not just about the final number - it's about understanding the incremental improvements. If you're finding this breakdown useful, hitting that subscribe button really helps the channel out.</p>
+</aside>
+
+<!-- Slide 10: Environment Context -->
+<aside class="notes">
+  <p>It's important to understand the context of these benchmarks. I'm running on an Intel Xeon Platinum 8468V with 192 logical cores in a virtualized environment. This is likely a shared system, so the absolute performance numbers might vary depending on system load.</p>
+  <p>The CPU has all the modern features - AVX-512, AMX tiles, VNNI instructions. It's a high-end server processor with plenty of computational capability. The 457 GiB of memory means we're not constrained by memory capacity.</p>
+  <p>But here's the key point - what matters is not the absolute numbers, but the relative performance improvements. The 6x speedup from Token-Parallel Orchestration should hold across different systems, even if the absolute GFLOPS numbers are different.</p>
+  <p>This is why I focus on the optimization strategies rather than just the raw numbers. Understanding why Token-Parallel works better than Fine-Grained Blocked is more valuable than knowing the exact GFLOPS on this particular system.</p>
+  <p>The shared environment also explains why we see some variability in the results. But the consistent pattern across both MLP and QKV workloads gives me confidence in the conclusions.</p>
+</aside>
+
+<!-- Slide 11: Benchmarking Helps -->
+<aside class="notes">
+  <p>The benchmark framework is designed to answer practical questions. Given a specific LLM architecture and a specific CPU, which GEMM kernel should I use?</p>
+  <p>The process is systematic. I use the same input data for all kernels to ensure fair comparison. I validate accuracy by comparing against a golden reference - the naive implementation output. I measure both performance and correctness.</p>
+  <p>The benchmark tests realistic workloads - MLP layers with 4x expansion, attention layers with 3x QKV projections. These are the actual matrix shapes you see in transformer models.</p>
+  <p>Using the model's own memory layout is important. In production, your GEMM kernels will be operating on data that's laid out exactly this way. Testing with artificial data layouts might give misleading results.</p>
+  <p>The outcome is actionable recommendations. For this CPU architecture and these matrix shapes, use Token-Parallel Orchestration. For different architectures or different matrix shapes, the answer might be different.</p>
+  <p>This is why the benchmark framework is part of the C-Transformer project. It's not just about having fast kernels - it's about automatically selecting the right kernel for your specific use case.</p>
+</aside>
+
+<!-- Slide 12: Benchmark Results -->
+<aside class="notes">
+  <p>Here are the detailed results. The MLP GEMM is testing matrices of size 4096 x 32768 x 8192. That's about 2.2 billion floating-point operations per matrix multiplication.</p>
+  <p>The naive implementation takes 226 seconds to complete. That's our baseline. Simple AVX-512 reduces it to 190 seconds - about 19% improvement. Fine-Grained Blocked drops it to 47 seconds - almost 5x improvement. Token-Parallel Orchestration gets it down to 37 seconds - over 6x improvement.</p>
+  <p>The QKV results follow a similar pattern. The matrix is slightly smaller - 4096 x 24576 x 8192 - but the relative improvements are consistent.</p>
+  <p>What's interesting is the GFLOPS numbers. We're achieving 60-65 GFLOPS, which is respectable for a CPU implementation. For comparison, a high-end GPU might achieve 500-1000 GFLOPS, but CPUs are more accessible and don't require special hardware.</p>
+  <p>The key insight is that optimization matters more than raw hardware capability. A well-optimized CPU implementation can be competitive with poorly optimized GPU implementations, especially for smaller batch sizes.</p>
+  <p>These results validate the optimization strategies and give us confidence in the approach.</p>
+</aside>
+
+<!-- Slide 13: Conclusion -->
+<aside class="notes">
+  <p>The main takeaway is that GEMM optimization is both important and achievable. We went from 9.73 GFLOPS to 60.24 GFLOPS through systematic optimization.</p>
+  <p>The process was iterative - start with a correct baseline, add vectorization, add cache blocking, add parallel orchestration. Each step was measurable and each step built on the previous work.</p>
+  <p>The techniques are general - they apply to any matrix multiplication workload, not just AI. But AI workloads are particularly sensitive to GEMM performance because they do so much matrix multiplication.</p>
+  <p>The C-Transformer project demonstrates that you don't need specialized hardware to achieve good performance. With careful optimization, modern CPUs can deliver competitive results for many AI workloads.</p>
+  <p>This is especially important for edge computing and embedded applications where you can't rely on datacenter GPUs. Understanding how to optimize for CPUs opens up new deployment possibilities.</p>
+  <p>The code is available, the benchmarks are reproducible, and the techniques are transferable. That's the goal - practical knowledge that you can apply to your own projects. If you found this video useful, please give it a like and subscribe for more content on high-performance computing and AI. Thanks for watching.</p>
+</aside>
