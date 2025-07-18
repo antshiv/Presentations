@@ -1,0 +1,449 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>CPU-Optimized LLM Runtime: GEMM Kernels</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/black.min.css" id="theme">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/monokai.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+
+    <style>
+        /* Custom styles for better readability and aesthetics */
+        .reveal {
+            font-family: 'Inter', sans-serif;
+            font-size: 28px;
+        }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4, .reveal h5, .reveal h6 {
+            text-transform: none;
+            font-weight: 700;
+        }
+        .reveal section img {
+            margin: 15px 0px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 4px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+        }
+        .reveal .slides section .fragment {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s ease-in-out;
+        }
+        .reveal .slides section .fragment.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .reveal pre {
+            width: 90%;
+            margin: 20px auto;
+            font-size: 0.6em;
+            line-height: 1.2;
+        }
+        .reveal code {
+            font-family: 'Fira Code', monospace;
+        }
+        .reveal .r-stack {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 0.8em;
+        }
+        .reveal .r-stack p, .reveal .r-stack ul li, .reveal .r-stack ol li {
+            font-size: 1em;
+            line-height: 1.4;
+        }
+
+        /* Styles for the Combined Benchmark/Analogy Slide - FIXED */
+        .combined-benchmark-slide {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: stretch;
+            height: 100vh;
+            width: 100vw;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden; /* Prevent overflow */
+        }
+        
+        .analogy-column {
+            flex: 0 0 280px; /* Fixed width instead of percentage */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            height: 100%;
+            padding-right: 20px;
+            box-sizing: border-box;
+        }
+        
+        .analogy-mini-stage {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 250px;
+        }
+        
+        .analogy-mini-stage svg {
+            width: 100px;
+            height: 50px;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+        
+        .analogy-mini-stage p {
+            font-size: 0.5em;
+            text-align: center;
+            line-height: 1.2;
+            margin: 0;
+            word-wrap: break-word;
+        }
+        
+        .chart-column {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            min-width: 0; /* Allow flex item to shrink */
+            overflow: hidden;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 45%;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        
+        .chart-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+        }
+        
+        .chart-title {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+            color: #42affa;
+            text-align: center;
+        }
+
+        /* Pipe analogy SVG styles */
+        .pipe { fill: #555; }
+        .water { fill: #00BFFF; }
+        .bucket { fill: #777; stroke: #FFF; stroke-width: 2; }
+        .clog { fill: #FF4500; }
+        .arrow { fill: none; stroke: #00BFFF; stroke-width: 3; marker-end: url(#arrowhead); }
+        .small-pipe { fill: #444; }
+        .wide-pipe { fill: #777; }
+        .clean-pipe { fill: #999; }
+        .multiple-pipes .pipe { fill: #666; }
+        .multiple-pipes .bucket { fill: #888; }
+        .label-text { font-family: 'Inter', sans-serif; font-size: 10px; fill: #FFF; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <!-- Combined Benchmark and Analogy Slide -->
+            <section style="font-size:16px;">
+                <h2>Real-World Performance: Analogy Meets Data</h2>
+                <div class="combined-benchmark-slide">
+                    <div class="analogy-column">
+                        <div class="analogy-mini-stage">
+                            <svg width="100" height="50" viewBox="0 0 180 90">
+                                <defs>
+                                    <marker id="arrowhead1" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" />
+                                    </marker>
+                                </defs>
+                                <rect x="10" y="35" width="160" height="20" class="pipe small-pipe"/>
+                                <rect x="0" y="25" width="20" height="40" class="bucket"/>
+                                <rect x="160" y="25" width="20" height="40" class="bucket"/>
+                                <circle cx="90" cy="45" r="10" class="clog"/>
+                                <text x="90" y="50" text-anchor="middle" class="label-text">CLOG</text>
+                                <path d="M5 45 H175" class="arrow" marker-end="url(#arrowhead1)"/>
+                                <text x="90" y="15" text-anchor="middle" class="label-text">Naive</text>
+                            </svg>
+                            <p>Naive Parallel</p>
+                        </div>
+                        
+                        <div class="analogy-mini-stage">
+                            <svg width="100" height="50" viewBox="0 0 180 90">
+                                <defs>
+                                    <marker id="arrowhead2" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" />
+                                    </marker>
+                                </defs>
+                                <rect x="10" y="35" width="160" height="20" class="pipe wide-pipe"/>
+                                <rect x="0" y="25" width="20" height="40" class="bucket"/>
+                                <rect x="160" y="25" width="20" height="40" class="bucket"/>
+                                <circle cx="90" cy="45" r="8" class="clog" fill="#FFA07A"/>
+                                <text x="90" y="50" text-anchor="middle" class="label-text">LESS CLOG</text>
+                                <path d="M5 45 H175" class="arrow" marker-end="url(#arrowhead2)"/>
+                                <text x="90" y="15" text-anchor="middle" class="label-text">AVX-512</text>
+                            </svg>
+                            <p>Simple AVX-512</p>
+                        </div>
+                        
+                        <div class="analogy-mini-stage">
+                            <svg width="100" height="50" viewBox="0 0 180 90">
+                                <defs>
+                                    <marker id="arrowhead3" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" />
+                                    </marker>
+                                </defs>
+                                <rect x="10" y="35" width="160" height="20" class="pipe clean-pipe"/>
+                                <rect x="0" y="25" width="20" height="40" class="bucket"/>
+                                <rect x="160" y="25" width="20" height="40" class="bucket"/>
+                                <path d="M5 45 H175" class="arrow" marker-end="url(#arrowhead3)"/>
+                                <rect x="40" y="40" width="20" height="10" fill="#00BFFF" opacity="0.5"/>
+                                <rect x="70" y="40" width="20" height="10" fill="#00BFFF" opacity="0.5"/>
+                                <rect x="100" y="40" width="20" height="10" fill="#00BFFF" opacity="0.5"/>
+                                <text x="90" y="15" text-anchor="middle" class="label-text">Blocked</text>
+                            </svg>
+                            <p>Fine-Grained Blocked</p>
+                        </div>
+                        
+                        <div class="analogy-mini-stage">
+                            <svg width="100" height="50" viewBox="0 0 180 90" class="multiple-pipes">
+                                <defs>
+                                    <marker id="arrowhead4" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#00BFFF" />
+                                    </marker>
+                                </defs>
+                                <rect x="10" y="15" width="160" height="8" class="pipe"/>
+                                <rect x="0" y="10" width="10" height="18" class="bucket"/>
+                                <rect x="170" y="10" width="10" height="18" class="bucket"/>
+                                <path d="M5 19 H175" class="arrow" marker-end="url(#arrowhead4)"/>
+                                
+                                <rect x="10" y="35" width="160" height="8" class="pipe"/>
+                                <rect x="0" y="30" width="10" height="18" class="bucket"/>
+                                <rect x="170" y="30" width="10" height="18" class="bucket"/>
+                                <path d="M5 39 H175" class="arrow" marker-end="url(#arrowhead4)"/>
+                                
+                                <rect x="10" y="55" width="160" height="8" class="pipe"/>
+                                <rect x="0" y="50" width="10" height="18" class="bucket"/>
+                                <rect x="170" y="50" width="10" height="18" class="bucket"/>
+                                <path d="M5 59 H175" class="arrow" marker-end="url(#arrowhead4)"/>
+                                
+                                <text x="90" y="10" text-anchor="middle" class="label-text">Token-Parallel</text>
+                                <text x="90" y="80" text-anchor="middle" class="label-text">...</text>
+                            </svg>
+                            <p>Token-Parallel Orchestration</p>
+                        </div>
+                    </div>
+
+                    <div class="chart-column">
+                        <div class="chart-container">
+                            <h3 class="chart-title">MLP GEMM Performance (GFLOPS)</h3>
+                            <canvas id="mlpGflopsChart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h3 class="chart-title">QKV GEMM Performance (GFLOPS)</h3>
+                            <canvas id="qkvGflopsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/highlight/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/notes/notes.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/math/math.min.js"></script>
+    <script>
+        // Chart data
+        const mlpData = {
+            labels: ['Naive Parallel', 'Simple AVX-512', 'Fine-Grained Blocked', 'Token-Parallel Orchestration'],
+            datasets: [{
+                label: 'GFLOPS',
+                data: [9.73, 11.57, 47.09, 60.24],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(255, 205, 86, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(153, 102, 255, 0.7)'
+                ],
+                borderColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(255, 205, 86)',
+                    'rgb(75, 192, 192)',
+                    'rgb(153, 102, 255)'
+                ],
+                borderWidth: 1
+            }]
+        };
+
+        const qkvData = {
+            labels: ['Naive Parallel', 'Simple AVX-512', 'Fine-Grained Blocked', 'Token-Parallel Orchestration'],
+            datasets: [{
+                label: 'GFLOPS',
+                data: [10.43, 12.10, 47.14, 65.63],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(255, 205, 86, 0.7)',
+                    'rgba(75, 192, 192, 0.7)',
+                    'rgba(153, 102, 255, 0.7)'
+                ],
+                borderColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(255, 205, 86)',
+                    'rgb(75, 192, 192)',
+                    'rgb(153, 102, 255)'
+                ],
+                borderWidth: 1
+            }]
+        };
+
+        // Chart options with proper responsive settings
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.x.toFixed(2) + ' GFLOPS';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'GFLOPS',
+                        color: '#eee'
+                    },
+                    ticks: {
+                        color: '#eee'
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                },
+                y: {
+                    ticks: {
+                        color: '#eee',
+                        maxTicksLimit: 4
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                }
+            },
+            animation: {
+                duration: 1500,
+                easing: 'easeOutQuart',
+                delay: (context) => {
+                    let delay = 0;
+                    if (context.type === 'data' && context.mode === 'default') {
+                        delay = context.dataIndex * 150;
+                    }
+                    return delay;
+                }
+            }
+        };
+
+        // Initialize Reveal.js
+        document.addEventListener('DOMContentLoaded', function() {
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                center: true,
+                hash: true,
+                transition: 'slide',
+                plugins: [ RevealHighlight, RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+            });
+
+            // Function to create charts
+            function createCharts() {
+                // Destroy existing charts
+                if (window.mlpChart) {
+                    window.mlpChart.destroy();
+                }
+                if (window.qkvChart) {
+                    window.qkvChart.destroy();
+                }
+
+                // Create new charts
+                const mlpCtx = document.getElementById('mlpGflopsChart');
+                const qkvCtx = document.getElementById('qkvGflopsChart');
+                
+                if (mlpCtx && qkvCtx) {
+                    window.mlpChart = new Chart(mlpCtx, {
+                        type: 'bar',
+                        data: mlpData,
+                        options: chartOptions
+                    });
+
+                    window.qkvChart = new Chart(qkvCtx, {
+                        type: 'bar',
+                        data: qkvData,
+                        options: chartOptions
+                    });
+
+                    // GSAP animations
+                    gsap.fromTo("#mlpGflopsChart", 
+                        { opacity: 0, scale: 0.8 }, 
+                        { opacity: 1, scale: 1, duration: 1, ease: "power2.out" }
+                    );
+
+                    gsap.fromTo("#qkvGflopsChart", 
+                        { opacity: 0, scale: 0.8 }, 
+                        { opacity: 1, scale: 1, duration: 1, ease: "power2.out", delay: 0.2 }
+                    );
+
+                    gsap.from(".analogy-mini-stage", {
+                        opacity: 0,
+                        x: -50,
+                        stagger: 0.1,
+                        duration: 0.8,
+                        ease: "power2.out"
+                    });
+                }
+            }
+
+            // Create charts on slide change
+            Reveal.on('slidechanged', event => {
+                if (event.currentSlide.querySelector('#mlpGflopsChart')) {
+                    setTimeout(createCharts, 100); // Small delay to ensure DOM is ready
+                }
+            });
+
+            // Create charts on ready if we're already on the chart slide
+            Reveal.on('ready', event => {
+                if (event.currentSlide.querySelector('#mlpGflopsChart')) {
+                    setTimeout(createCharts, 100);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
