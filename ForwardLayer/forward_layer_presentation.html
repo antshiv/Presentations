@@ -1,0 +1,417 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Deep LLM Layer Architecture</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reset.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/black.min.css" id="theme">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/monokai.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/highlight/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/notes/notes.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/math/math.min.js"></script>
+
+    <style>
+        /* General Reveal.js styling */
+        .reveal {
+            font-family: 'Inter', sans-serif;
+            font-size: 30px;
+        }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4, .reveal h5, .reveal h6 {
+            text-transform: none;
+            font-weight: 700;
+        }
+        .reveal section img {
+            margin: 15px 0px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 4px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+        }
+        .reveal .slides section .fragment {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.8s ease-in-out;
+        }
+        .reveal .slides section .fragment.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .reveal p, .reveal ul, .reveal ol {
+            font-size: 0.8em;
+            line-height: 1.4;
+        }
+
+        /* SVG Specific Styles */
+        .llm-layer-svg {
+            width: 95%; /* Make it take up most of the width */
+            height: 95%; /* Make it take up most of the height */
+            margin: auto;
+            display: block;
+        }
+
+        /* Common Box Styles */
+        .llm-box {
+            fill: #333;
+            stroke: #666;
+            stroke-width: 1.5;
+            rx: 8;
+            ry: 8;
+        }
+        .llm-text {
+            fill: #FFF;
+            font-size: 11px;
+            text-anchor: middle;
+        }
+        .llm-dim-text {
+            fill: #AAA;
+            font-size: 9px;
+            text-anchor: middle;
+        }
+        .llm-label {
+            fill: #42affa;
+            font-size: 14px;
+            font-weight: bold;
+            text-anchor: middle;
+        }
+
+        /* Specific Component Colors */
+        .input-output-box { fill: #00BCD4; }
+        .layernorm-box { fill: #FFC107; }
+        .linear-box { fill: #E91E63; }
+        .attention-qk-box { fill: #FFEB3B; }
+        .attention-v-box { fill: #8BC34A; }
+        .softmax-box { fill: #9C27B0; }
+        .add-norm-box { fill: #4CAF50; }
+        .mlp-fc1-box { fill: #2196F3; }
+        .mlp-gelu-box { fill: #FF5722; }
+        .mlp-fc2-box { fill: #673AB7; }
+
+        /* Arrows */
+        .arrow-line {
+            stroke: #FFF;
+            stroke-width: 1.5;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+        .residual-line {
+            stroke: #FFD700; /* Gold color for residual connections */
+            stroke-width: 1.5;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+        .attention-line {
+            stroke: #FFC107;
+            stroke-width: 1;
+            fill: none;
+            marker-end: url(#arrowhead-small);
+        }
+
+        /* Definitions for arrow markers */
+        defs marker {
+            overflow: visible;
+        }
+        #arrowhead {
+            fill: #FFF;
+            stroke: none;
+        }
+        #arrowhead-small {
+            fill: #FFC107;
+            stroke: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Title Slide -->
+            <section>
+                <h1>Anatomy of an LLM Layer</h1>
+                <h2>Visualizing the Transformer Block</h2>
+                <p><small>Understanding the flow of data and computations</small></p>
+                <aside class="notes">
+                    <h3>Welcome and Introduction</h3>
+                    <ul>
+                        <li>Welcome everyone to this deep dive into the architecture of a single layer within a Large Language Model.</li>
+                        <li>Today, we'll peel back the layers of abstraction to understand how these powerful models actually process information at a fundamental level.</li>
+                    </ul>
+                </aside>
+            </section>
+
+            <!-- Overall Layer Diagram -->
+            <section>
+                <h2>Transformer Layer: From Input to Output</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 950 450">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" /></marker>
+                    </defs>
+                    <!-- Input -->
+                    <rect x="50" y="200" width="80" height="50" class="llm-box input-output-box"/>
+                    <text x="90" y="225" class="llm-text">Input</text>
+                    <text x="90" y="240" class="llm-dim-text">(N, D)</text>
+                    <path d="M130 225 H 180" class="arrow-line"/>
+                    <!-- LayerNorm 1 -->
+                    <rect x="180" y="200" width="80" height="50" class="llm-box layernorm-box"/>
+                    <text x="220" y="225" class="llm-text">LayerNorm</text>
+                    <path d="M260 225 H 310" class="arrow-line"/>
+                    <!-- MHA -->
+                    <rect x="310" y="200" width="100" height="50" class="llm-box attention-qk-box"/>
+                    <text x="360" y="225" class="llm-text">Multi-Head</text>
+                    <text x="360" y="240" class="llm-text">Attention</text>
+                    <path d="M410 225 H 460" class="arrow-line"/>
+                    <!-- Add & Norm 1 -->
+                    <rect x="460" y="200" width="80" height="50" class="llm-box add-norm-box"/>
+                    <text x="500" y="225" class="llm-text">Add & Norm</text>
+                    <path d="M220 250 V 280 H 480 V 250" class="residual-line"/>
+                    <path d="M540 225 H 590" class="arrow-line"/>
+                    <!-- MLP -->
+                    <rect x="590" y="200" width="100" height="50" class="llm-box mlp-fc1-box"/>
+                    <text x="640" y="225" class="llm-text">Feed-Forward</text>
+                    <text x="640" y="240" class="llm-text">(MLP)</text>
+                    <path d="M690 225 H 740" class="arrow-line"/>
+                    <!-- Add & Norm 2 -->
+                    <rect x="740" y="200" width="80" height="50" class="llm-box add-norm-box"/>
+                    <text x="780" y="225" class="llm-text">Add & Norm</text>
+                    <path d="M500 250 V 300 H 760 V 250" class="residual-line"/>
+                    <path d="M820 225 H 870" class="arrow-line"/>
+                    <!-- Output -->
+                    <rect x="870" y="200" width="80" height="50" class="llm-box input-output-box"/>
+                    <text x="910" y="225" class="llm-text">Output</text>
+                    <text x="910" y="240" class="llm-dim-text">(N, D)</text>
+                </svg>
+                <aside class="notes">
+                    This is the high-level view of a single Transformer layer. We start with an input, and it passes through two main blocks: Multi-Head Attention and a Feed-Forward Network. Notice the two "Add & Norm" steps - these are residual connections that are key to training very deep networks. Let's break down each of these components.
+                </aside>
+            </section>
+
+            <!-- LayerNorm -->
+            <section>
+                <h2>Component: Layer Normalization</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 800 400">
+                    <text x="400" y="50" class="llm-label">Layer Normalization</text>
+                    <text x="400" y="70" class="llm-dim-text">Normalizes features for each token independently</text>
+                    <!-- Input Vector -->
+                    <text x="150" y="120" class="llm-text">Input Token Embedding (x)</text>
+                    <rect x="100" y="130" width="100" height="150" class="llm-box input-output-box"/>
+                    <text x="150" y="150" class="llm-dim-text">x_1</text>
+                    <text x="150" y="180" class="llm-dim-text">x_2</text>
+                    <text x="150" y="210" class="llm-dim-text">...</text>
+                    <text x="150" y="240" class="llm-dim-text">x_D</text>
+                    <path d="M200 205 H 250" class="arrow-line"/>
+                    <!-- Operations -->
+                    <text x="325" y="160" class="llm-text">1. Compute Mean (μ)</text>
+                    <text x="325" y="180" class="llm-text">2. Compute Std Dev (σ)</text>
+                    <path d="M325 190 V 220" class="arrow-line"/>
+                    <text x="325" y="240" class="llm-text">3. Normalize:</text>
+                    <text x="325" y="260" class="llm-dim-text">(x - μ) / (σ + ε)</text>
+                    <path d="M325 270 V 300" class="arrow-line"/>
+                    <text x="325" y="320" class="llm-text">4. Scale & Shift:</text>
+                    <text x="325" y="340" class="llm-dim-text">γ * normalized(x) + β</text>
+                    <path d="M400 205 H 450" class="arrow-line"/>
+                    <!-- Output Vector -->
+                    <text x="500" y="120" class="llm-text">Normalized Output</text>
+                    <rect x="450" y="130" width="100" height="150" class="llm-box layernorm-box"/>
+                </svg>
+                 <aside class="notes">
+                    First up is Layer Normalization. Its job is to stabilize the network during training. For each token's embedding vector, it calculates the mean and standard deviation, then uses them to normalize the token. Finally, it applies a learned scale and shift. This happens independently for every single token in our sequence.
+                </aside>
+            </section>
+
+            <!-- QKV Projection -->
+            <section>
+                <h2>Attention Step 1: Q, K, V Projection</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 800 500">
+                    <text x="400" y="50" class="llm-label">QKV Projection</text>
+                    <text x="400" y="70" class="llm-dim-text">Projects input into three distinct spaces for attention calculation</text>
+                    <!-- Input -->
+                    <rect x="350" y="100" width="100" height="50" class="llm-box input-output-box"/>
+                    <text x="400" y="125" class="llm-text">LayerNorm Output</text>
+                    <text x="400" y="140" class="llm-dim-text">(N, D)</text>
+                    <!-- Arrows to weights -->
+                    <path d="M400 150 V 200" class="arrow-line"/>
+                    <path d="M400 150 L 200 200" class="arrow-line"/>
+                    <path d="M400 150 L 600 200" class="arrow-line"/>
+                    <!-- Weight Matrices -->
+                    <rect x="150" y="200" width="100" height="50" class="llm-box linear-box"/>
+                    <text x="200" y="225" class="llm-text">Weight W_Q</text>
+                    <text x="200" y="240" class="llm-dim-text">(D, D)</text>
+                    <rect x="350" y="200" width="100" height="50" class="llm-box linear-box"/>
+                    <text x="400" y="225" class="llm-text">Weight W_K</text>
+                    <text x="400" y="240" class="llm-dim-text">(D, D)</text>
+                    <rect x="550" y="200" width="100" height="50" class="llm-box linear-box"/>
+                    <text x="600" y="225" class="llm-text">Weight W_V</text>
+                    <text x="600" y="240" class="llm-dim-text">(D, D)</text>
+                    <!-- Arrows to outputs -->
+                    <path d="M200 250 V 300" class="arrow-line"/>
+                    <path d="M400 250 V 300" class="arrow-line"/>
+                    <path d="M600 250 V 300" class="arrow-line"/>
+                    <!-- Outputs -->
+                    <rect x="150" y="300" width="100" height="50" class="llm-box attention-qk-box"/>
+                    <text x="200" y="325" class="llm-text">Query (Q)</text>
+                    <text x="200" y="340" class="llm-dim-text">(N, D)</text>
+                    <rect x="350" y="300" width="100" height="50" class="llm-box attention-qk-box"/>
+                    <text x="400" y="325" class="llm-text">Key (K)</text>
+                    <text x="400" y="340" class="llm-dim-text">(N, D)</text>
+                    <rect x="550" y="300" width="100" height="50" class="llm-box attention-v-box"/>
+                    <text x="600" y="325" class="llm-text">Value (V)</text>
+                    <text x="600" y="340" class="llm-dim-text">(N, D)</text>
+                </svg>
+                <aside class="notes">
+                    The first step in attention is to project our input into three different matrices: Query, Key, and Value. This is done by multiplying the input from the LayerNorm step with three separate weight matrices: W_Q, W_K, and W_V. These are the GEMM operations we optimized in the last video. This projection allows the model to learn different representations of the input for different roles in the attention calculation.
+                </aside>
+            </section>
+
+            <!-- Scaled Dot-Product Attention -->
+            <section>
+                <h2>Attention Step 2: Scaled Dot-Product & Softmax</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 800 400">
+                    <text x="400" y="50" class="llm-label">Scaled Dot-Product Attention</text>
+                    <!-- Q -->
+                    <rect x="50" y="150" width="80" height="50" class="llm-box attention-qk-box"/>
+                    <text x="90" y="175" class="llm-text">Q</text>
+                    <text x="90" y="190" class="llm-dim-text">(N, D)</text>
+                    <path d="M130 175 H 180" class="arrow-line"/>
+                    <!-- K.T -->
+                    <rect x="180" y="100" width="50" height="80" class="llm-box attention-qk-box"/>
+                    <text x="205" y="140" class="llm-text">K.T</text>
+                    <text x="205" y="155" class="llm-dim-text">(D, N)</text>
+                    <text x="155" y="145" class="llm-text" font-size="24">×</text>
+                    <path d="M230 140 H 280" class="arrow-line"/>
+                    <!-- Scale -->
+                    <rect x="280" y="125" width="80" height="50" class="llm-box"/>
+                    <text x="320" y="150" class="llm-text">Scale by 1/√d_k</text>
+                    <path d="M360 150 H 410" class="arrow-line"/>
+                    <!-- Softmax -->
+                    <rect x="410" y="125" width="80" height="50" class="llm-box softmax-box"/>
+                    <text x="450" y="150" class="llm-text">Softmax</text>
+                    <path d="M490 150 H 540" class="arrow-line"/>
+                    <!-- Attention Weights -->
+                    <rect x="540" y="125" width="100" height="50" class="llm-box"/>
+                    <text x="590" y="150" class="llm-text">Attention Weights</text>
+                    <text x="590" y="165" class="llm-dim-text">(N, N)</text>
+                </svg>
+                <aside class="notes">
+                    Next, we calculate the attention scores. We multiply the Query matrix by the transpose of the Key matrix. This gives us a score for how much each token should attend to every other token. We then scale these scores by the square root of the head dimension to stabilize the gradients. Finally, a softmax function turns these scores into probabilities, which we call the attention weights.
+                </aside>
+            </section>
+
+            <!-- Weighted Sum -->
+            <section>
+                <h2>Attention Step 3: Weighted Sum</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 800 400">
+                    <text x="400" y="50" class="llm-label">Weighted Sum with Value</text>
+                    <!-- Attention Weights -->
+                    <rect x="150" y="150" width="100" height="50" class="llm-box"/>
+                    <text x="200" y="175" class="llm-text">Attention Weights</text>
+                    <text x="200" y="190" class="llm-dim-text">(N, N)</text>
+                    <path d="M250 175 H 300" class="arrow-line"/>
+                    <!-- Value -->
+                    <rect x="300" y="200" width="80" height="50" class="llm-box attention-v-box"/>
+                    <text x="340" y="225" class="llm-text">V</text>
+                    <text x="340" y="240" class="llm-dim-text">(N, D)</text>
+                    <text x="275" y="200" class="llm-text" font-size="24">×</text>
+                    <path d="M380 225 H 430" class="arrow-line"/>
+                    <!-- Output -->
+                    <rect x="430" y="200" width="100" height="50" class="llm-box input-output-box"/>
+                    <text x="480" y="225" class="llm-text">Head Output</text>
+                    <text x="480" y="240" class="llm-dim-text">(N, D)</text>
+                </svg>
+                <aside class="notes">
+                    The final step of the attention calculation is to multiply the attention weights we just computed by the Value matrix. This creates a weighted sum, where the embeddings of each token are combined based on the attention scores. The result is the output of a single attention head.
+                </aside>
+            </section>
+
+            <!-- Add & Norm -->
+            <section>
+                <h2>Component: Add & Norm</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 800 400">
+                    <text x="400" y="50" class="llm-label">Residual Connection (Add & Norm)</text>
+                    <!-- Input -->
+                    <rect x="150" y="100" width="100" height="50" class="llm-box input-output-box"/>
+                    <text x="200" y="125" class="llm-text">Input (X)</text>
+                    <path d="M250 125 H 300" class="arrow-line"/>
+                    <!-- Sub-layer -->
+                    <rect x="300" y="100" width="100" height="50" class="llm-box linear-box"/>
+                    <text x="350" y="125" class="llm-text">Sub-layer</text>
+                    <text x="350" y="140" class="llm-text">(e.g., MHA)</text>
+                    <path d="M400 125 H 450" class="arrow-line"/>
+                    <!-- Add -->
+                    <circle cx="475" cy="125" r="20" fill="#FF5722"/>
+                    <text x="475" y="130" class="llm-text" font-size="20">+</text>
+                    <path d="M200 150 V 200 H 475 V 145" class="residual-line"/>
+                    <path d="M495 125 H 545" class="arrow-line"/>
+                    <!-- LayerNorm -->
+                    <rect x="545" y="100" width="100" height="50" class="llm-box layernorm-box"/>
+                    <text x="595" y="125" class="llm-text">LayerNorm</text>
+                </svg>
+                <aside class="notes">
+                    After both the multi-head attention and the feed-forward network, we have an "Add & Norm" step. This is a residual, or skip, connection. We take the original input to the sub-layer and add it to the output of that sub-layer. This simple addition is incredibly powerful and helps prevent gradients from vanishing in deep networks. After the addition, we apply Layer Normalization again.
+                </aside>
+            </section>
+
+            <!-- MLP -->
+            <section>
+                <h2>Component: Feed-Forward Network (MLP)</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 800 400">
+                    <text x="400" y="50" class="llm-label">Position-wise Feed-Forward Network</text>
+                    <!-- Input -->
+                    <rect x="100" y="150" width="100" height="50" class="llm-box input-output-box"/>
+                    <text x="150" y="175" class="llm-text">Input</text>
+                    <text x="150" y="190" class="llm-dim-text">(N, D)</text>
+                    <path d="M200 175 H 250" class="arrow-line"/>
+                    <!-- FC1 -->
+                    <rect x="250" y="150" width="100" height="50" class="llm-box mlp-fc1-box"/>
+                    <text x="300" y="175" class="llm-text">Linear (FC1)</text>
+                    <text x="300" y="190" class="llm-dim-text">(D, 4*D)</text>
+                    <path d="M350 175 H 400" class="arrow-line"/>
+                    <!-- GELU -->
+                    <rect x="400" y="150" width="80" height="50" class="llm-box mlp-gelu-box"/>
+                    <text x="440" y="175" class="llm-text">GELU</text>
+                    <path d="M480 175 H 530" class="arrow-line"/>
+                    <!-- FC2 -->
+                    <rect x="530" y="150" width="100" height="50" class="llm-box mlp-fc2-box"/>
+                    <text x="580" y="175" class="llm-text">Linear (FC2)</text>
+                    <text x="580" y="190" class="llm-dim-text">(4*D, D)</text>
+                    <path d="M630 175 H 680" class="arrow-line"/>
+                    <!-- Output -->
+                    <rect x="680" y="150" width="100" height="50" class="llm-box input-output-box"/>
+                    <text x="730" y="175" class="llm-text">Output</text>
+                    <text x="730" y="190" class="llm-dim-text">(N, D)</text>
+                </svg>
+                <aside class="notes">
+                    The final major component is the Feed-Forward Network, or MLP. This is a simple two-layer neural network that is applied to each token position independently. It first projects the embedding dimension up to a larger, intermediate size (usually 4x), applies a non-linear activation function like GELU, and then projects it back down to the original embedding dimension. This is where the model does a lot of its feature learning.
+                </aside>
+            </section>
+
+            <!-- Conclusion -->
+            <section>
+                <h2>Conclusion</h2>
+                <p>By breaking down the Transformer layer, we can see it's a sequence of well-defined computational blocks. Optimizing each one, especially the GEMM-heavy parts like attention and MLP, is the key to building a high-performance LLM runtime.</p>
+                <aside class="notes">
+                    So, that's the anatomy of a transformer layer. By understanding each of these components, we can see how they all fit together. The key takeaway is that these complex architectures are built from simpler, fundamental operations, and optimizing those operations is the path to high performance.
+                </aside>
+            </section>
+
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                center: true,
+                hash: true,
+                transition: 'slide',
+                plugins: [ RevealHighlight, RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+            });
+        });
+    </script>
+</body>
+</html>

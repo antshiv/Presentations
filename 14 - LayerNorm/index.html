@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LayerNorm: From Math to Metal</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/monokai.css" id="highlight-theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --r-main-font-size: 26px;
+            --r-code-font: 'monospace';
+            --c-blue: #42a5f5;
+            --c-green: #66bb6a;
+            --c-orange: #ffa726;
+            --c-red: #ef5350;
+            --c-purple: #ab47bc;
+            --c-gray: #333a42;
+            --c-light-gray: #768399;
+        }
+        .reveal { font-family: var(--r-main-font); }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; }
+        .reveal pre code { max-height: 650px; font-size: 0.6em; }
+        .reveal section img.clean { border: none; box-shadow: none; }
+        .reveal .smaller { font-size: 0.8em; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .dim { color: var(--c-light-gray); }
+
+        /* SVG Styles */
+        .viz-svg { width: 100%; height: auto; }
+        .svg-text { font-family: var(--r-main-font); fill: white; text-anchor: middle; }
+        .svg-label { font-size: 18px; font-weight: bold; fill: var(--c-blue); }
+        .svg-desc { font-size: 14px; fill: #ccc; }
+        .svg-box { stroke-width: 2px; rx: 8; }
+        .svg-arrow { stroke: #eee; stroke-width: 2.5px; fill: none; marker-end: url(#arrowhead); }
+        .svg-bg-rect { fill: var(--c-gray); }
+        .svg-code-text { font-family: var(--r-code-font); font-size: 14px; fill: var(--c-orange); text-anchor: start; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>LayerNorm: From Math to Metal</h1>
+                <h3>Blending Theory with High-Performance C Implementation</h3>
+                <p class="smaller dim">An exploration of memory layout, vectorization, and parallelism for CPU-based Transformers.</p>
+            </section>
+
+            <section>
+                <h2>The Goal: A Holistic Understanding</h2>
+                <p>We want to bridge the gap between the <span class="highlight">mathematical formula</span> of LayerNorm and its <span class="highlight">high-performance implementation</span> in C.</p>
+                <ol>
+                    <li class="fragment">Understand the core math.</li>
+                    <li class="fragment">Visualize its effect on data distributions.</li>
+                    <li class="fragment">Identify performance bottlenecks in a naive implementation.</li>
+                    <li class="fragment">Apply HPC principles to create an optimized, production-ready kernel.</li>
+                </ol>
+            </section>
+
+            <section data-auto-animate>
+                <h2 style="margin-bottom: 50px;">Why Normalize? The Problem of Shifting Distributions</h2>
+                <p class="smaller">As a network trains, the output distribution of one layer is constantly changing, making it hard for the next layer to learn. This is called <span class="highlight">Internal Covariate Shift</span>.</p>
+                <div class="fragment" style="width: 80%; margin: auto;">
+                    <canvas id="distChart"></canvas>
+                </div>
+            </section>
+
+            <section data-auto-animate>
+                <h2>Why Normalize? The Problem of Shifting Distributions</h2>
+                <p class="smaller">LayerNorm combats this by forcing the inputs to each sub-component (Attention, MLP) into a <span class="highlight">standardized distribution</span> (mean=0, variance=1).</p>
+                <div style="width: 80%; margin: auto;">
+                    <canvas id="distChart-normalized"></canvas>
+                </div>
+                <p class="smaller fragment">This gives each sub-layer a stable, predictable input space, which dramatically improves training stability.</p>
+            </section>
+
+            <section>
+                <h2>Visualizing the Full Transformation</h2>
+                <p class="smaller">LayerNorm isn't just about forcing a Gaussian distribution. It's a four-step process that <span class="highlight">learns</span> the optimal distribution.</p>
+                <svg class="viz-svg" viewBox="0 0 1000 400">
+                    <defs>
+                        <marker id="arrowhead-viz" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#FFF"/></marker>
+                        <g id="data-cloud">
+                            <circle cx="0" cy="0" r="5" fill="#42a5f5" opacity="0.7"/> <circle cx="10" cy="15" r="5" fill="#42a5f5" opacity="0.7"/> <circle cx="-10" cy="-15" r="5" fill="#42a5f5" opacity="0.7"/> <circle cx="20" cy="-5" r="5" fill="#42a5f5" opacity="0.7"/> <circle cx="-15" cy="10" r="5" fill="#42a5f5" opacity="0.7"/> <circle cx="5" cy="-20" r="5" fill="#42a5f5" opacity="0.7"/> <circle cx="-25" cy="0" r="5" fill="#42a5f5" opacity="0.7"/>
+                        </g>
+                    </defs>
+
+                    <!-- Step 1: Original -->
+                    <g class="fragment" data-fragment-index="1">
+                        <rect x="50" y="50" width="150" height="300" fill="var(--c-gray)" rx="10"/>
+                        <text x="125" y="80" class="svg-text" font-weight="bold">1. Original Input</text>
+                        <use href="#data-cloud" x="125" y="200" transform="translate(20, 30) scale(1.5)"/>
+                        <line x1="125" y1="100" x2="125" y2="300" stroke="#fff" stroke-width="0.5"/>
+                        <line x1="75" y1="200" x2="175" y2="200" stroke="#fff" stroke-width="0.5"/>
+                    </g>
+                    <path d="M210 200 H 260" marker-end="url(#arrowhead-viz)" class="svg-arrow fragment" data-fragment-index="2"/>
+
+                    <!-- Step 2: Centered -->
+                    <g class="fragment" data-fragment-index="2">
+                        <rect x="270" y="50" width="150" height="300" fill="var(--c-gray)" rx="10"/>
+                        <text x="345" y="80" class="svg-text" font-weight="bold">2. Center (x - μ)</text>
+                        <use href="#data-cloud" x="125" y="200" transform="translate(220, 0) scale(1.5)"/>
+                        <line x1="345" y1="100" x2="345" y2="300" stroke="#fff" stroke-width="0.5"/>
+                        <line x1="295" y1="200" x2="395" y2="200" stroke="#fff" stroke-width="0.5"/>
+                    </g>
+                    <path d="M430 200 H 480" marker-end="url(#arrowhead-viz)" class="svg-arrow fragment" data-fragment-index="3"/>
+
+                    <!-- Step 3: Normalized -->
+                    <g class="fragment" data-fragment-index="3">
+                        <rect x="490" y="50" width="150" height="300" fill="var(--c-gray)" rx="10"/>
+                        <text x="565" y="80" class="svg-text" font-weight="bold">3. Normalize (/σ)</text>
+                        <use href="#data-cloud" x="125" y="200" transform="translate(440, 0) scale(0.8)"/>
+                        <circle cx="565" cy="200" r="40" fill="none" stroke-dasharray="4 4" stroke="var(--c-orange)"/>
+                        <line x1="565" y1="100" x2="565" y2="300" stroke="#fff" stroke-width="0.5"/>
+                        <line x1="515" y1="200" x2="615" y2="200" stroke="#fff" stroke-width="0.5"/>
+                    </g>
+                    <path d="M650 200 H 700" marker-end="url(#arrowhead-viz)" class="svg-arrow fragment" data-fragment-index="4"/>
+
+                    <!-- Step 4: Scale & Shift -->
+                    <g class="fragment" data-fragment-index="4">
+                        <rect x="710" y="50" width="200" height="300" fill="var(--c-gray)" rx="10"/>
+                        <text x="810" y="80" class="svg-text" font-weight="bold">4. Scale (γ) & Shift (β)</text>
+                        <use href="#data-cloud" x="125" y="200" transform="translate(685, -30) scale(1.2)"/>
+                        <text x="810" y="340" class="svg-text smaller highlight">Learned Distribution</text>
+                        <line x1="810" y1="100" x2="810" y2="300" stroke="#fff" stroke-width="0.5"/>
+                        <line x1="760" y1="200" x2="860" y2="200" stroke="#fff" stroke-width="0.5"/>
+                    </g>
+                </svg>
+            </section>
+
+            <section>
+                <h2>The Naive C Implementation</h2>
+                <p>A direct translation of the math. It works, but it's slow.</p>
+                <pre><code class="c" data-trim data-noescape>
+// Loop over each token in the batch
+for (int b = 0; b < B; b++) {
+    for (int t = 0; t < T; t++) {
+        float* x = inp + b * T * C + t * C;
+
+        // Pass 1: Calculate mean
+        float m = 0.0f;
+        for (int i = 0; i < C; i++) { m += x[i]; }
+        m = m/C;
+
+        // Pass 2: Calculate variance
+        float v = 0.0f;
+        for (int i = 0; i < C; i++) { v += (x[i] - m) * (x[i] - m); }
+        v = v/C;
+        float s = 1.0f / sqrtf(v + 1e-5f);
+
+        // Pass 3: Normalize, scale, and shift
+        for (int i = 0; i < C; i++) {
+            float n = s * (x[i] - m);
+            out[i] = n * weight[i] + bias[i];
+        }
+    }
+}
+                </code></pre>
+                <p class="fragment highlight">Problem: Three separate loops over the same data (C dimension). This is very cache-inefficient.</p>
+            </section>
+
+            <section>
+                <h2>HPC Pillar 1: A Coherent Memory Strategy</h2>
+                <p>Your <code class="dim">C-Transformer</code> uses a single, contiguous memory arena with a <span class="highlight">bump allocator</span>. This is the foundation for performance.</p>
+                <svg class="viz-svg" viewBox="0 0 800 400">
+                    <text x="400" y="40" class="svg-label">The Bump Allocator Arena</text>
+                    <text x="400" y="65" class="svg-desc">All model data lives in one huge, aligned memory block.</text>
+                    
+                    <rect x="50" y="100" width="700" height="100" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="8 4"/>
+                    <text x="400" y="90" class="svg-text" font-size="14">huge_alloc(gigabytes)</text>
+
+                    <!-- Allocations -->
+                    <g class="fragment" data-fragment-index="1">
+                        <rect x="50" y="100" width="150" height="100" fill="var(--c-blue)" opacity="0.5"/>
+                        <text x="125" y="155" class="svg-text">Token Embeds</text>
+                    </g>
+                    <g class="fragment" data-fragment-index="2">
+                        <rect x="200" y="100" width="120" height="100" fill="var(--c-purple)" opacity="0.5"/>
+                        <text x="260" y="155" class="svg-text">Pos Embeds</text>
+                    </g>
+                    <g class="fragment" data-fragment-index="3">
+                        <rect x="320" y="100" width="100" height="100" fill="var(--c-green)" opacity="0.5"/>
+                        <text x="370" y="155" class="svg-text">LN1 Weights</text>
+                    </g>
+                    <g class="fragment" data-fragment-index="4">
+                        <rect x="420" y="100" width="100" height="100" fill="var(--c-green)" opacity="0.5"/>
+                        <text x="470" y="155" class="svg-text">LN1 Biases</text>
+                    </g>
+                    <g class="fragment" data-fragment-index="5">
+                        <rect x="520" y="100" width="150" height="100" fill="var(--c-orange)" opacity="0.5"/>
+                        <text x="595" y="155" class="svg-text">LN1 Output Buffer</text>
+                    </g>
+                    <g class="fragment" data-fragment-index="6">
+                        <rect x="670" y="100" width="80" height="100" fill="#ccc" opacity="0.3"/>
+                        <text x="710" y="155" class="svg-text">...</text>
+                    </g>
+
+                    <!-- Bump Pointer -->
+                    <g class="fragment" data-fragment-index="1">
+                        <path d="M200 220 v 30" stroke="var(--c-red)" stroke-width="2"/>
+                        <path d="M200 250 l -10 -15 v 15 h 20 v -15 z" fill="var(--c-red)"/>
+                        <text x="200" y="280" class="svg-text" fill="var(--c-red)">Bump Ptr</text>
+                    </g>
+                    <g class="fragment" data-fragment-index="2">
+                         <path d="M320 220 v 30" stroke="var(--c-red)" stroke-width="2"/>
+                        <path d="M320 250 l -10 -15 v 15 h 20 v -15 z" fill="var(--c-red)"/>
+                    </g>
+                     <g class="fragment" data-fragment-index="3">
+                         <path d="M420 220 v 30" stroke="var(--c-red)" stroke-width="2"/>
+                        <path d="M420 250 l -10 -15 v 15 h 20 v -15 z" fill="var(--c-red)"/>
+                    </g>
+                    <g class="fragment" data-fragment-index="4">
+                         <path d="M520 220 v 30" stroke="var(--c-red)" stroke-width="2"/>
+                        <path d="M520 250 l -10 -15 v 15 h 20 v -15 z" fill="var(--c-red)"/>
+                    </g>
+                    <g class="fragment" data-fragment-index="5">
+                         <path d="M670 220 v 30" stroke="var(--c-red)" stroke-width="2"/>
+                        <path d="M670 250 l -10 -15 v 15 h 20 v -15 z" fill="var(--c-red)"/>
+                    </g>
+
+                    <text x="400" y="350" class="svg-desc fragment">Benefit: Zero fragmentation, perfect data locality, and cache-friendliness.</text>
+                </svg>
+            </section>
+
+            <section>
+                <h2>HPC Pillar 2: Vectorized Computation (SIMD)</h2>
+                <p>We replace scalar loops with <span class="highlight">AVX-512 intrinsics</span> to process 16 floats in a single instruction.</p>
+                <svg class="viz-svg" viewBox="0 0 800 450">
+                    <text x="400" y="40" class="svg-label">Scalar vs. Vector (SIMD) Processing</text>
+                    
+                    <!-- Scalar -->
+                    <text x="200" y="80" class="svg-text">Scalar (Naive Loop)</text>
+                    <rect x="50" y="100" width="300" height="50" class="svg-box" stroke="var(--c-light-gray)"/>
+                    <text x="200" y="130" class="svg-text">for (int i=0; i<C; i++)</text>
+                    <path d="M200 150 V 200" class="svg-arrow"/>
+                    <rect x="125" y="200" width="150" height="100" class="svg-box" fill="var(--c-gray)" stroke="var(--c-red)"/>
+                    <text x="200" y="240" class="svg-text">CPU Core</text>
+                    <text x="200" y="270" class="svg-text smaller">1 float / clock</text>
+
+                    <!-- Vector -->
+                    <text x="600" y="80" class="svg-text">Vector (AVX-512)</text>
+                    <rect x="450" y="100" width="300" height="50" class="svg-box" stroke="var(--c-light-gray)"/>
+                    <text x="600" y="130" class="svg-text">__m512 sum = _mm512_add_ps(...)</text>
+                    <path d="M600 150 V 200" class="svg-arrow"/>
+                    <rect x="525" y="200" width="150" height="100" class="svg-box" fill="var(--c-gray)" stroke="var(--c-green)"/>
+                    <text x="600" y="240" class="svg-text">CPU Core</text>
+                    <text x="600" y="270" class="svg-text smaller">16 floats / clock</text>
+                    
+                    <!-- Input Data -->
+                    <g>
+                        <text x="400" y="350" class="svg-desc">Input Token Vector (C dimensions)</text>
+                        <rect x="50" y="360" width="700" height="40" fill="var(--c-blue)" opacity="0.6"/>
+                        <rect x="50" y="360" width="22" height="40" fill="var(--c-green)" class="fragment" data-fragment-index="1"/>
+                        <rect x="450" y="360" width="300" height="40" fill="var(--c-green)" class="fragment" data-fragment-index="2"/>
+                        <text x="150" y="385" class="svg-text smaller dim">float, float, float, ...</text>
+                    </g>
+                </svg>
+            </section>
+
+            <section>
+                <h2>HPC Pillar 3: Token-Level Parallelism</h2>
+                <p>We use <span class="highlight">OpenMP</span> to split the tokens in the context window across all available CPU cores.</p>
+                <svg class="viz-svg" viewBox="0 0 800 450">
+                    <text x="400" y="40" class="svg-label">Distributing Work Across Cores</text>
+                    <text x="400" y="65" class="svg-desc">#pragma omp parallel for</text>
+
+                    <text x="150" y="100" class="svg-text smaller">Input Tokens (T x C)</text>
+                    <rect x="50" y="110" width="200" height="300" fill="var(--c-blue)" opacity="0.4"/>
+
+                    <!-- Arrows -->
+                    <path d="M260 150 H 360" class="svg-arrow"/>
+                    <path d="M260 260 H 360" class="svg-arrow"/>
+                    <path d="M260 370 H 360" class="svg-arrow"/>
+
+                    <!-- Cores -->
+                    <g class="fragment">
+                        <rect x="370" y="120" width="300" height="60" class="svg-box" stroke="var(--c-green)"/>
+                        <text x="520" y="155" class="svg-text">Core 0: Tokens 0-255</text>
+                        <text x="305" y="155" class="svg-text smaller dim">Slice 0</text>
+                    </g>
+                    <g class="fragment">
+                        <rect x="370" y="230" width="300" height="60" class="svg-box" stroke="var(--c-green)"/>
+                        <text x="520" y="265" class="svg-text">Core 1: Tokens 256-511</text>
+                        <text x="305" y="265" class="svg-text smaller dim">Slice 1</text>
+                    </g>
+                    <g class="fragment">
+                        <rect x="370" y="340" width="300" height="60" class="svg-box" stroke="var(--c-green)"/>
+                        <text x="520" y="375" class="svg-text">Core N: Tokens ...</text>
+                        <text x="305" y="375" class="svg-text smaller dim">Slice N</text>
+                    </g>
+                </svg>
+            </section>
+
+            <section>
+                <h2>The Result: An Optimized C Kernel</h2>
+                <p>Combining all three pillars into a single, efficient function.</p>
+                <pre><code class="c" data-trim data-noescape>
+// Pillar 3: Parallelism across tokens
+void layernorm_token_parallel(TransformerModel *M, ...) {
+    #pragma omp parallel num_threads(M->num_cores)
+    {
+        int core_id = omp_get_thread_num();
+        // ... calculate token slice for this core ...
+
+        if (num_tokens > 0) {
+            // Pillar 1: Pointers into the single memory arena
+            const float *input = M->memory_base + ...;
+            const float *gamma = M->memory_base + ...;
+            // ...
+            
+            // Call the vectorized kernel
+            layernorm_forward_unrolled(input, gamma, beta, output, ...);
+        }
+    }
+}
+
+// Inside layernorm_forward_unrolled...
+void layernorm_forward_unrolled(...) {
+    // Pillar 2: Vectorization with AVX-512
+    // Pass 1: Compute mean (fused into one loop)
+    __m512 acc0 = _mm512_setzero_ps();
+    // ...
+    // Pass 2: Compute variance (fused into one loop)
+    // ...
+    // Pass 3: Normalize, scale, shift (fused into one loop)
+    // ...
+}
+                </code></pre>
+            </section>
+
+            <section>
+                <h2>Conclusion: The Synergy of HPC Techniques</h2>
+                <ul>
+                    <li class="fragment"><b class="highlight">Coherent Memory Layout</b> is the foundation. It ensures data is local and avoids fragmentation, making all other optimizations more effective.</li>
+                    <li class="fragment"><b class="highlight">Vectorization (SIMD)</b> is the workhorse. It dramatically increases computational throughput by exploiting data-level parallelism within each token.</li>
+                    <li class="fragment"><b class="highlight">Thread Parallelism</b> is the scaler. It distributes the workload across the entire CPU, ensuring maximum hardware utilization.</li>
+                </ul>
+                <p class="fragment">By blending these three pillars, we transform a simple mathematical concept into a highly-performant piece of production code.</p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/highlight.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/notes/notes.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            transition: 'slide',
+            plugins: [ RevealHighlight, RevealNotes ]
+        });
+
+        // Chart.js visualization
+        function createDistributionChart(canvasId, normalized = false) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            // Generate skewed data
+            let rawData = Array.from({length: 1000}, () => Math.pow(Math.random(), 2) * 10 + 5);
+            let labels = Array.from({length: 20}, (_, i) => i.toFixed(1));
+            let bins = new Array(20).fill(0);
+
+            if (normalized) {
+                const mean = rawData.reduce((a, b) => a + b, 0) / rawData.length;
+                const stdDev = Math.sqrt(rawData.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b, 0) / rawData.length);
+                rawData = rawData.map(x => (x - mean) / stdDev);
+                labels = Array.from({length: 20}, (_, i) => ((i - 10) * 0.5).toFixed(1));
+                bins = new Array(20).fill(0);
+                rawData.forEach(val => {
+                    let binIndex = Math.floor((val + 5) * 2);
+                    if (binIndex >= 0 && binIndex < 20) bins[binIndex]++;
+                });
+            } else {
+                 rawData.forEach(val => {
+                    let binIndex = Math.floor(val);
+                    if (binIndex >= 0 && binIndex < 20) bins[binIndex]++;
+                });
+            }
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: normalized ? 'After LayerNorm (μ=0, σ=1)' : 'Original Layer Input',
+                        data: bins,
+                        backgroundColor: normalized ? 'rgba(102, 187, 106, 0.6)' : 'rgba(66, 165, 245, 0.6)',
+                        borderColor: normalized ? 'rgba(102, 187, 106, 1)' : 'rgba(66, 165, 245, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    animation: {
+                        duration: 1000,
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Frequency' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Activation Value' }
+                        }
+                    }
+                }
+            });
+        }
+
+        Reveal.on('slidechanged', event => {
+            if (event.currentSlide.querySelector('#distChart')) {
+                createDistributionChart('distChart', false);
+            }
+            if (event.currentSlide.querySelector('#distChart-normalized')) {
+                createDistributionChart('distChart-normalized', true);
+            }
+        });
+
+         // Initial chart creation for the first slide
+        if (Reveal.getCurrentSlide().querySelector('#distChart')) {
+            createDistributionChart('distChart', false);
+        }
+
+    </script>
+</body>
+</html>

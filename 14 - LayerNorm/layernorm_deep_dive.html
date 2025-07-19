@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LayerNorm Deep Dive: Math, Memory & Mechanics</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/monokai.css" id="highlight-theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --r-main-font-size: 26px;
+            --r-code-font: 'monospace';
+            --c-blue: #42a5f5;
+            --c-green: #66bb6a;
+            --c-orange: #ffa726;
+            --c-red: #ef5350;
+            --c-purple: #ab47bc;
+            --c-gray: #333a42;
+            --c-light-gray: #768399;
+        }
+        .reveal { font-family: var(--r-main-font); }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; }
+        .reveal pre code { max-height: 650px; font-size: 0.6em; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .dim { color: var(--c-light-gray); }
+        .viz-svg { width: 100%; height: auto; margin-top: 20px; }
+        .svg-text { font-family: var(--r-main-font); fill: white; text-anchor: middle; }
+        .svg-label { font-size: 18px; font-weight: bold; fill: var(--c-blue); }
+        .svg-desc { font-size: 14px; fill: #ccc; }
+        .svg-box { stroke-width: 2px; rx: 8; }
+        .svg-arrow { stroke: #eee; stroke-width: 2.5px; fill: none; marker-end: url(#arrowhead); }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>LayerNorm Deep Dive</h1>
+                <h3>Math, Memory, and Mechanics in a Transformer</h3>
+                <p class="dim smaller">A detailed look at why and how LayerNorm is critical for performance and stability.</p>
+            </section>
+
+            <section>
+                <h2>The Core Problem: Internal Covariate Shift</h2>
+                <p class="smaller">Each operation (Attention, MLP) changes the statistical properties of the data. Without intervention, these shifts compound, destabilizing the network.</p>
+                <div style="width: 90%; margin: auto;">
+                    <canvas id="driftChart"></canvas>
+                </div>
+                <p class="fragment smaller">LayerNorm acts as a <span class="highlight">stabilizing force</span>, resetting the distribution before each major computation.</p>
+            </section>
+
+            <section>
+                <h2>The Transformer Block: A Balancing Act</h2>
+                <p class="smaller">A Transformer layer is a cycle of <span class="highlight">Compute</span>, <span class="highlight">Preserve</span>, and <span class="highlight">Stabilize</span>.</p>
+                <svg class="viz-svg" viewBox="0 0 800 500">
+                    <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#FFF"/></marker></defs>
+                    <text x="150" y="50" class="svg-text" font-size="16">Input from previous layer</text>
+                    <path d="M150 60 V 95" class="svg-arrow"/>
+
+                    <!-- LN 1 -->
+                    <rect x="50" y="100" width="200" height="50" class="svg-box" fill="var(--c-green)"/><text x="150" y="130" class="svg-text">1. Stabilize (LayerNorm)</text>
+                    <path d="M150 150 V 185" class="svg-arrow"/>
+
+                    <!-- Attention -->
+                    <rect x="50" y="190" width="200" height="50" class="svg-box" fill="var(--c-purple)"/><text x="150" y="220" class="svg-text">2. Compute (Attention)</text>
+                    <path d="M150 240 V 275" class="svg-arrow"/>
+
+                    <!-- Add & Norm -->
+                    <rect x="50" y="280" width="200" height="50" class="svg-box" fill="var(--c-orange)"/><text x="150" y="310" class="svg-text">3. Preserve (Residual Add)</text>
+                    <path d="M150 330 V 365" class="svg-arrow"/>
+                    <path d="M50 125 H 20 V 295 H 50" stroke="#ccc" stroke-width="2" stroke-dasharray="5 5" fill="none"/>
+
+                    <!-- Second Block -->
+                    <path d="M250 215 H 350" class="svg-arrow"/>
+                    <text x="450" y="50" class="svg-text" font-size="16">Input to MLP</text>
+                    <path d="M450 60 V 95" class="svg-arrow"/>
+                    <rect x="350" y="100" width="200" height="50" class="svg-box" fill="var(--c-green)"/><text x="450" y="130" class="svg-text">4. Stabilize (LayerNorm)</text>
+                    <path d="M450 150 V 185" class="svg-arrow"/>
+                    <rect x="350" y="190" width="200" height="50" class="svg-box" fill="var(--c-purple)"/><text x="450" y="220" class="svg-text">5. Compute (MLP)</text>
+                    <path d="M450 240 V 275" class="svg-arrow"/>
+                    <rect x="350" y="280" width="200" height="50" class="svg-box" fill="var(--c-orange)"/><text x="450" y="310" class="svg-text">6. Preserve (Residual Add)</text>
+                    <path d="M350 125 H 320 V 295 H 350" stroke="#ccc" stroke-width="2" stroke-dasharray="5 5" fill="none"/>
+
+                    <path d="M550 215 H 650" class="svg-arrow"/>
+                    <text x="700" y="210" class="svg-text" font-size="16">Output to</text>
+                    <text x="700" y="230" class="svg-text" font-size="16">next layer</text>
+                </svg>
+                <p class="smaller fragment">This "Stabilize -> Compute -> Preserve" cycle happens twice per layer, once for attention and once for the MLP.</p>
+            </section>
+
+            <section>
+                <h2>Memory Deep Dive: How LayerNorm is Stored & Accessed</h2>
+                <p class="smaller">Efficient LayerNorm requires understanding how the data is laid out in our single memory arena.</p>
+                <svg class="viz-svg" viewBox="0 0 1000 550">
+                    <text x="500" y="30" class="svg-label" font-size="20">C-Transformer Memory Arena</text>
+                    <rect x="20" y="50" width="960" height="480" fill="var(--c-gray)" rx="10"/>
+
+                    <!-- Weights -->
+                    <g>
+                        <text x="170" y="90" class="svg-text" font-weight="bold">Layer-Specific Weights (Stored Once)</text>
+                        <rect x="50" y="110" width="240" height="80" class="svg-box" fill="var(--c-green)" stroke="var(--c-green)"/>
+                        <text x="170" y="140" class="svg-text">Gamma (γ)</text>
+                        <text x="170" y="165" class="svg-text dim" font-size="12">float[embed_dim]</text>
+                        <rect x="50" y="200" width="240" height="80" class="svg-box" fill="var(--c-green)" stroke="var(--c-green)"/>
+                        <text x="170" y="230" class="svg-text">Beta (β)</text>
+                        <text x="170" y="255" class="svg-text dim" font-size="12">float[embed_dim]</text>
+                    </g>
+
+                    <!-- Activations -->
+                    <g>
+                        <text x="650" y="90" class="svg-text" font-weight="bold">Token Activations (Input & Output Buffers)</text>
+                        <rect x="350" y="110" width="600" height="400" class="svg-box" fill="var(--c-blue)" stroke="var(--c-blue)"/>
+                        <text x="650" y="140" class="svg-text">Input Tensor</text>
+                        <text x="650" y="160" class="svg-text dim" font-size="12">float[tokens][embed_dim]</text>
+
+                        <!-- Token Rows -->
+                        <rect x="370" y="180" width="560" height="40" fill="rgba(255,255,255,0.1)" rx="5"/>
+                        <text x="420" y="205" class="svg-text" font-size="12">Token 0</text>
+                        <rect x="370" y="230" width="560" height="40" fill="rgba(255,255,255,0.1)" rx="5"/>
+                        <text x="420" y="255" class="svg-text" font-size="12">Token 1</text>
+                        <text x="650" y="300" class="svg-text dim" font-size="18">...</text>
+                        <rect x="370" y="330" width="560" height="40" fill="rgba(255,255,255,0.1)" rx="5"/>
+                        <text x="420" y="355" class="svg-text" font-size="12">Token T-1</text>
+                    </g>
+
+                    <!-- Arrows -->
+                    <g class="fragment">
+                        <text x="500" y="420" class="svg-text highlight" font-size="16">For each token, the SAME γ and β vectors are used.</text>
+                        <path d="M295 150 C 350 150, 350 205, 370 205" class="svg-arrow" stroke-dasharray="5 5"/>
+                        <path d="M295 240 C 350 240, 350 255, 370 255" class="svg-arrow" stroke-dasharray="5 5"/>
+                        <path d="M295 240 C 450 240, 450 355, 370 355" class="svg-arrow" stroke-dasharray="5 5"/>
+                        <text x="500" y="450" class="svg-desc">This is a <span class="highlight">broadcast</span> operation, made efficient by data locality.</text>
+                    </g>
+                </svg>
+            </section>
+
+            <section>
+                <h2>The Math, Visualized Step-by-Step</h2>
+                <p class="smaller">Let's trace a single token vector through the LayerNorm calculation.</p>
+                <svg class="viz-svg" viewBox="0 0 1200 300">
+                    <!-- Input -->
+                    <g>
+                        <rect x="50" y="100" width="150" height="100" class="svg-box" fill="var(--c-blue)"/>
+                        <text x="125" y="140" class="svg-text">Input Token x</text>
+                        <text x="125" y="160" class="svg-text dim" font-size="12">[d1, d2, ... dC]</text>
+                    </g>
+                    <path d="M205 150 H 255" class="svg-arrow"/>
+
+                    <!-- Mean/Var -->
+                    <g class="fragment">
+                        <rect x="260" y="100" width="200" height="100" class="svg-box" fill="var(--c-orange)"/>
+                        <text x="360" y="130" class="svg-text">1. Compute Stats</text>
+                        <text x="360" y="155" class="svg-text dim" font-size="12">μ = mean(x)</text>
+                        <text x="360" y="175" class="svg-text dim" font-size="12">σ = std(x)</text>
+                    </g>
+                    <path d="M465 150 H 515" class="svg-arrow"/>
+
+                    <!-- Normalize -->
+                    <g class="fragment">
+                        <rect x="520" y="100" width="200" height="100" class="svg-box" fill="var(--c-purple)"/>
+                        <text x="620" y="130" class="svg-text">2. Normalize</text>
+                        <text x="620" y="160" class="svg-text dim" font-size="12">x_norm = (x - μ) / σ</text>
+                    </g>
+                    <path d="M725 150 H 775" class="svg-arrow"/>
+
+                    <!-- Scale/Shift -->
+                    <g class="fragment">
+                        <rect x="780" y="100" width="300" height="100" class="svg-box" fill="var(--c-green)"/>
+                        <text x="930" y="130" class="svg-text">3. Scale & Shift</text>
+                        <text x="930" y="160" class="svg-text dim" font-size="12">output = x_norm * γ + β</text>
+                    </g>
+                </svg>
+                <p class="fragment smaller">The key to performance is fusing these three steps into a single pass over the data using vector instructions.</p>
+            </section>
+
+            <section>
+                <h2>Optimized C Kernel: Fusing the Passes</h2>
+                <p>The production-ready code combines all steps into a single, unrolled loop to maximize cache hits and instruction-level parallelism.</p>
+                <pre><code class="c" data-trim data-noescape>
+void layernorm_forward_unrolled(...) {
+    #pragma omp parallel for // Parallelize over tokens
+    for (int t = 0; t < tokens; ++t) {
+        const float *x = input + t * d_model;
+        float *out = output + t * d_model;
+
+        // --- PASS 1: Fused Mean & Variance Calculation ---
+        __m512 mean_acc = _mm512_setzero_ps();
+        __m512 var_acc = _mm512_setzero_ps();
+        // Vectorized loop over embed_dim...
+        // ... (calculate sum and sum of squares simultaneously)
+        float mean = ...;
+        float var = ...;
+        float rstd = 1.0f / sqrtf(var + eps);
+        __m512 mean_vec = _mm512_set1_ps(mean);
+        __m512 rstd_vec = _mm512_set1_ps(rstd);
+
+        // --- PASS 2: Fused Normalize, Scale & Shift ---
+        for (int i = 0; i <= d_model - 16; i += 16) {
+            __m512 x_vec = _mm512_load_ps(x + i);
+            __m512 gamma_vec = _mm512_load_ps(gamma + i);
+            __m512 beta_vec = _mm512_load_ps(beta + i);
+
+            // x_norm = (x - mean) * rstd
+            __m512 norm_vec = _mm512_mul_ps(_mm512_sub_ps(x_vec, mean_vec), rstd_vec);
+            // output = x_norm * gamma + beta (Fused Multiply-Add)
+            __m512 out_vec = _mm512_fmadd_ps(norm_vec, gamma_vec, beta_vec);
+            _mm512_store_ps(out + i, out_vec);
+        }
+        // Remainder loop for non-16-aligned part...
+    }
+}
+                </code></pre>
+            </section>
+
+            <section>
+                <h2>Conclusion: A Symphony of Optimizations</h2>
+                <ul>
+                    <li class="fragment"><b>Mathematical Need:</b> LayerNorm provides the stability required to train deep networks by controlling internal covariate shift.</li>
+                    <li class="fragment"><b>Architectural Placement:</b> It's used twice per layer (pre-norm) to reset the data distribution before the Attention and MLP blocks, which would otherwise distort it.</li>
+                    <li class="fragment"><b>Memory Strategy:</b> A single memory arena with broadcasting of weights (`γ`, `β`) ensures maximum data locality and cache efficiency.</li>
+                    <li class="fragment"><b>Execution Strategy:</b> Fusing the mathematical steps into a single pass with vectorized (AVX-512) instructions and parallelizing across tokens (OpenMP) achieves maximum hardware throughput.</li>
+                </ul>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/highlight.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/notes/notes.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            transition: 'slide',
+            plugins: [ RevealHighlight, RevealNotes ]
+        });
+
+        function createDriftChart() {
+            const ctx = document.getElementById('driftChart').getContext('2d');
+            const labels = Array.from({length: 101}, (_, i) => (i * 0.1 - 5).toFixed(1));
+            
+            const pdf = (x, mu, sigma) => (1 / (sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mu) / sigma, 2));
+
+            const initialData = labels.map(x => pdf(x, 0, 1));
+            const afterAttentionData = labels.map(x => pdf(x, 0.8, 1.5));
+            const afterMLPData = labels.map(x => pdf(x, -0.5, 1.9));
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Input / After LayerNorm', data: initialData, borderColor: '#66bb6a', fill: false, tension: 0.1 },
+                        { label: 'After Attention + Residual', data: afterAttentionData, borderColor: '#ef5350', fill: false, tension: 0.1 },
+                        { label: 'After MLP + Residual', data: afterMLPData, borderColor: '#ffa726', fill: false, tension: 0.1 },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { display: true, text: 'Activation Distribution Drift Through a Transformer Layer', color: '#fff' },
+                        legend: { labels: { color: '#fff' } }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                        y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    }
+                }
+            });
+        }
+
+        Reveal.on('ready', event => {
+            if (document.getElementById('driftChart')) {
+                createDriftChart();
+            }
+        });
+
+    </script>
+</body>
+</html>

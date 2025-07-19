@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LayerNorm for HPC and AI on CPU</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/monokai.css" id="highlight-theme">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/highlight/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/notes/notes.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/math/math.min.js"></script>
+
+    <style>
+        .reveal { font-family: 'Inter', sans-serif; font-size: 24px; }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; }
+        .reveal pre code { max-height: 600px; font-size: 0.7em; }
+        .reveal section img { border: none; box-shadow: none; }
+        .llm-layer-svg { width: 95%; height: 95%; margin: auto; display: block; }
+        .llm-box { fill: #2a2a2e; stroke: #666; stroke-width: 1.5; rx: 8; ry: 8; }
+        .llm-text { fill: #FFF; font-size: 12px; text-anchor: middle; font-family: 'Inter', sans-serif; }
+        .llm-dim-text { fill: #AAA; font-size: 10px; text-anchor: middle; font-family: 'Inter', sans-serif; }
+        .llm-label { fill: #42affa; font-size: 16px; font-weight: bold; text-anchor: middle; }
+        .input-box { fill: #00BCD4; }
+        .output-box { fill: #4CAF50; }
+        .op-box { fill: #FFC107; }
+        .arrow-line { stroke: #FFF; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>LayerNorm for HPC and AI on CPU</h1>
+                <h3>Optimizing Transformer Layers for Performance</h3>
+                <p><small>Based on Andrej Karpathy's Notes & Custom C Implementation</small></p>
+                <aside class="notes">Welcome! This presentation dives into Layer Normalization, a key component of Transformers. We'll explore its function and how to optimize it for high-performance on CPUs, moving from the theoretical math to a practical, vectorized C implementation.</aside>
+            </section>
+
+            <section>
+                <h2>What is Layer Normalization?</h2>
+                <ul>
+                    <li>A technique to normalize the activations within a layer of a neural network.</li>
+                    <li>Crucial for stabilizing training and improving performance in deep networks like Transformers.</li>
+                    <li>GPT-2 popularized "pre-normalization," where LayerNorm is applied at the beginning of each block, which we also do in our C-Transformer.</li>
+                </ul>
+                <aside class="notes">Layer Normalization is a simple but powerful idea that has become essential for training large models. Unlike Batch Normalization, it normalizes across the features for each sample independently, making it well-suited for variable-length sequences in LLMs.</aside>
+            </section>
+
+            <section>
+                <h2>The LayerNorm Forward Pass: A Visual Breakdown</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 1200 300">
+                    <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#FFF"/></marker></defs>
+                    <!-- Input -->
+                    <rect x="50" y="100" width="100" height="60" class="llm-box input-box"/>
+                    <text x="100" y="135" class="llm-text">Input (x)</text>
+                    <path d="M150 130 H 200" class="arrow-line"/>
+                    <!-- Mean -->
+                    <rect x="200" y="100" width="100" height="60" class="llm-box op-box"/>
+                    <text x="250" y="135" class="llm-text">Mean (μ)</text>
+                    <path d="M300 130 H 350" class="arrow-line"/>
+                    <!-- Variance -->
+                    <rect x="350" y="100" width="100" height="60" class="llm-box op-box"/>
+                    <text x="400" y="135" class="llm-text">Variance (σ²)</text>
+                    <path d="M450 130 H 500" class="arrow-line"/>
+                    <!-- Normalize -->
+                    <rect x="500" y="100" width="100" height="60" class="llm-box op-box"/>
+                    <text x="550" y="135" class="llm-text">Normalize</text>
+                    <path d="M600 130 H 650" class="arrow-line"/>
+                    <!-- Scale & Shift -->
+                    <rect x="650" y="100" width="100" height="60" class="llm-box op-box"/>
+                    <text x="700" y="135" class="llm-text">Scale & Shift</text>
+                    <path d="M750 130 H 800" class="arrow-line"/>
+                    <!-- Output -->
+                    <rect x="800" y="100" width="100" height="60" class="llm-box output-box"/>
+                    <text x="850" y="135" class="llm-text">Output</text>
+                </svg>
+                <aside class="notes">This is the entire forward pass at a high level. We take an input tensor, compute its mean and variance, normalize it, and finally scale and shift it. Now let's look at each step in detail.</aside>
+            </section>
+
+            <section>
+                <h2>Step 1: Mean Calculation</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 800 400">
+                    <text x="400" y="50" class="llm-label">Mean (μ)</text>
+                    <text x="150" y="120" class="llm-text">Input Token (D dimensions)</text>
+                    <rect x="100" y="130" width="100" height="150" class="llm-box input-box"/>
+                    <text x="150" y="150" class="llm-dim-text">x_1, x_2, ..., x_D</text>
+                    <path d="M200 205 H 280" class="arrow-line"/>
+                    <text x="350" y="210" class="llm-text" font-size="24">μ = (Σ x_i) / D</text>
+                </svg>
+                <aside class="notes">First, for each token in our sequence, we compute the mean of its embedding vector. We simply sum up all the elements in the vector and divide by the number of elements, which is our embedding dimension `D`.</aside>
+            </section>
+
+            <section>
+                <h2>Step 2: Variance & Inverse Std Dev</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 800 400">
+                    <text x="400" y="50" class="llm-label">Variance (σ²) and Rstd</text>
+                    <text x="150" y="120" class="llm-text">Input Token (x) and its Mean (μ)</text>
+                    <rect x="100" y="130" width="100" height="150" class="llm-box input-box"/>
+                    <text x="150" y="205" class="llm-dim-text">(x_i - μ)</text>
+                    <path d="M200 205 H 280" class="arrow-line"/>
+                    <text x="400" y="160" class="llm-text" font-size="24">σ² = Σ(x_i - μ)² / D</text>
+                    <text x="400" y="250" class="llm-text" font-size="24">rstd = 1 / √(σ² + ε)</text>
+                </svg>
+                <aside class="notes">Next, we calculate the variance. For each element in the token's vector, we subtract the mean, square the result, and then average all these squared differences. We then compute the reciprocal of the square root of the variance, adding a small epsilon for numerical stability. This value is often called `rstd`.</aside>
+            </section>
+
+            <section>
+                <h2>Step 3 & 4: Normalize, Scale, and Shift</h2>
+                <svg class="llm-layer-svg" viewBox="0 0 800 400">
+                    <text x="400" y="50" class="llm-label">Final Output Calculation</text>
+                    <text x="150" y="120" class="llm-text">Normalized Vector</text>
+                    <rect x="100" y="130" width="100" height="50" class="llm-box op-box"/>
+                    <text x="150" y="155" class="llm-text">x_norm = (x - μ) * rstd</text>
+                    <path d="M200 155 H 280" class="arrow-line"/>
+                    <text x="350" y="155" class="llm-text" font-size="24">+</text>
+                    <text x="350" y="225" class="llm-text" font-size="24">×</text>
+                    <rect x="400" y="120" width="80" height="40" class="llm-box linear-box"/>
+                    <text x="440" y="145" class="llm-text">β (bias)</text>
+                    <rect x="400" y="190" width="80" height="40" class="llm-box linear-box"/>
+                    <text x="440" y="215" class="llm-text">γ (weight)</text>
+                    <path d="M480 215 H 380" class="arrow-line"/>
+                    <path d="M480 145 H 380" class="arrow-line"/>
+                    <path d="M350 175 V 195" class="arrow-line"/>
+                    <!-- Output -->
+                    <rect x="500" y="150" width="100" height="50" class="llm-box output-box"/>
+                    <text x="550" y="175" class="llm-text">Final Output</text>
+                </svg>
+                <aside class="notes">Finally, we use the mean and rstd to normalize the input vector. Then we perform the last step: a scale and shift. We multiply the normalized vector by a learned weight parameter, gamma, and add a learned bias parameter, beta. This gives the network the flexibility to learn the optimal scale and mean for the activations in each layer.</aside>
+            </section>
+
+            <section>
+                <h2>C Implementation: `layernorm_forward`</h2>
+                <p>This C code translates the math directly. It iterates over each token and performs the four steps we just visualized.</p>
+                <pre><code class="c" data-trim data-noescape>
+void layernorm_forward(float* out, float* mean, float* rstd,
+                       float* inp, float* weight, float* bias,
+                       int B, int T, int C) {
+    float eps = 1e-5f;
+    for (int b = 0; b < B; b++) {
+        for (int t = 0; t < T; t++) {
+            float* x = inp + b * T * C + t * C;
+            // 1. calculate the mean
+            float m = 0.0f;
+            for (int i = 0; i < C; i++) { m += x[i]; }
+            m = m/C;
+            // 2. calculate the variance and rstd
+            float v = 0.0f;
+            for (int i = 0; i < C; i++) { v += (x[i] - m) * (x[i] - m); }
+            v = v/C;
+            float s = 1.0f / sqrtf(v + eps);
+            // 3. & 4. normalize, scale and shift
+            float* out_bt = out + b * T * C + t * C;
+            for (int i = 0; i < C; i++) {
+                float n = (s * (x[i] - m));
+                float o = n * weight[i] + bias[i];
+                out_bt[i] = o;
+            }
+            // cache for backward pass
+            mean[b * T + t] = m;
+            rstd[b * T + t] = s;
+        }
+    }
+}
+                </code></pre>
+                <aside class="notes">This is the straightforward C implementation. It works, but it's slow. The three separate loops over the channel dimension for mean, variance, and normalization are inefficient and don't take advantage of modern CPU features.</aside>
+            </section>
+
+            <section>
+                <h2>HPC Optimization: `layernorm_token_parallel`</h2>
+                <p>My optimized version uses OpenMP for token-level parallelism and calls a highly-vectorized AVX-512 kernel.</p>
+                <pre><code class="c" data-trim data-noescape>
+void layernorm_token_parallel(TransformerModel *M, ...) {
+    #pragma omp parallel num_threads(M->num_cores)
+    {
+        int core_id = omp_get_thread_num();
+        // ... calculate token slice for this core ...
+
+        if (num_tokens > 0) {
+            // ... get pointers to input, output, weights, bias ...
+            layernorm_forward_unrolled(input, gamma, beta, output, ...);
+        }
+    }
+}
+                </code></pre>
+                <p>The `layernorm_forward_unrolled` kernel uses AVX-512 intrinsics to process 16 floats at a time, significantly improving performance.</p>
+                <aside class="notes">My optimized implementation parallelizes the operation at the token level using OpenMP. Each core gets a slice of the tokens and runs a highly optimized, unrolled kernel using AVX-512 intrinsics. This avoids memory contention and maximizes the use of the CPU's vector units, leading to that 6.8x speedup we saw in the overview.</aside>
+            </section>
+
+            <section>
+                <h2>Conclusion</h2>
+                <ul>
+                    <li>LayerNorm is a simple but powerful component for stabilizing Transformers.</li>
+                    <li>A naive implementation is a good starting point for understanding, but it's inefficient.</li>
+                    <li>For high performance on CPUs, we must leverage **vectorization** (like AVX-512) and **thread parallelism**.</li>
+                    <li>The next step in our series will be to apply these same principles to the attention mechanism itself.</li>
+                </ul>
+                <aside class="notes">So, to wrap up: LayerNorm is a key building block. We've seen how to implement it from scratch and how to apply HPC techniques to make it run incredibly fast on a CPU. Thank you for watching.</aside>
+            </section>
+
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                center: true,
+                hash: true,
+                transition: 'slide',
+                plugins: [ RevealHighlight, RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+            });
+        });
+    </script>
+</body>
+</html>

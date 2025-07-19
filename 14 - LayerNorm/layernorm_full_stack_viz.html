@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LayerNorm: A Systems Perspective</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/monokai.css" id="highlight-theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --r-main-font-size: 24px;
+            --c-blue: #42a5f5;
+            --c-green: #66bb6a;
+            --c-orange: #ffa726;
+            --c-red: #ef5350;
+            --c-purple: #ab47bc;
+            --c-gray: #37474f;
+            --c-light-gray: #90a4ae;
+        }
+        .reveal { font-family: var(--r-main-font); }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .dim { color: var(--c-light-gray); }
+        .viz-svg { width: 100%; height: auto; background-color: #263238; border-radius: 15px; margin-top: 15px; }
+        .svg-text { font-family: var(--r-main-font); fill: white; text-anchor: middle; }
+        .svg-label { font-size: 12px; font-weight: bold; fill: var(--c-blue); }
+        .svg-desc { font-size: 10px; fill: #ccc; }
+        .svg-code { font-family: monospace; font-size: 10px; fill: var(--c-orange); text-anchor: start; }
+        .svg-box { stroke-width: 1.5px; rx: 4; }
+        .svg-arrow { stroke: #eee; stroke-width: 2px; fill: none; marker-end: url(#arrowhead); }
+        .svg-dashed-arrow { stroke: #eee; stroke-width: 1.5px; fill: none; marker-end: url(#arrowhead); stroke-dasharray: 4 4; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>LayerNorm: A Systems Perspective</h1>
+                <h3>Connecting Math, Memory, and High-Performance Computation</h3>
+                <p class="dim smaller">Based on the C-Transformer Project</p>
+            </section>
+
+            <section>
+                <h2>The Complete Picture: From DDR to AVX</h2>
+                <p class="smaller">This infographic shows the entire journey of data for a single, optimized LayerNorm operation, highlighting the two levels of parallelism.</p>
+                <div style="width: 100%; height: 80vh; overflow: auto;">
+                <svg class="viz-svg" viewBox="0 0 1200 900">
+                    <defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#FFF"/></marker></defs>
+
+                    <!-- Main Title -->
+                    <text x="600" y="30" class="svg-text" font-size="20" font-weight="bold">LayerNorm: The Full Stack View</text>
+
+                    <!-- 1. Main Memory (DDR) -->
+                    <g id="ddr">
+                        <rect x="20" y="60" width="1160" height="200" class="svg-box" stroke="#FFF" fill="var(--c-gray)"/>
+                        <text x="600" y="85" class="svg-label" font-size="16">1. Main Memory (DDR)</text>
+                        <rect x="40" y="100" width="1120" height="140" class="svg-box" stroke="var(--c-blue)" fill="#212121"/>
+                        <text x="100" y="115" class="svg-code">float* memory_base = huge_alloc(...);</text>
+                        
+                        <!-- Bump Allocation -->
+                        <g>
+                            <rect x="50" y="130" width="200" height="100" fill="var(--c-purple)" opacity="0.6"/>
+                            <text x="150" y="170" class="svg-text" font-size="11">Token Embeds</text>
+                            <text x="150" y="185" class="svg-text dim" font-size="9">[V x C]</text>
+                        </g>
+                        <g>
+                            <rect x="250" y="130" width="250" height="100" fill="var(--c-blue)" opacity="0.6"/>
+                            <text x="375" y="170" class="svg-text" font-size="11">Layer Input (x)</text>
+                            <text x="375" y="185" class="svg-text dim" font-size="9">[T x C]</text>
+                            <text x="375" y="200" class="svg-text highlight" font-size="9">Source for LN</text>
+                        </g>
+                        <g>
+                            <rect x="500" y="130" width="100" height="100" fill="var(--c-green)" opacity="0.6"/>
+                            <text x="550" y="170" class="svg-text" font-size="11">Gamma (γ)</text>
+                            <text x="550" y="185" class="svg-text dim" font-size="9">[C]</text>
+                        </g>
+                        <g>
+                            <rect x="600" y="130" width="100" height="100" fill="var(--c-green)" opacity="0.6"/>
+                            <text x="650" y="170" class="svg-text" font-size="11">Beta (β)</text>
+                            <text x="650" y="185" class="svg-text dim" font-size="9">[C]</text>
+                        </g>
+                        <g>
+                            <rect x="700" y="130" width="250" height="100" fill="var(--c-orange)" opacity="0.6"/>
+                            <text x="825" y="170" class="svg-text" font-size="11">Layer Output</text>
+                            <text x="825" y="185" class="svg-text dim" font-size="9">[T x C]</text>
+                            <text x="825" y="200" class="svg-text highlight" font-size="9">Destination for LN</text>
+                        </g>
+                        <g>
+                            <rect x="950" y="130" width="200" height="100" fill="#424242" opacity="0.6"/>
+                            <text x="1050" y="175" class="svg-text" font-size="11">...Other Weights...</text>
+                        </g>
+                    </g>
+
+                    <!-- Arrows from DDR to CPU -->
+                    <path d="M400 260 V 300" class="svg-dashed-arrow"/>
+                    <path d="M575 260 V 300" class="svg-dashed-arrow"/>
+
+                    <!-- 2. CPU & Cache Hierarchy -->
+                    <g id="cpu">
+                        <rect x="20" y="300" width="1160" height="580" class="svg-box" stroke="#FFF" fill="var(--c-gray)"/>
+                        <text x="600" y="325" class="svg-label" font-size="16">2. CPU & Cache Hierarchy</text>
+                        
+                        <!-- L3 Cache -->
+                        <rect x="40" y="340" width="1120" height="100" class="svg-box" stroke="var(--c-light-gray)" fill="#455a64"/>
+                        <text x="600" y="360" class="svg-label">L3 Cache (Shared)</text>
+                        <g>
+                            <rect x="300" y="370" width="250" height="60" fill="var(--c-blue)" opacity="0.8"/>
+                            <text x="425" y="400" class="svg-text" font-size="10">Full Input Tensor (x)</text>
+                            <rect x="600" y="370" width="150" height="60" fill="var(--c-green)" opacity="0.8"/>
+                            <text x="675" y="400" class="svg-text" font-size="10">Gamma & Beta</text>
+                        </g>
+                        <path d="M450 440 V 470" class="svg-dashed-arrow"/>
+                        <path d="M850 440 V 470" class="svg-dashed-arrow"/>
+
+                        <!-- Cores -->
+                        <g id="core0">
+                            <rect x="60" y="470" width="520" height="400" class="svg-box" stroke="var(--c-light-gray)" fill="#546e7a"/>
+                            <text x="320" y="490" class="svg-label">Outer Loop: Parallelism Across Tokens</text>
+                            <text x="320" y="505" class="svg-code">layernorm_token_parallel(...)</text>
+                            <!-- L2/L1 -->
+                            <rect x="80" y="520" width="480" height="80" class="svg-box" stroke="var(--c-light-gray)" fill="#607d8b"/>
+                            <text x="320" y="535" class="svg-label">Core 0: L1/L2 Cache</text>
+                            <rect x="150" y="550" width="150" height="40" fill="var(--c-blue)"/><text x="225" y="570" class="svg-text" font-size="9">Token Slice 0 (e.g., T=0..63)</text>
+                            <rect x="320" y="550" width="100" height="40" fill="var(--c-green)"/><text x="370" y="570" class="svg-text" font-size="9">γ, β</text>
+
+                            <!-- Computation -->
+                            <text x="320" y="620" class="svg-label">Inner Loop: Vectorization Within a Token</text>
+                            <rect x="90" y="630" width="460" height="230" class="svg-box" stroke="var(--c-orange)" fill="#263238"/>
+                            
+                            <text x="160" y="650" class="svg-text" font-size="11">Processing Token 0:</text>
+                            <rect x="100" y="660" width="120" height="20" fill="var(--c-blue)"/><text x="160" y="673" class="svg-text" font-size="9">[d0, d1, ..., dC-1]</text>
+                            
+                            <text x="320" y="680" class="svg-text" font-size="11">μ, σ² calculated over C</text>
+                            <text x="320" y="695" class="svg-text" font-size="11">in one fused pass</text>
+
+                            <text x="180" y="720" class="svg-label" font-size="10">AVX-512 Registers</text>
+                            <rect x="100" y="730" width="160" height="20" fill="var(--c-red)"/><text x="180" y="743" class="svg-text" font-size="9">[f0..f15] from embed_dim</text>
+                            <rect x="100" y="755" width="160" height="20" fill="var(--c-red)"/><text x="180" y="768" class="svg-text" font-size="9">[f16..f31] from embed_dim</text>
+
+                            <text x="420" y="750" class="svg-text" font-size="11">output = (x - μ)/σ * γ + β</text>
+                            <text x="420" y="765" class="svg-text highlight" font-size="10">_mm512_fmadd_ps</text>
+
+                            <path d="M160 680 V 725" class="svg-arrow"/>
+                        </g>
+                        <g id="core1">
+                            <rect x="620" y="470" width="520" height="400" class="svg-box" stroke="var(--c-light-gray)" fill="#546e7a"/>
+                            <text x="880" y="490" class="svg-label">Core N</text>
+                            <rect x="640" y="520" width="480" height="80" class="svg-box" stroke="var(--c-light-gray)" fill="#607d8b"/>
+                            <text x="880" y="535" class="svg-label">L1/L2 Cache</text>
+                            <rect x="710" y="550" width="150" height="40" fill="var(--c-blue)"/><text x="785" y="570" class="svg-text" font-size="9">Token Slice N (e.g., T=...)</text>
+                            <rect x="880" y="550" width="100" height="40" fill="var(--c-green)"/><text x="930" y="570" class="svg-text" font-size="9">γ, β</text>
+                            <rect x="650" y="630" width="460" height="230" class="svg-box" stroke="var(--c-orange)" fill="#263238"/>
+                            <text x="880" y="750" class="svg-text">...Identical Computation...</text>
+                        </g>
+                    </g>
+
+                    <!-- 4. Output and Next Stage -->
+                    <g id="output">
+                        <path d="M320 870 V 890 H 825 V 260" class="svg-arrow"/>
+                        <text x="600" y="890" class="svg-label" font-size="16">4. Output Written Back & Fed to Next Stage</text>
+                        <rect x="970" y="370" width="200" height="100" class="svg-box" stroke="var(--c-purple)" fill="var(--c-gray)"/>
+                        <text x="1070" y="410" class="svg-text">Next: MatMul</text>
+                        <text x="1070" y="425" class="svg-text dim" font-size="10">(QKV Projection)</text>
+                        <path d="M825 260 -> 970 420" class="svg-arrow"/>
+                    </g>
+
+                    <!-- 5. Distribution -->
+                    <g id="distribution">
+                        <rect x="970" y="600" width="200" height="150" class="svg-box" stroke="#FFF" fill="var(--c-gray)"/>
+                        <text x="1070" y="620" class="svg-label">5. Distribution Control</text>
+                        <text x="1070" y="680" class="svg-text" font-size="10">Input: Shifted</text>
+                        <polyline points="980,700 1020,660 1060,700" stroke="var(--c-red)" fill="none" stroke-width="2"/>
+                        <text x="1070" y="720" class="svg-text" font-size="10">Output: Stabilized</text>
+                        <polyline points="980,750 1070,710 1160,750" stroke="var(--c-green)" fill="none" stroke-width="2"/>
+                    </g>
+                </svg>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/highlight/highlight.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/notes/notes.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            width: 1600,
+            height: 1000,
+            transition: 'slide',
+            plugins: [ RevealHighlight, RevealNotes ]
+        });
+    </script>
+</body>
+</html>
