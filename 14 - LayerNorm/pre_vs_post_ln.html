@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pre-LN vs Post-LN: A Deep Dive</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --c-blue: #42a5f5;
+            --c-green: #66bb6a;
+            --c-orange: #ffa726;
+            --c-red: #ef5350;
+            --c-purple: #ab47bc;
+            --c-gray: #37474f;
+        }
+        .reveal { font-family: var(--r-main-font); }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .dim { color: #90a4ae; }
+        .viz-svg { width: 100%; height: auto; background-color: #263238; border-radius: 15px; margin-top: 15px; }
+        .svg-text { font-family: var(--r-main-font); fill: white; text-anchor: middle; }
+        .svg-label { font-size: 14px; font-weight: bold; fill: var(--c-blue); }
+        .svg-desc { font-size: 12px; fill: #ccc; }
+        .svg-box { stroke-width: 2px; rx: 5; }
+        .svg-arrow { stroke: #eee; stroke-width: 2.5px; fill: none; marker-end: url(#arrowhead); }
+        .svg-dashed-arrow { stroke: #ccc; stroke-width: 2px; fill: none; marker-end: url(#arrowhead); stroke-dasharray: 5 5; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>Pre-LN vs. Post-LN</h1>
+                <h3>A Tale of Two Transformer Architectures</h3>
+                <p class="dim smaller">Understanding the critical shift that stabilized training for deep models.</p>
+            </section>
+
+            <section>
+                <h2>The Original: Post-LN (BERT, Original Transformer)</h2>
+                <p class="smaller">In the first Transformers, LayerNorm was applied <span class="highlight">after</span> the residual connection.</p>
+                <div class="two-col">
+                    <div>
+                        <svg class="viz-svg" viewBox="0 0 400 500">
+                            <defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#FFF"/></marker></defs>
+                            <text x="200" y="40" class="svg-text" font-size="16">Post-LN Block</text>
+                            <text x="200" y="80" class="svg-text">Input (x)</text>
+                            <path d="M200 90 V 125" class="svg-arrow"/>
+                            <path d="M200 130 H 100 V 290 H 200" class="svg-dashed-arrow"/>
+                            <rect x="150" y="130" width="100" height="60" class="svg-box" stroke="var(--c-purple)" fill="#3c2a4f"/><text x="200" y="165" class="svg-text">F(x)</text>
+                            <path d="M200 190 V 225" class="svg-arrow"/>
+                            <circle cx="200" cy="240" r="15" fill="var(--c-orange)"/><text x="200" y="245" class="svg-text">+</text>
+                            <path d="M200 255 V 290" class="svg-arrow"/>
+                            <rect x="125" y="290" width="150" height="60" class="svg-box" stroke="var(--c-green)" fill="#2e4c44"/><text x="200" y="325" class="svg-text">LayerNorm</text>
+                            <path d="M200 350 V 385" class="svg-arrow"/>
+                            <text x="200" y="410" class="svg-text">Output</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4>The Implication: Uncontrolled Variance</h4>
+                        <p class="smaller">The main data path accumulates the raw output of the function `F(x)` (e.g., Attention).</p>
+                        <p class="smaller highlight">`Output = LN(x + F(x))`</p>
+                        <p class="smaller">If the variance of `F(x)` is large, the variance of `x + F(x)` grows with each layer.</p>
+                        <p class="smaller dim">This leads to an unstable signal and makes training very deep models difficult.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Mathematical Intuition of Post-LN's Instability</h2>
+                <p class="smaller">Why does the variance grow? Let's look at the math.</p>
+                <div class="two-col">
+                    <div>
+                        <p class="smaller">The output of a Post-LN block is:</p>
+                        <p class="smaller highlight">`y = LN(x + F(x))`</p>
+                        <p class="smaller">The input to the *next* layer is `y`. The variance of this input is always 1 because of the LayerNorm. However, the gradients flowing backward are proportional to the variance of the *unnormalized* signal `x + F(x)`.</p>
+                        <p class="smaller">Assuming `x` and `F(x)` are roughly uncorrelated:</p>
+                        <p class="smaller highlight">`Var(x + F(x)) ≈ Var(x) + Var(F(x))`</p>
+                        <p class="smaller">The variance adds up layer by layer, causing the gradient signal to explode.</p>
+                    </div>
+                    <div>
+                        <svg class="viz-svg" viewBox="0 0 400 400">
+                            <text x="200" y="40" class="svg-label">Exploding Gradient Signal (Post-LN)</text>
+                            <path d="M50 350 C 150 350, 150 150, 200 150 S 250 350, 350 350" stroke="var(--c-red)" stroke-width="2" fill="none" class="fragment" data-fragment-index="1"/>
+                            <path d="M50 350 C 150 350, 150 100, 200 100 S 250 400, 350 350" stroke="var(--c-red)" stroke-width="4" fill="none" class="fragment" data-fragment-index="2"/>
+                            <path d="M50 350 C 150 350, 150 50, 200 50 S 250 450, 350 350" stroke="var(--c-red)" stroke-width="6" fill="none" class="fragment" data-fragment-index="3"/>
+                            <text x="200" y="380" class="svg-desc">Gradient becomes unstable in deep networks</text>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Innovation: Pre-LN (GPT-2, Modern LLMs)</h2>
+                <p class="smaller">GPT-2 and later models moved LayerNorm <span class="highlight">before</span> the main operation.</p>
+                <div class="two-col">
+                    <div>
+                        <svg class="viz-svg" viewBox="0 0 400 500">
+                             <defs><marker id="arrowhead-pre" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#FFF"/></marker></defs>
+                            <text x="200" y="40" class="svg-text" font-size="16">Pre-LN Block</text>
+                            <text x="200" y="80" class="svg-text">Input (x)</text>
+                            <path d="M200 90 V 125" class="svg-arrow" marker-end="url(#arrowhead-pre)"/>
+                            <path d="M200 130 H 100 V 330 H 200" class="svg-arrow" stroke="var(--c-green)" marker-end="url(#arrowhead-pre)"/>
+                            <rect x="125" y="130" width="150" height="60" class="svg-box" stroke="var(--c-green)" fill="#2e4c44"/><text x="200" y="165" class="svg-text">LayerNorm</text>
+                            <path d="M200 190 V 225" class="svg-arrow" marker-end="url(#arrowhead-pre)"/>
+                            <rect x="150" y="225" width="100" height="60" class="svg-box" stroke="var(--c-purple)" fill="#3c2a4f"/><text x="200" y="260" class="svg-text">F(LN(x))</text>
+                            <path d="M150 260 H 100" class="svg-arrow" marker-end="url(#arrowhead-pre)"/>
+                            <circle cx="200" cy="345" r="15" fill="var(--c-orange)"/><text x="200" y="350" class="svg-text">+</text>
+                            <path d="M200 360 V 395" class="svg-arrow" marker-end="url(#arrowhead-pre)"/>
+                            <text x="200" y="420" class="svg-text">Output</text>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4>The Implication: A Clean Residual Path</h4>
+                        <p class="smaller">The main data path is untouched. A <span class="highlight">normalized copy</span> of the data is sent through `F`.</p>
+                        <p class="smaller highlight">`Output = x + F(LN(x))`</p>
+                        <p class="smaller">Because the input to `F` is normalized, the output `F(LN(x))` has a controlled scale. The change to `x` is small and stable.</p>
+                        <p class="smaller dim">This provides a clean, stable "superhighway" for gradients to flow backwards.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Mathematical Intuition of Pre-LN's Stability</h2>
+                <p class="smaller">The gradient now flows back primarily through the clean residual connection.</p>
+                <div class="two-col">
+                    <div>
+                        <p class="smaller">The gradient of the output `y = x + F(LN(x))` with respect to the input `x` is:</p>
+                        <p class="smaller highlight">`dy/dx = 1 + dF/dx`</p>
+                        <p class="smaller">The `<span class="highlight">1</span>` comes from the clean residual path `y = x + ...`. This term ensures that the gradient can never be zero (the vanishing gradient problem) and doesn't explode.</p>
+                        <p class="smaller">The gradient can propagate back through many layers without being diminished or amplified uncontrollably.</p>
+                        <p class="smaller dim">This is the key to successfully training very deep Transformers.</p>
+                    </div>
+                    <div>
+                        <svg class="viz-svg" viewBox="0 0 400 400">
+                            <text x="200" y="40" class="svg-label">Stable Gradient Signal (Pre-LN)</text>
+                            <path d="M50 200 H 350" stroke="var(--c-green)" stroke-width="4" fill="none" class="fragment"/>
+                            <text x="200" y="230" class="svg-desc">Gradient flows cleanly through the residual path</text>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Summary: The Critical Difference</h2>
+                <div class="two-col">
+                    <div style="text-align: center;">
+                        <h3 class="highlight">Post-LN</h3>
+                        <p class="smaller">`Output = LN(x + F(x))`</p>
+                        <p class="smaller dim">Normalizes the combined, potentially high-variance signal.</p>
+                        <p class="smaller dim">Unstable for deep models.</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <h3 class="highlight">Pre-LN</h3>
+                        <p class="smaller">`Output = x + F(LN(x))`</p>
+                        <p class="smaller dim">Normalizes the input to the function, protecting the main path.</p>
+                        <p class="smaller dim">The key to stable, deep training.</p>
+                    </div>
+                </div>
+                <p class="fragment" style="margin-top: 40px;">The takeaway is simple but profound: It's not just about normalizing, it's about <span class="highlight">what you normalize</span> and <span class="highlight">what path you protect</span>.</p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            width: 1600,
+            height: 900,
+            transition: 'slide',
+        });
+    </script>
+</body>
+</html>
