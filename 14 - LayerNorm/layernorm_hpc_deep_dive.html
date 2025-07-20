@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LayerNorm: An HPC Deep Dive</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --c-blue: #42a5f5;
+            --c-green: #66bb6a;
+            --c-orange: #ffa726;
+            --c-red: #ef5350;
+            --c-purple: #ab47bc;
+            --c-gray: #37474f;
+            --c-bg: #263238;
+        }
+        .reveal { font-family: var(--r-main-font); font-size: 22px; }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .dim { color: #90a4ae; }
+        .viz-svg { width: 100%; height: auto; background-color: var(--c-bg); border-radius: 15px; margin-top: 15px; }
+        .svg-text { font-family: var(--r-main-font); fill: white; text-anchor: middle; font-size: 11px; }
+        .svg-label { font-size: 12px; font-weight: bold; fill: var(--c-blue); }
+        .svg-desc { font-size: 10px; fill: #ccc; }
+        .svg-code { font-family: monospace; font-size: 10px; fill: var(--c-orange); text-anchor: start; }
+        .svg-box { stroke-width: 1.5px; rx: 4; }
+        .svg-arrow { stroke: #eee; stroke-width: 2px; fill: none; marker-end: url(#arrowhead); }
+        .svg-dashed-arrow { stroke: #eee; stroke-width: 1.5px; fill: none; marker-end: url(#arrowhead); stroke-dasharray: 4 4; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>LayerNorm: An HPC Deep Dive</h1>
+                <h3>From Memory to AVX Registers: A Single Token's Journey</h3>
+            </section>
+
+            <section>
+                <h2>The Complete Picture: One Token's Journey Through LayerNorm</h2>
+                <p class="smaller dim">This infographic visualizes the entire hardware and software stack for a single, optimized LayerNorm operation based on the C-Transformer architecture.</p>
+                <div style="width: 100%; height: 85vh; overflow: auto;">
+                <svg class="viz-svg" viewBox="0 0 1200 950">
+                    <defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#FFF"/></marker></defs>
+
+                    <text x="600" y="30" class="svg-text" font-size="20" font-weight="bold">LayerNorm: The Full Stack View</text>
+
+                    <!-- 1. Main Memory (DDR) -->
+                    <g id="ddr">
+                        <rect x="20" y="60" width="1160" height="180" class="svg-box" stroke="#FFF" fill="var(--c-gray)"/>
+                        <text x="600" y="85" class="svg-label" font-size="16">1. Main Memory (DDR)</text>
+                        <rect x="40" y="100" width="1120" height="120" class="svg-box" stroke="var(--c-blue)" fill="#212121"/>
+                        <text x="60" y="115" class="svg-code">float* memory_base = huge_alloc(...);</text>
+                        
+                        <rect x="50" y="130" width="400" height="80" fill="var(--c-blue)" opacity="0.6"/>
+                        <text x="250" y="160" class="svg-text">Layer Input Tensor (x)</text>
+                        <text x="250" y="175" class="svg-desc">[context_length * embed_dim]</text>
+                        
+                        <rect x="450" y="130" width="150" height="80" fill="var(--c-green)" opacity="0.6"/>
+                        <text x="525" y="160" class="svg-text">Gamma (γ)</text>
+                        <text x="525" y="175" class="svg-desc">[embed_dim]</text>
+
+                        <rect x="600" y="130" width="150" height="80" fill="var(--c-green)" opacity="0.6"/>
+                        <text x="675" y="160" class="svg-text">Beta (β)</text>
+                        <text x="675" y="175" class="svg-desc">[embed_dim]</text>
+
+                        <rect x="750" y="130" width="400" height="80" fill="var(--c-orange)" opacity="0.6"/>
+                        <text x="950" y="160" class="svg-text">Layer Output Tensor</text>
+                        <text x="950" y="175" class="svg-desc">[context_length * embed_dim]</text>
+                    </g>
+
+                    <path d="M600 240 V 280" class="svg-dashed-arrow"/>
+
+                    <!-- 2. CPU & Cache Hierarchy -->
+                    <g id="cpu">
+                        <rect x="20" y="280" width="1160" height="650" class="svg-box" stroke="#FFF" fill="var(--c-gray)"/>
+                        <text x="600" y="305" class="svg-label" font-size="16">2. CPU & Cache Hierarchy</text>
+                        
+                        <rect x="40" y="320" width="1120" height="80" class="svg-box" stroke="var(--c-light-gray)" fill="#455a64"/>
+                        <text x="600" y="340" class="svg-label">L3 Cache (Shared)</text>
+                        <rect x="300" y="350" width="300" height="40" fill="var(--c-blue)" opacity="0.8"/><text x="450" y="370" class="svg-text">Relevant parts of Input Tensor</text>
+                        <rect x="620" y="350" width="200" height="40" fill="var(--c-green)" opacity="0.8"/><text x="720" y="370" class="svg-text">Gamma & Beta Vectors</text>
+
+                        <path d="M600 400 V 430" class="svg-dashed-arrow"/>
+
+                        <!-- Single Core -->
+                        <g id="core0">
+                            <rect x="100" y="430" width="1000" height="500" class="svg-box" stroke="var(--c-light-gray)" fill="#546e7a"/>
+                            <text x="600" y="450" class="svg-label">Single CPU Core</text>
+                            
+                            <rect x="120" y="470" width="960" height="80" class="svg-box" stroke="var(--c-light-gray)" fill="#607d8b"/>
+                            <text x="600" y="485" class="svg-label">L1/L2 Cache</text>
+                            <rect x="250" y="500" width="250" height="40" fill="var(--c-blue)"/><text x="375" y="520" class="svg-text">One Token Vector (1D Tensor)</text>
+                            <rect x="520" y="500" width="150" height="40" fill="var(--c-green)"/><text x="595" y="520" class="svg-text">Gamma (γ)</text>
+                            <rect x="690" y="500" width="150" height="40" fill="var(--c-green)"/><text x="765" y="520" class="svg-text">Beta (β)</text>
+
+                            <text x="600" y="570" class="svg-label" font-size="14">3. The LayerNorm Computation for a Single Token</text>
+
+                            <!-- Pass 1 -->
+                            <g class="fragment">
+                                <path d="M375 540 V 600" class="svg-arrow"/>
+                                <rect x="200" y="600" width="350" height="60" class="svg-box" stroke="var(--c-orange)" fill="#263238"/>
+                                <text x="375" y="620" class="svg-text">Pass 1: Compute Statistics</text>
+                                <text x="375" y="640" class="svg-desc">Read the 1D Token Vector to produce two floats</text>
+                                <rect x="600" y="600" width="80" height="60" class="svg-box" stroke="var(--c-orange)" fill="#263238"/><text x="640" y="620" class="svg-text">μ</text>
+                                <rect x="700" y="600" width="80" height="60" class="svg-box" stroke="var(--c-orange)" fill="#263238"/><text x="740" y="620" class="svg-text">rstd (σ⁻¹)</text>
+                                <path d="M550 630 H 600" class="svg-arrow"/>
+                                <path d="M550 630 H 700" class="svg-arrow"/>
+                            </g>
+
+                            <!-- Pass 2 -->
+                            <g class="fragment">
+                                <path d="M375 540 V 700" class="svg-dashed-arrow"/>
+                                <path d="M595 540 V 700" class="svg-dashed-arrow"/>
+                                <path d="M765 540 V 700" class="svg-dashed-arrow"/>
+                                <path d="M640 660 V 700" class="svg-dashed-arrow"/>
+                                <path d="M740 660 V 700" class="svg-dashed-arrow"/>
+
+                                <rect x="200" y="700" width="700" height="220" class="svg-box" stroke="var(--c-green)" fill="#263238"/>
+                                <text x="550" y="720" class="svg-text">Pass 2: Normalize, Scale, and Shift (Fused Kernel)</text>
+                                <text x="550" y="740" class="svg-desc">`output = (token_vector - μ) * rstd * γ + β`</text>
+
+                                <text x="350" y="770" class="svg-label">AVX-512 Registers</text>
+                                <rect x="250" y="780" width="200" height="25" fill="var(--c-blue)"/><text x="350" y="795" class="svg-text">Token chunk [f0..f15]</text>
+                                <rect x="250" y="810" width="200" height="25" fill="var(--c-green)"/><text x="350" y="825" class="svg-text">Gamma chunk [f0..f15]</text>
+                                <rect x="250" y="840" width="200" height="25" fill="var(--c-green)"/><text x="350" y="855" class="svg-text">Beta chunk [f0..f15]</text>
+
+                                <text x="650" y="810" class="svg-text" font-size="14">_mm512_fmadd_ps(...)</text>
+                                <text x="650" y="830" class="svg-desc">Processes 16 floats at once</text>
+                            </g>
+                        </g>
+                    </g>
+
+                    <!-- Distribution Graphic -->
+                    <g class="fragment">
+                        <rect x="950" y="700" width="220" height="150" class="svg-box" stroke="#FFF" fill="var(--c-gray)"/>
+                        <text x="1060" y="720" class="svg-label">Distribution Control</text>
+                        <text x="1060" y="780" class="svg-text" font-size="10">Input Token: Shifted</text>
+                        <polyline points="960,800 1020,760 1080,800" stroke="var(--c-red)" fill="none" stroke-width="2"/>
+                        <text x="1060" y="820" class="svg-text" font-size="10">Output Token: Stabilized</text>
+                        <polyline points="960,850 1060,810 1160,850" stroke="var(--c-green)" fill="none" stroke-width="2"/>
+                    </g>
+                </svg>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            width: 1600,
+            height: 1000,
+            transition: 'slide',
+        });
+    </script>
+</body>
+</html>

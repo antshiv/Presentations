@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LayerNorm Architectures: A Deep Dive</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --c-blue: #539bf5;
+            --c-green: #3fb950;
+            --c-orange: #f69d50;
+            --c-red: #f85149;
+            --c-purple: #b392f0;
+            --c-gray: #484f58;
+            --c-bg: #22272e;
+            --c-text: #cdd9e5;
+        }
+        .reveal { font-family: var(--r-main-font); font-size: 24px; background-color: var(--c-bg); color: var(--c-text); }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; color: #fff; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .dim { color: #8b949e; }
+        .reveal .smaller { font-size: 0.85em; }
+        .viz-container { background-color: #2d333b; border-radius: 15px; padding: 20px; margin-top: 20px; border: 1px solid var(--c-gray); }
+        .viz-svg { width: 100%; height: auto; }
+        .svg-text { font-family: var(--r-main-font); fill: var(--c-text); text-anchor: middle; font-size: 14px; }
+        .svg-label { font-size: 16px; font-weight: bold; fill: #fff; }
+        .svg-desc { font-size: 12px; fill: #8b949e; }
+        .svg-box { stroke-width: 2px; rx: 8; }
+        .svg-arrow { stroke: #cdd9e5; stroke-width: 2.5px; fill: none; marker-end: url(#arrowhead); }
+        .svg-grad-arrow { stroke: var(--c-orange); stroke-width: 3px; fill: none; marker-end: url(#grad-arrowhead); }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>The Great Divide</h1>
+                <h3>Pre-LN vs. Post-LN Transformer Architectures</h3>
+                <p class="dim smaller">A Deep Dive into the Architectural Choice that Enabled Modern LLMs</p>
+            </section>
+
+            <section>
+                <h2>The Two Schools of Thought</h2>
+                <p class="smaller">The placement of LayerNorm seems like a minor detail, but it fundamentally changes the data flow and gradient dynamics of the entire network.</p>
+                <div class="two-col">
+                    <div class="viz-container">
+                        <h4 style="text-align: center;">Post-LN (BERT-style)</h4>
+                        <svg class="viz-svg" viewBox="0 0 200 300">
+                            <defs><marker id="arrowhead" markerWidth="6" markerHeight="4" refX="0" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#FFF"/></marker></defs>
+                            <path d="M100 20 V 50" class="svg-arrow"/><text x="100" y="15" class="svg-desc">x</text>
+                            <path d="M100 55 H 40 V 195 H 100" class="svg-arrow" style="stroke-dasharray: 4 4;"/>
+                            <rect x="60" y="55" width="80" height="50" class="svg-box" stroke="var(--c-purple)" fill="#3c2a4f"/><text x="100" y="85" class="svg-text">F(x)</text>
+                            <path d="M100 105 V 135" class="svg-arrow"/>
+                            <circle cx="100" cy="150" r="12" fill="var(--c-orange)"/><text x="100" y="155" class="svg-text">+</text>
+                            <path d="M100 162 V 195" class="svg-arrow"/>
+                            <rect x="50" y="195" width="100" height="50" class="svg-box" stroke="var(--c-green)" fill="#2e4c44"/><text x="100" y="225" class="svg-text">LN</text>
+                            <path d="M100 245 V 275" class="svg-arrow"/><text x="100" y="285" class="svg-desc">y</text>
+                        </svg>
+                    </div>
+                    <div class="viz-container">
+                        <h4 style="text-align: center;">Pre-LN (GPT-style)</h4>
+                        <svg class="viz-svg" viewBox="0 0 200 300">
+                            <path d="M100 20 V 50" class="svg-arrow"/><text x="100" y="15" class="svg-desc">x</text>
+                            <path d="M100 55 H 40 V 245 H 100" class="svg-arrow" style="stroke: var(--c-green);"/>
+                            <rect x="50" y="55" width="100" height="50" class="svg-box" stroke="var(--c-green)" fill="#2e4c44"/><text x="100" y="85" class="svg-text">LN</text>
+                            <path d="M100 105 V 135" class="svg-arrow"/>
+                            <rect x="60" y="135" width="80" height="50" class="svg-box" stroke="var(--c-purple)" fill="#3c2a4f"/><text x="100" y="165" class="svg-text">F(LN(x))</text>
+                            <path d="M60 160 H 40" class="svg-arrow"/>
+                            <circle cx="100" cy="260" r="12" fill="var(--c-orange)"/><text x="100" y="265" class="svg-text">+</text>
+                            <path d="M100 272 V 300" class="svg-arrow"/>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Post-LN: The Perilous Gradient Journey</h2>
+                <p class="smaller">In Post-LN, the main data path accumulates raw, high-variance outputs. This creates a problem for gradients.</p>
+                <div class="viz-container">
+                    <svg class="viz-svg" viewBox="0 0 800 400">
+                        <defs>
+                            <marker id="grad-arrowhead" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--c-orange)"/></marker>
+                            <filter id="turbulence" x="-50%" y="-50%" width="200%" height="200%">
+                                <feTurbulence type="fractalNoise" baseFrequency="0.1 0.9" numOctaves="2" result="TURB"/>
+                                <feDisplacementMap in="SourceGraphic" in2="TURB" scale="4"/>
+                            </filter>
+                        </defs>
+                        <text x="400" y="40" class="svg-label">Post-LN: Backward Pass Gradient Flow</text>
+                        <text x="750" y="100" class="svg-desc">Layer N</text>
+                        <text x="750" y="170" class="svg-desc">Layer N-1</text>
+                        <text x="750" y="240" class="svg-desc">Layer N-2</text>
+                        <text x="750" y="310" class="svg-desc">Layer N-3</text>
+                        <path class="svg-grad-arrow" d="M700 100 H 100"/>
+                        <path class="svg-grad-arrow fragment" d="M700 170 H 100" style="stroke-width: 5px;"/>
+                        <path class="svg-grad-arrow fragment" d="M700 240 H 100" style="stroke-width: 8px; filter: url(#turbulence);"/>
+                        <path class="svg-grad-arrow fragment" d="M700 310 H 100" style="stroke-width: 12px; filter: url(#turbulence); opacity: 0.7;"/>
+                        <text x="400" y="360" class="smaller fragment">The gradient signal is forced through the complex derivatives of `LN(x + F(x))` at every layer. It <span class="highlight">accumulates noise and explodes</span>, making training unstable.</text>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2>Pre-LN: The Gradient Superhighway</h2>
+                <p class="smaller">In Pre-LN, the residual path is a clean, direct connection, creating a stable path for gradients.</p>
+                <div class="viz-container">
+                    <svg class="viz-svg" viewBox="0 0 800 400">
+                        <text x="400" y="40" class="svg-label">Pre-LN: Backward Pass Gradient Flow</text>
+                        <g id="layer-4">
+                            <rect x="600" y="80" width="150" height="240" class="svg-box" fill="var(--c-gray)"/><text x="675" y="70" class="svg-desc">Layer N</text>
+                            <circle cx="675" cy="200" r="12" fill="var(--c-orange)"/><text x="675" y="205" class="svg-text">+</text>
+                            <rect x="635" y="120" width="80" height="40" class="svg-box" fill="#3c2a4f"/><text x="675" y="145" class="svg-text">F(LN(x))</text>
+                        </g>
+                        <g id="layer-3">
+                            <rect x="400" y="80" width="150" height="240" class="svg-box" fill="var(--c-gray)"/><text x="475" y="70" class="svg-desc">Layer N-1</text>
+                            <circle cx="475" cy="200" r="12" fill="var(--c-orange)"/><text x="475" y="205" class="svg-text">+</text>
+                            <rect x="435" y="120" width="80" height="40" class="svg-box" fill="#3c2a4f"/><text x="475" y="145" class="svg-text">F(LN(x))</text>
+                        </g>
+                        <g id="layer-2">
+                            <rect x="200" y="80" width="150" height="240" class="svg-box" fill="var(--c-gray)"/><text x="275" y="70" class="svg-desc">Layer N-2</text>
+                            <circle cx="275" cy="200" r="12" fill="var(--c-orange)"/><text x="275" y="205" class="svg-text">+</text>
+                            <rect x="235" y="120" width="80" height="40" class="svg-box" fill="#3c2a4f"/><text x="275" y="145" class="svg-text">F(LN(x))</text>
+                        </g>
+
+                        <!-- Gradient Path -->
+                        <g class="fragment">
+                            <path d="M750 200 H 550" class="svg-grad-arrow" style="stroke: var(--c-green); stroke-width: 5px;"/>
+                            <path d="M475 200 H 350" class="svg-grad-arrow" style="stroke: var(--c-green); stroke-width: 5px;"/>
+                            <path d="M275 200 H 50" class="svg-grad-arrow" style="stroke: var(--c-green); stroke-width: 5px;"/>
+                            <text x="400" y="280" class="svg-desc">The <span class="highlight">Gradient Superhighway</span>: The `+1` term from the residual connection.</text>
+                        </g>
+                        <!-- Modulated Gradient -->
+                        <g class="fragment">
+                            <path d="M675 212 V 250 H 655 V 160" class="svg-grad-arrow" style="stroke-width: 2px; opacity: 0.6;"/>
+                            <path d="M475 212 V 250 H 455 V 160" class="svg-grad-arrow" style="stroke-width: 2px; opacity: 0.6;"/>
+                            <path d="M275 212 V 250 H 255 V 160" class="svg-grad-arrow" style="stroke-width: 2px; opacity: 0.6;"/>
+                            <text x="400" y="320" class="svg-desc">A small, modulated gradient flows through the computation block.</text>
+                        </g>
+                        <text x="400" y="360" class="smaller fragment">The gradient flows <span class="highlight">unimpeded</span> through the `+ x` connection, ensuring signal integrity across many layers. This is the key to stable training.</text>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Practical Impact</h2>
+                <p class="smaller">This architectural choice has real-world consequences for training large models.</p>
+                <div class="two-col">
+                    <div class="viz-container">
+                        <h3 class="highlight">Post-LN (BERT)</h3>
+                        <ul>
+                            <li class="smaller">Works for moderate depth (12-24 layers).</li>
+                            <li class="smaller">Requires a long <span class="highlight">learning rate warmup</span> to prevent divergence.</li>
+                            <li class="smaller">Training is brittle; scaling to very deep networks is a significant challenge.</li>
+                        </ul>
+                    </div>
+                    <div class="viz-container">
+                        <h3 class="highlight">Pre-LN (GPT-2/3, Llama)</h3>
+                        <ul>
+                            <li class="smaller">Inherently stable, enabling much deeper models (96+ layers).</li>
+                            <li class="smaller">Often <span class="highlight">removes the need for warmup</span>, simplifying training.</li>
+                            <li class="smaller">The de-facto standard for all modern, large-scale LLMs.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            width: 1600,
+            height: 900,
+            transition: 'slide',
+        });
+    </script>
+</body>
+</html>

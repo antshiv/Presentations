@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LayerNorm: The Photo Editor's Analogy</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --c-blue: #42a5f5;
+            --c-green: #66bb6a;
+            --c-orange: #ffa726;
+            --c-red: #ef5350;
+            --c-purple: #ab47bc;
+            --c-bg: #263238;
+            --c-text: #eceff1;
+        }
+        .reveal { font-family: var(--r-main-font); font-size: 24px; background-color: #1c2124; }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; color: var(--c-text); }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .dim { color: #90a4ae; }
+        .reveal .smaller { font-size: 0.85em; }
+        .slide-content { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; }
+        .photo-container { display: flex; justify-content: space-around; align-items: center; width: 100%; margin-top: 30px; }
+        .photo-card {
+            background-color: var(--c-bg);
+            border-radius: 15px;
+            padding: 20px;
+            width: 350px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #455a64;
+        }
+        .photo-card h4 { margin-top: 0; margin-bottom: 15px; }
+        .photo-element {
+            width: 300px;
+            height: 200px;
+            background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80');
+            background-size: cover;
+            background-position: center;
+            border-radius: 8px;
+        }
+        .slider-controls { width: 300px; }
+        .slider-group { margin: 20px 0; }
+        .slider-group label { display: block; margin-bottom: 10px; font-weight: bold; }
+        input[type="range"] { width: 100%; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <div class="slide-content">
+                    <h1>LayerNorm: The Photo Editor's Analogy</h1>
+                    <h3>Why Neural Networks Need More Than Just Normalization</h3>
+                </div>
+            </section>
+
+            <section>
+                <div class="slide-content">
+                    <h2>The Problem: An Unpredictable Source</h2>
+                    <p class="smaller">A network layer receives activations from the previous layer. These are inconsistent—like a photographer who can't decide on the correct exposure or color balance.</p>
+                    <div class="photo-container">
+                        <div class="photo-card">
+                            <h4>Raw Layer Input</h4>
+                            <div id="bad-photo" class="photo-element"></div>
+                            <p class="smaller dim">How can we build a stable process on an unstable foundation?</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <div class="slide-content">
+                    <h2>The Goal: A Consistent Canvas</h2>
+                    <p class="smaller">Before we can apply any meaningful transformation, we must first <span class="highlight">remove the statistical noise</span> (the random shifts in brightness and color) to get a reliable starting point.</p>
+                    <div class="photo-container">
+                         <div class="photo-card">
+                            <h4>Before: Raw Input</h4>
+                            <div id="bad-photo-2" class="photo-element"></div>
+                        </div>
+                        <div class="photo-card">
+                            <h4>After: Neutral Canvas</h4>
+                            <div id="neutral-photo" class="photo-element"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <div class="slide-content">
+                    <h2>The Professional Workflow: Neutralize, then Stylize</h2>
+                    <p class="smaller">LayerNorm mimics a professional editor's two-step process.</p>
+                    <ol>
+                        <li class="fragment"><span class="highlight">Step 1: Neutralize</span> - Create a clean, predictable canvas by normalizing the input. This is the `(x - μ) / σ` part.</li>
+                        <li class="fragment"><span class="highlight">Step 2: Stylize</span> - From this neutral canvas, learn the perfect artistic adjustments for the next layer. This is the `* γ + β` part.</li>
+                    </ol>
+                </div>
+            </section>
+
+            <section>
+                <div class="slide-content">
+                    <h2>Step 2: Interactive Styling with γ and β</h2>
+                    <p class="smaller">The network learns the best `gamma` and `beta` values. You can be the network!</p>
+                    <div class="photo-container">
+                        <div class="photo-card">
+                            <h4>Neutral Canvas</h4>
+                            <div class="photo-element"></div>
+                        </div>
+                        <div class="photo-card slider-controls">
+                            <h4>Learnable Parameters</h4>
+                            <div class="slider-group">
+                                <label for="gamma">Gamma (γ) - <span class="highlight">Contrast</span></label>
+                                <input type="range" id="gamma" min="50" max="200" value="100">
+                            </div>
+                             <div class="slider-group">
+                                <label for="beta-brightness">Beta (β) - <span class="highlight">Brightness</span></label>
+                                <input type="range" id="beta-brightness" min="50" max="150" value="100">
+                            </div>
+                            <div class="slider-group">
+                                <label for="beta-tint">Beta (β) - <span class="highlight">Color Tint</span></label>
+                                <input type="range" id="beta-tint" min="0" max="50" value="0">
+                            </div>
+                        </div>
+                        <div class="photo-card">
+                            <h4>Final Stylized Output</h4>
+                            <div id="stylized-photo" class="photo-element"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <div class="slide-content">
+                    <h2>The Complete Analogy</h2>
+                    <div style="width: 100%; text-align: left;">
+                        <ul>
+                            <li>The <span class="highlight">Flickering Raw Photo</span> is <span class="dim">Internal Covariate Shift</span>: an unstable, unpredictable input signal.</li>
+                            <li class="fragment">The <span class="highlight">Neutral Canvas</span> is the <span class="dim">Normalized Signal (μ=0, σ=1)</span>: a clean, predictable, but information-reduced starting point.</li>
+                            <li class="fragment">The <span class="highlight">Interactive Sliders</span> are the <span class="dim">Learned γ and β Parameters</span>: they give the network the flexibility to restore and enhance representational power.</li>
+                            <li class="fragment">The <span class="highlight">Final Stylized Photo</span> is the <span class="dim">Layer's Output</span>: a stable, expressive, and perfectly calibrated signal for the next layer in the network.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            width: 1600,
+            height: 900,
+            transition: 'slide',
+        });
+
+        // GSAP Animations
+        function animateBadPhoto(selector) {
+            const photo = document.querySelector(selector);
+            if (!photo) return;
+
+            gsap.to(photo, {
+                filter: 'sepia(0.6) brightness(0.7) hue-rotate(20deg)',
+                duration: 1.5,
+                yoyo: true,
+                repeat: -1,
+                ease: "power1.inOut"
+            });
+             gsap.to(photo, {
+                filter: 'saturate(2) brightness(1.3) hue-rotate(-10deg)',
+                duration: 1.2,
+                yoyo: true,
+                repeat: -1,
+                ease: "power1.inOut",
+                delay: 0.7
+            });
+        }
+
+        function setupInteractiveStyling() {
+            const gammaSlider = document.getElementById('gamma');
+            const betaBrightnessSlider = document.getElementById('beta-brightness');
+            const betaTintSlider = document.getElementById('beta-tint');
+            const stylizedPhoto = document.getElementById('stylized-photo');
+
+            if (!gammaSlider || !stylizedPhoto) return;
+
+            function updateStyle() {
+                const gamma = gammaSlider.value / 100;
+                const brightness = betaBrightnessSlider.value / 100;
+                const tint = betaTintSlider.value;
+
+                gsap.set(stylizedPhoto, {
+                    filter: `contrast(${gamma}) brightness(${brightness}) sepia(${tint}%)`
+                });
+            }
+
+            gammaSlider.addEventListener('input', updateStyle);
+            betaBrightnessSlider.addEventListener('input', updateStyle);
+            betaTintSlider.addEventListener('input', updateStyle);
+            
+            updateStyle(); // Initial style
+        }
+
+        Reveal.on('ready', event => {
+            animateBadPhoto('#bad-photo');
+            animateBadPhoto('#bad-photo-2');
+            setupInteractiveStyling();
+        });
+
+        Reveal.on('slidechanged', event => {
+            // Re-run animations if they are on the current slide
+            if (event.currentSlide.querySelector('#bad-photo')) {
+                animateBadPhoto('#bad-photo');
+            }
+            if (event.currentSlide.querySelector('#bad-photo-2')) {
+                animateBadPhoto('#bad-photo-2');
+            }
+            if (event.currentSlide.querySelector('#stylized-photo')) {
+                setupInteractiveStyling();
+            }
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Full Story of LayerNorm</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --c-blue: #539bf5;
+            --c-green: #3fb950;
+            --c-orange: #f69d50;
+            --c-red: #f85149;
+            --c-purple: #b392f0;
+            --c-gray: #484f58;
+            --c-bg: #22272e;
+            --c-text: #cdd9e5;
+        }
+        .reveal { font-family: var(--r-main-font); font-size: 24px; background-color: var(--c-bg); color: var(--c-text); }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; color: #fff; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .dim { color: #8b949e; }
+        .reveal .smaller { font-size: 0.85em; }
+        .viz-container { background-color: #2d333b; border-radius: 15px; padding: 20px; margin-top: 20px; border: 1px solid var(--c-gray); }
+        .viz-svg { width: 100%; height: auto; }
+        .svg-text { font-family: var(--r-main-font); fill: var(--c-text); text-anchor: middle; font-size: 14px; }
+        .svg-label { font-size: 16px; font-weight: bold; fill: #fff; }
+        .svg-desc { font-size: 12px; fill: #8b949e; }
+        .svg-box { stroke-width: 2px; rx: 8; }
+        .svg-arrow { stroke: #cdd9e5; stroke-width: 2.5px; fill: none; marker-end: url(#arrowhead); }
+        .svg-grad-arrow { stroke: var(--c-orange); stroke-width: 3px; fill: none; marker-end: url(#grad-arrowhead); }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: center; }
+        .photo-card { background-color: var(--c-bg); border-radius: 15px; padding: 20px; width: 400px; height: 450px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #455a64; }
+        .photo-element { width: 350px; height: 250px; background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80'); background-size: cover; background-position: center; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>The Full Story of LayerNorm</h1>
+                <h3>From Mathematical Necessity to High-Performance Hardware Execution</h3>
+            </section>
+
+            <section>
+                <h2>The Story in Four Acts</h2>
+                <ol>
+                    <li class="fragment"><span class="highlight">The Why:</span> The core problem LayerNorm solves.</li>
+                    <li class="fragment"><span class="highlight">The What:</span> The architectural choice of where to place it.</li>
+                    <li class="fragment"><span class="highlight">The How:</span> The full-stack HPC implementation for a single token.</li>
+                    <li class="fragment"><span class="highlight">The Code:</span> The C and AVX intrinsics that make it real.</li>
+                </ol>
+            </section>
+
+            <section data-transition="slide-in fade-out">
+                <h2>Act I: The Why - An Unpredictable Signal</h2>
+                <p class="smaller">A network layer receives activations from the previous layer. These are inconsistent, like a photo with a random color cast and exposure.</p>
+                <div class="photo-card" style="margin: 20px auto;">
+                    <h4>Raw Layer Input</h4>
+                    <div id="bad-photo" class="photo-element"></div>
+                    <p class="smaller dim">How can we build a stable process on an unstable foundation?</p>
+                </div>
+            </section>
+
+            <section data-transition="fade-in fade-out">
+                <h2>The Goal: A Consistent Canvas</h2>
+                <p class="smaller">Before we can apply any meaningful transformation, we must first <span class="highlight">remove the statistical noise</span> to get a reliable starting point.</p>
+                <div class="two-col">
+                    <div class="photo-card">
+                        <h4>Before: Raw Input</h4>
+                        <div id="bad-photo-2" class="photo-element"></div>
+                    </div>
+                    <div class="photo-card">
+                        <h4>After: Neutral Canvas</h4>
+                        <div class="photo-element"></div>
+                        <p class="smaller dim">This is our standardized signal (μ=0, σ=1).</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Act II: The What - A Critical Design Choice</h2>
+                <p class="smaller">The placement of LayerNorm fundamentally changes the network's stability. This was the key innovation that enabled truly deep models.</p>
+                <div class="two-col">
+                    <div class="viz-container">
+                        <h4 style="text-align: center;">Post-LN (BERT-style)</h4>
+                        <svg class="viz-svg" viewBox="0 0 200 300">
+                            <defs><marker id="arrowhead" markerWidth="6" markerHeight="4" refX="0" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#FFF"/></marker></defs>
+                            <path d="M100 20 V 50" class="svg-arrow"/><text x="100" y="15" class="svg-desc">x</text>
+                            <path d="M100 55 H 40 V 195 H 100" class="svg-arrow" style="stroke-dasharray: 4 4;"/>
+                            <rect x="60" y="55" width="80" height="50" class="svg-box" stroke="var(--c-purple)" fill="#3c2a4f"/><text x="100" y="85" class="svg-text">F(x)</text>
+                            <path d="M100 105 V 135" class="svg-arrow"/>
+                            <circle cx="100" cy="150" r="12" fill="var(--c-orange)"/><text x="100" y="155" class="svg-text">+</text>
+                            <path d="M100 162 V 195" class="svg-arrow"/>
+                            <rect x="50" y="195" width="100" height="50" class="svg-box" stroke="var(--c-green)" fill="#2e4c44"/><text x="100" y="225" class="svg-text">LN</text>
+                            <path d="M100 245 V 275" class="svg-arrow"/><text x="100" y="285" class="svg-desc">y</text>
+                        </svg>
+                    </div>
+                    <div class="viz-container">
+                        <h4 style="text-align: center;">Pre-LN (GPT-style)</h4>
+                        <svg class="viz-svg" viewBox="0 0 200 300">
+                            <path d="M100 20 V 50" class="svg-arrow"/><text x="100" y="15" class="svg-desc">x</text>
+                            <path d="M100 55 H 40 V 245 H 100" class="svg-arrow" style="stroke: var(--c-green);"/>
+                            <rect x="50" y="55" width="100" height="50" class="svg-box" stroke="var(--c-green)" fill="#2e4c44"/><text x="100" y="85" class="svg-text">LN</text>
+                            <path d="M100 105 V 135" class="svg-arrow"/>
+                            <rect x="60" y="135" width="80" height="50" class="svg-box" stroke="var(--c-purple)" fill="#3c2a4f"/><text x="100" y="165" class="svg-text">F(LN(x))</text>
+                            <path d="M60 160 H 40" class="svg-arrow"/>
+                            <circle cx="100" cy="260" r="12" fill="var(--c-orange)"/><text x="100" y="265" class="svg-text">+</text>
+                            <path d="M100 272 V 300" class="svg-arrow"/>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Consequence: The Gradient Superhighway</h2>
+                <p class="smaller">Pre-LN creates a clean, unimpeded path for gradients to flow backward through the network.</p>
+                <div class="viz-container">
+                    <svg class="viz-svg" viewBox="0 0 800 400">
+                        <defs>
+                            <marker id="grad-arrowhead" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--c-orange)"/></marker>
+                            <filter id="turbulence" x="-50%" y="-50%" width="200%" height="200%">
+                                <feTurbulence type="fractalNoise" baseFrequency="0.1 0.9" numOctaves="2" result="TURB"/>
+                                <feDisplacementMap in="SourceGraphic" in2="TURB" scale="4"/>
+                            </filter>
+                        </defs>
+                        <text x="200" y="60" class="svg-label">Post-LN Gradient</text>
+                        <path class="svg-grad-arrow" d="M350 100 H 50" style="stroke-width: 12px; filter: url(#turbulence); opacity: 0.7;"/>
+                        <text x="200" y="130" class="smaller">The gradient signal <span class="highlight">explodes and distorts</span> as it passes through each layer.</text>
+                        
+                        <text x="600" y="220" class="svg-label">Pre-LN Gradient</text>
+                        <path d="M750 260 H 450" class="svg-grad-arrow" style="stroke: var(--c-green); stroke-width: 6px;"/>
+                        <text x="600" y="290" class="smaller">The gradient flows <span class="highlight">cleanly and stably</span> down the residual superhighway.</text>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2>Act III: The How - A Single Token's Journey</h2>
+                <p class="smaller">Let's trace one token from memory to computation, based on the C-Transformer architecture.</p>
+                <div style="width: 100%; height: 85vh; overflow: auto;">
+                <svg class="viz-svg" viewBox="0 0 1200 950">
+                    <text x="600" y="30" class="svg-label" font-size="20">LayerNorm: The Full Stack View</text>
+                    <g id="ddr">
+                        <rect x="20" y="60" width="1160" height="180" class="svg-box" stroke="#fff" fill="var(--c-gray)"/>
+                        <text x="600" y="85" class="svg-label" font-size="16">1. Main Memory (DDR)</text>
+                        <rect x="40" y="100" width="1120" height="120" class="svg-box" stroke="var(--c-blue)" fill="#212121"/>
+                        <rect x="50" y="130" width="400" height="80" fill="var(--c-blue)" opacity="0.6"/><text x="250" y="170" class="svg-text">Layer Input Tensor (x)</text>
+                        <rect x="450" y="130" width="150" height="80" fill="var(--c-green)" opacity="0.6"/><text x="525" y="170" class="svg-text">Gamma (γ)</text>
+                        <rect x="600" y="130" width="150" height="80" fill="var(--c-green)" opacity="0.6"/><text x="675" y="170" class="svg-text">Beta (β)</text>
+                        <rect x="750" y="130" width="400" height="80" fill="var(--c-orange)" opacity="0.6"/><text x="950" y="170" class="svg-text">Layer Output Tensor</text>
+                    </g>
+                    <path d="M600 240 V 280" class="svg-dashed-arrow"/>
+                    <g id="cpu">
+                        <rect x="20" y="280" width="1160" height="650" class="svg-box" stroke="#fff" fill="var(--c-gray)"/>
+                        <text x="600" y="305" class="svg-label" font-size="16">2. CPU & Cache Hierarchy</text>
+                        <rect x="40" y="320" width="1120" height="80" class="svg-box" stroke="var(--c-light-gray)" fill="#455a64"/><text x="600" y="340" class="svg-label">L3 Cache</text>
+                        <path d="M600 400 V 430" class="svg-dashed-arrow"/>
+                        <g id="core0">
+                            <rect x="100" y="430" width="1000" height="500" class="svg-box" stroke="var(--c-light-gray)" fill="#546e7a"/>
+                            <text x="600" y="450" class="svg-label">Single CPU Core</text>
+                            <rect x="120" y="470" width="960" height="80" class="svg-box" stroke="var(--c-light-gray)" fill="#607d8b"/><text x="600" y="485" class="svg-label">L1/L2 Cache</text>
+                            <rect x="250" y="500" width="250" height="40" fill="var(--c-blue)"/><text x="375" y="520" class="svg-text">One Token Vector (1D)</text>
+                            <rect x="520" y="500" width="150" height="40" fill="var(--c-green)"/><text x="595" y="520" class="svg-text">Gamma (γ)</text>
+                            <rect x="690" y="500" width="150" height="40" fill="var(--c-green)"/><text x="765" y="520" class="svg-text">Beta (β)</text>
+                            <text x="600" y="570" class="svg-label" font-size="14">3. The Computation for a Single Token</text>
+                            <g>
+                                <path d="M375 540 V 600" class="svg-arrow"/>
+                                <rect x="200" y="600" width="350" height="60" class="svg-box" stroke="var(--c-orange)" fill="#263238"/><text x="375" y="630" class="svg-text">Pass 1: Compute Statistics</text>
+                                <rect x="600" y="600" width="80" height="60" class="svg-box" stroke="var(--c-orange)" fill="#263238"/><text x="640" y="630" class="svg-text">μ</text>
+                                <rect x="700" y="600" width="80" height="60" class="svg-box" stroke="var(--c-orange)" fill="#263238"/><text x="740" y="630" class="svg-text">rstd</text>
+                                <path d="M550 630 H 600" class="svg-arrow"/><path d="M550 630 H 700" class="svg-arrow"/>
+                            </g>
+                            <g>
+                                <path d="M375 540 V 700" class="svg-dashed-arrow"/><path d="M595 540 V 700" class="svg-dashed-arrow"/><path d="M765 540 V 700" class="svg-dashed-arrow"/><path d="M640 660 V 700" class="svg-dashed-arrow"/><path d="M740 660 V 700" class="svg-dashed-arrow"/>
+                                <rect x="200" y="700" width="700" height="220" class="svg-box" stroke="var(--c-green)" fill="#263238"/>
+                                <text x="550" y="720" class="svg-text">Pass 2: Normalize, Scale, and Shift</text>
+                                <text x="350" y="770" class="svg-label">AVX-512 Registers</text>
+                                <rect x="250" y="780" width="200" height="25" fill="var(--c-blue)"/><text x="350" y="795" class="svg-text">Token chunk</text>
+                                <rect x="250" y="810" width="200" height="25" fill="var(--c-green)"/><text x="350" y="825" class="svg-text">Gamma chunk</text>
+                                <rect x="250" y="840" width="200" height="25" fill="var(--c-green)"/><text x="350" y="855" class="svg-text">Beta chunk</text>
+                                <text x="650" y="810" class="svg-text" font-size="14">_mm512_fmadd_ps(...)</text>
+                            </g>
+                        </g>
+                    </g>
+                </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2>Act IV: The Code</h2>
+                <p class="smaller">This is the C and AVX-512 implementation that executes the logic shown in the infographic.</p>
+                <pre style="font-size: 14px;"><code class="c" data-trim data-noescape>
+// Outer loop: Parallelism ACROSS tokens
+#pragma omp parallel for schedule(static)
+for (int t = 0; t < tokens; ++t) {
+    const float *in_ptr  = input  + t * d_model;
+    float       *out_ptr = output + t * d_model;
+
+    // --- Pass 1: Compute mean & variance for ONE token ---
+    // Vectorized loop WITHIN the token's embedding dimension
+    __m512 acc0 = _mm512_setzero_ps();
+    // ... (4-way unrolled AVX code to calculate mean and var) ...
+    float mean = ...;
+    float var = ...;
+    float inv_std = 1.0f / sqrtf(var + eps);
+    __m512 mean_vec = _mm512_set1_ps(mean);
+    __m512 inv_std_vec = _mm512_set1_ps(inv_std);
+
+    // --- Pass 2: Normalize, scale, shift for ONE token ---
+    // Vectorized loop WITHIN the token's embedding dimension
+    for (j = 0; j <= d_model - 16; j += 16) {
+        __m512 v0 = _mm512_load_ps(in_ptr + j);
+        __m512 g0 = _mm512_load_ps(gamma + j);
+        __m512 b0 = _mm512_load_ps(beta + j);
+
+        // n0 = (v0 - mean_vec) * inv_std_vec
+        __m512 n0 = _mm512_mul_ps(_mm512_sub_ps(v0, mean_vec), inv_std_vec);
+        // o0 = n0 * g0 + b0
+        __m512 o0 = _mm512_fmadd_ps(n0, g0, b0);
+        _mm512_store_ps(out_ptr + j, o0);
+    }
+    // ... remainder loop ...
+}
+                </code></pre>
+            </section>
+
+            <section>
+                <h2>The Full Story</h2>
+                <ul>
+                    <li class="fragment"><span class="highlight">The Problem:</span> Raw network activations are unstable, making training difficult.</li>
+                    <li class="fragment"><span class="highlight">The Architectural Solution:</span> Pre-LayerNorm protects the residual path, creating a "gradient superhighway" for stable training.</li>
+                    <li class="fragment"><span class="highlight">The HPC Implementation:</span> A contiguous memory arena, parallelization across tokens, and vectorization within tokens maximizes hardware utilization.</li>
+                    <li class="fragment"><span class="highlight">The Result:</span> The mathematical necessity is made practical by a full-stack awareness of the software and hardware, enabling the creation of today's massive LLMs.</li>
+                </ul>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            width: 1600,
+            height: 900,
+            transition: 'slide',
+        });
+
+        function animateBadPhoto(selector) {
+            const photo = document.querySelector(selector);
+            if (!photo) return;
+            gsap.to(photo, {
+                filter: 'sepia(0.6) brightness(0.7) hue-rotate(20deg)',
+                duration: 1.5, yoyo: true, repeat: -1, ease: "power1.inOut"
+            });
+             gsap.to(photo, {
+                filter: 'saturate(2) brightness(1.3) hue-rotate(-10deg)',
+                duration: 1.2, yoyo: true, repeat: -1, ease: "power1.inOut", delay: 0.7
+            });
+        }
+
+        Reveal.on('ready', event => {
+            animateBadPhoto('#bad-photo');
+            animateBadPhoto('#bad-photo-2');
+        });
+
+        Reveal.on('slidechanged', event => {
+            if (event.currentSlide.querySelector('#bad-photo')) {
+                animateBadPhoto('#bad-photo');
+            }
+            if (event.currentSlide.querySelector('#bad-photo-2')) {
+                animateBadPhoto('#bad-photo-2');
+            }
+        });
+    </script>
+</body>
+</html>

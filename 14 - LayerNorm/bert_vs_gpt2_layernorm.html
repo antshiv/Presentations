@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BERT vs GPT-2: The LayerNorm Revolution</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --c-blue: #42a5f5;
+            --c-green: #66bb6a;
+            --c-orange: #ffa726;
+            --c-red: #ef5350;
+            --c-purple: #ab47bc;
+            --c-gray: #37474f;
+            --c-bert: #ff6b6b;
+            --c-gpt: #4ecdc4;
+            --c-bg: #263238;
+        }
+        .reveal { 
+            font-family: var(--r-main-font); 
+            font-size: 20px; /* Reduced base font size */
+        }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .bert-color { color: var(--c-bert); }
+        .reveal .gpt-color { color: var(--c-gpt); }
+        .reveal .dim { color: #90a4ae; }
+        .reveal .smaller { font-size: 0.8em; }
+        .reveal .tiny { font-size: 0.7em; }
+        .viz-svg { width: 100%; height: auto; background-color: var(--c-bg); border-radius: 10px; margin-top: 10px; }
+        .svg-text { font-family: var(--r-main-font); fill: white; text-anchor: middle; font-size: 10px; }
+        .svg-label { font-size: 11px; font-weight: bold; }
+        .svg-desc { font-size: 9px; fill: #ccc; }
+        .svg-box { stroke-width: 2px; rx: 5; }
+        .svg-arrow { stroke: #eee; stroke-width: 2px; fill: none; marker-end: url(#arrowhead); }
+        .svg-dashed-arrow { stroke: #ccc; stroke-width: 2px; fill: none; marker-end: url(#arrowhead); stroke-dasharray: 5 5; }
+        .svg-grad-arrow { stroke: var(--c-orange); stroke-width: 3px; fill: none; marker-end: url(#grad-arrowhead); stroke-dasharray: 8 4; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+        .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; align-items: center; }
+        .timeline { display: flex; justify-content: space-around; align-items: center; margin: 30px 0; }
+        .timeline-item { text-align: center; position: relative; }
+        .timeline-year { font-size: 20px; font-weight: bold; color: var(--c-orange); }
+        .timeline-model { font-size: 14px; margin-top: 8px; }
+        .timeline-line { height: 3px; background: linear-gradient(90deg, var(--c-bert) 0%, var(--c-gpt) 100%); flex-grow: 1; margin: 0 15px; }
+        .two-col .viz-svg {
+            transform: scale(0.85);
+            transform-origin: center center;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>The LayerNorm Revolution</h1>
+                <h2><span class="bert-color">BERT</span> vs <span class="gpt-color">GPT-2</span></h2>
+                <p class="dim">How Moving LayerNorm 2 Lines of Code Enabled the Modern AI Era</p>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-year">2017</div>
+                        <div class="timeline-model">Original Transformer</div>
+                    </div>
+                    <div class="timeline-line"></div>
+                    <div class="timeline-item">
+                        <div class="timeline-year">2018</div>
+                        <div class="timeline-model bert-color">BERT (12-24 layers)</div>
+                    </div>
+                    <div class="timeline-line"></div>
+                    <div class="timeline-item">
+                        <div class="timeline-year">2019</div>
+                        <div class="timeline-model gpt-color">GPT-2 (48+ layers)</div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Anatomy of a Transformer Block</h2>
+                <p class="smaller">Let's define our terms precisely before diving into the critical difference.</p>
+                <svg class="viz-svg" viewBox="0 0 800 300">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="#FFF"/>
+                        </marker>
+                    </defs>
+                    <text x="400" y="40" class="svg-text" font-size="16">A Single Transformer Block</text>
+                    <g>
+                        <rect x="50" y="100" width="150" height="100" class="svg-box" stroke="var(--c-blue)" fill="#2d3a5e"/>
+                        <text x="125" y="140" class="svg-text">Input `x`</text>
+                        <text x="125" y="160" class="svg-desc">Output from</text>
+                        <text x="125" y="175" class="svg-desc">previous layer</text>
+                    </g>
+                    <path d="M200 150 H 250" class="svg-arrow"/>
+                    <g>
+                        <rect x="250" y="100" width="300" height="100" class="svg-box" stroke="var(--c-purple)" fill="#3c2a4f"/>
+                        <text x="400" y="140" class="svg-text">Function `F(.)`</text>
+                        <text x="400" y="160" class="svg-desc">The Sub-Layer Computation</text>
+                        <text x="400" y="175" class="svg-desc">(e.g., Multi-Head Attention or MLP)</text>
+                    </g>
+                    <path d="M550 150 H 600" class="svg-arrow"/>
+                    <g>
+                        <rect x="600" y="100" width="150" height="100" class="svg-box" stroke="var(--c-green)" fill="#2e4c44"/>
+                        <text x="675" y="140" class="svg-text">Output `y`</text>
+                        <text x="675" y="160" class="svg-desc">Input to</text>
+                        <text x="675" y="175" class="svg-desc">next layer</text>
+                    </g>
+                </svg>
+                <p class="fragment smaller">The critical question: Where do we place `LayerNorm` relative to `F` and the residual connection `+ x`?</p>
+            </section>
+
+            <section>
+                <h2>BERT's Approach: Post-LN (Normalizing the Output)</h2>
+                <p class="smaller">The original Transformer and BERT applied LayerNorm <span class="highlight">after</span> the residual addition.</p>
+                <div class="two-col">
+                    <div>
+                        <svg class="viz-svg" viewBox="0 0 400 500">
+                            <defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#FFF"/></marker></defs>
+                            <text x="200" y="30" class="svg-label" fill="var(--c-bert)">BERT-style Post-LN Block</text>
+                            <text x="200" y="70" class="svg-text">Input (x)</text>
+                            <path d="M200 80 V 110" class="svg-arrow"/>
+                            <path d="M200 115 H 100 V 275 H 200" class="svg-dashed-arrow"/>
+                            <rect x="150" y="115" width="100" height="50" class="svg-box" stroke="var(--c-purple)" fill="#3c2a4f"/>
+                            <text x="200" y="145" class="svg-text">F(x)</text>
+                            <path d="M200 165 V 195" class="svg-arrow"/>
+                            <circle cx="200" cy="210" r="12" fill="var(--c-orange)"/>
+                            <text x="200" y="215" class="svg-text">+</text>
+                            <path d="M200 222 V 252" class="svg-arrow"/>
+                            <rect x="125" y="252" width="150" height="50" class="svg-box" stroke="var(--c-red)" fill="#4c2e2e"/>
+                            <text x="200" y="282" class="svg-text">LayerNorm</text>
+                            <path d="M200 302 V 332" class="svg-arrow"/>
+                            <text x="200" y="360" class="svg-text">Output</text>
+                            
+                            <!-- Variance indicator -->
+                            <text x="300" y="220" class="svg-desc" fill="var(--c-red)">High Variance!</text>
+                            <path d="M270 210 Q 290 205 300 210" stroke="var(--c-red)" stroke-width="2" fill="none"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4>The Equation: <span class="bert-color">`y = LN(x + F(x))`</span></h4>
+                        <p class="smaller">The residual path carries the raw `x`, which is added to the raw output of `F(x)`. This combined, potentially high-variance signal is then normalized.</p>
+                        <h4 class="fragment">The Problem: A "Dirty" Signal Path</h4>
+                        <p class="smaller fragment">The output of `F(x)` can have large and unpredictable variance. When added to `x`, the variance of the main path <span class="highlight">accumulates at each layer</span>.</p>
+                        <p class="smaller fragment dim">This creates an unstable signal that makes deep networks hard to train.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>What Does "Variance" Actually Mean in Practice?</h2>
+                <p class="smaller">Let's make this concrete. "High variance" in neural networks means <span class="highlight">unpredictable, chaotic signals</span>.</p>
+                <div style="text-align: center;">
+                    <svg class="viz-svg" viewBox="0 0 800 300">
+                        <text x="400" y="30" class="svg-label">Signal Behavior: Stable vs Chaotic</text>
+                        
+                        <!-- Stable signal -->
+                        <text x="200" y="60" class="svg-label" fill="var(--c-green)">Low Variance (Good)</text>
+                        <path d="M50 150 Q 100 140 150 145 Q 200 150 250 148 Q 300 145 350 147" 
+                              stroke="var(--c-green)" stroke-width="3" fill="none"/>
+                        <text x="200" y="180" class="svg-desc">Predictable, learnable patterns</text>
+                        <text x="200" y="200" class="svg-desc">Network can focus on learning</text>
+                        
+                        <!-- Chaotic signal -->
+                        <text x="600" y="60" class="svg-label" fill="var(--c-red)">High Variance (Bad)</text>
+                        <path d="M450 100 Q 500 200 550 80 Q 600 180 650 120 Q 700 90 750 170" 
+                              stroke="var(--c-red)" stroke-width="3" fill="none"/>
+                        <text x="600" y="180" class="svg-desc">Chaotic, unpredictable jumps</text>
+                        <text x="600" y="200" class="svg-desc">Network fights the chaos, not learning</text>
+                        
+                        <!-- Layer progression -->
+                        <text x="50" y="270" class="svg-desc">Layer 1</text>
+                        <text x="150" y="270" class="svg-desc">Layer 5</text>
+                        <text x="250" y="270" class="svg-desc">Layer 10</text>
+                        <text x="350" y="270" class="svg-desc">Layer 15</text>
+                        
+                        <text x="450" y="270" class="svg-desc">Layer 1</text>
+                        <text x="550" y="270" class="svg-desc">Layer 5</text>
+                        <text x="650" y="270" class="svg-desc">Layer 10</text>
+                        <text x="750" y="270" class="svg-desc">Layer 15</text>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Photo Editor Analogy: Why Variance Kills Training</h2>
+                <p class="smaller">Think of each layer as a photo editor trying to enhance an image. High variance = chaotic, unpredictable input.</p>
+                <div style="text-align: center;">
+                    <svg class="viz-svg" viewBox="0 0 800 400">
+                        <text x="400" y="30" class="svg-label">Post-LN: Working with Chaos</text>
+                        
+                        <!-- Photo editing workflow with chaos -->
+                        <rect x="50" y="80" width="120" height="80" fill="var(--c-blue)" opacity="0.3" stroke="var(--c-blue)" stroke-width="2" rx="10"/>
+                        <text x="110" y="110" class="svg-text">Layer 1</text>
+                        <text x="110" y="130" class="svg-desc">Photo Editor</text>
+                        
+                        <!-- Chaotic input -->
+                        <rect x="50" y="180" width="120" height="60" fill="var(--c-red)" opacity="0.7" stroke="var(--c-red)" stroke-width="2" rx="5"/>
+                        <text x="110" y="210" class="svg-text" font-size="8">CHAOTIC INPUT</text>
+                        <text x="110" y="225" class="svg-desc">Flickering brightness</text>
+                        
+                        <path d="M180 120 L220 120" stroke="#fff" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <!-- More chaos -->
+                        <rect x="240" y="80" width="120" height="80" fill="var(--c-orange)" opacity="0.3" stroke="var(--c-orange)" stroke-width="2" rx="10"/>
+                        <text x="300" y="110" class="svg-text">Layer 5</text>
+                        <text x="300" y="130" class="svg-desc">Photo Editor</text>
+                        
+                        <rect x="240" y="180" width="120" height="60" fill="var(--c-red)" opacity="0.9" stroke="var(--c-red)" stroke-width="2" rx="5"/>
+                        <text x="300" y="205" class="svg-text" font-size="8">MORE CHAOS</text>
+                        <text x="300" y="220" class="svg-desc">Random colors</text>
+                        <text x="300" y="235" class="svg-desc">Unstable exposure</text>
+                        
+                        <path d="M370 120 L410 120" stroke="#fff" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <!-- Complete chaos -->
+                        <rect x="430" y="80" width="120" height="80" fill="var(--c-red)" opacity="0.3" stroke="var(--c-red)" stroke-width="2" rx="10"/>
+                        <text x="490" y="110" class="svg-text">Layer 20</text>
+                        <text x="490" y="130" class="svg-desc">Photo Editor</text>
+                        
+                        <rect x="430" y="180" width="120" height="60" fill="var(--c-red)" stroke="var(--c-red)" stroke-width="3" rx="5"/>
+                        <text x="490" y="200" class="svg-text" font-size="8">TOTAL CHAOS</text>
+                        <text x="490" y="215" class="svg-desc">Can't work with this!</text>
+                        <text x="490" y="230" class="svg-desc">Gradients explode</text>
+                        
+                        <!-- Result -->
+                        <text x="400" y="300" class="svg-desc" fill="var(--c-red)">Result: Each editor fights chaos instead of learning to enhance</text>
+                        <text x="400" y="320" class="svg-desc">Training becomes: "How do I deal with this mess?" not "How do I recognize patterns?"</text>
+                        
+                        <!-- Training symptoms -->
+                        <text x="600" y="80" class="svg-label" fill="var(--c-red)">Training Symptoms:</text>
+                        <text x="600" y="110" class="svg-desc">• Loss oscillates wildly</text>
+                        <text x="600" y="130" class="svg-desc">• Gradients explode or vanish</text>
+                        <text x="600" y="150" class="svg-desc">• Poor pattern recognition</text>
+                        <text x="600" y="170" class="svg-desc">• Training diverges after layer 20+</text>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Photo Editor Analogy: Pre-LN Success</h2>
+                <p class="smaller">Pre-LN = Give each editor a clean, neutral canvas first. Now they can focus on <span class="highlight">learning</span>, not fighting chaos.</p>
+                <div style="text-align: center;">
+                    <svg class="viz-svg" viewBox="0 0 800 400">
+                        <text x="400" y="30" class="svg-label">Pre-LN: Working with Clean Canvas</text>
+                        
+                        <!-- Clean workflow -->
+                        <rect x="50" y="80" width="120" height="60" fill="var(--c-green)" opacity="0.3" stroke="var(--c-green)" stroke-width="2" rx="10"/>
+                        <text x="110" y="105" class="svg-text">Normalize First</text>
+                        <text x="110" y="125" class="svg-desc">Clean canvas</text>
+                        
+                        <path d="M110 150 V 180" stroke="#fff" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <rect x="50" y="190" width="120" height="60" fill="var(--c-blue)" opacity="0.3" stroke="var(--c-blue)" stroke-width="2" rx="10"/>
+                        <text x="110" y="215" class="svg-text">Layer 1</text>
+                        <text x="110" y="235" class="svg-desc">Photo Editor</text>
+                        
+                        <path d="M180 120 L220 120" stroke="#fff" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <!-- Consistent throughout -->
+                        <rect x="240" y="80" width="120" height="60" fill="var(--c-green)" opacity="0.3" stroke="var(--c-green)" stroke-width="2" rx="10"/>
+                        <text x="300" y="105" class="svg-text">Normalize First</text>
+                        <text x="300" y="125" class="svg-desc">Clean canvas</text>
+                        
+                        <path d="M300 150 V 180" stroke="#fff" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <rect x="240" y="190" width="120" height="60" fill="var(--c-blue)" opacity="0.3" stroke="var(--c-blue)" stroke-width="2" rx="10"/>
+                        <text x="300" y="215" class="svg-text">Layer 50</text>
+                        <text x="300" y="235" class="svg-desc">Photo Editor</text>
+                        
+                        <path d="M370 120 L410 120" stroke="#fff" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <!-- Still consistent -->
+                        <rect x="430" y="80" width="120" height="60" fill="var(--c-green)" opacity="0.3" stroke="var(--c-green)" stroke-width="2" rx="10"/>
+                        <text x="490" y="105" class="svg-text">Normalize First</text>
+                        <text x="490" y="125" class="svg-desc">Clean canvas</text>
+                        
+                        <path d="M490 150 V 180" stroke="#fff" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <rect x="430" y="190" width="120" height="60" fill="var(--c-blue)" opacity="0.3" stroke="var(--c-blue)" stroke-width="2" rx="10"/>
+                        <text x="490" y="215" class="svg-text">Layer 100</text>
+                        <text x="490" y="235" class="svg-desc">Photo Editor</text>
+                        
+                        <!-- Result -->
+                        <text x="400" y="300" class="svg-desc" fill="var(--c-green)">Result: Each editor works with predictable input, focuses on learning patterns</text>
+                        <text x="400" y="320" class="svg-desc">Training becomes: "How do I recognize and enhance this pattern?"</text>
+                        
+                        <!-- Training benefits -->
+                        <text x="600" y="80" class="svg-label" fill="var(--c-green)">Training Benefits:</text>
+                        <text x="600" y="110" class="svg-desc">• Smooth loss convergence</text>
+                        <text x="600" y="130" class="svg-desc">• Stable gradients</text>
+                        <text x="600" y="150" class="svg-desc">• Excellent pattern recognition</text>
+                        <text x="600" y="170" class="svg-desc">• Scales to 100+ layers</text>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Mathematical Problem with Post-LN</h2>
+                <p class="smaller">Now that we understand what variance means, let's see the math behind the chaos.</p>
+                <div class="two-col">
+                    <div>
+                        <h4>Variance Accumulation = Signal Chaos</h4>
+                        <p class="smaller">The output of a Post-LN block is:</p>
+                        <p class="smaller highlight">`y = LN(x + F(x))`</p>
+                        <p class="smaller">The problem: Before normalization, we compute `x + F(x)`</p>
+                        <p class="smaller highlight">`Var(x + F(x)) ≈ Var(x) + Var(F(x))`</p>
+                        <p class="smaller">This means:</p>
+                        <ul class="smaller">
+                            <li>Layer 1: Normal variance</li>
+                            <li>Layer 10: 3x higher variance</li>
+                            <li>Layer 20: 6x higher variance</li>
+                            <li>Layer 30: Training breaks</li>
+                        </ul>
+                        <p class="smaller dim">Even though LayerNorm "fixes" the output, the gradients flowing backward see the <span class="highlight">chaotic unnormalized signal</span>.</p>
+                    </div>
+                    <div>
+                        <svg class="viz-svg" viewBox="0 0 400 400">
+                            <text x="200" y="30" class="svg-label" fill="var(--c-red)">The Chaos Grows</text>
+                            
+                            <!-- Training behavior over time -->
+                            <text x="200" y="60" class="svg-desc">Training Loss Behavior</text>
+                            
+                            <!-- Layer 1-5: Okay -->
+                            <path d="M50 150 Q 70 145 90 150" stroke="var(--c-green)" stroke-width="3" fill="none"/>
+                            <text x="70" y="170" class="svg-desc">Layers 1-5: Okay</text>
+                            
+                            <!-- Layer 5-15: Getting choppy -->
+                            <path d="M90 150 Q 110 130 130 160 Q 150 140 170 155" stroke="var(--c-orange)" stroke-width="3" fill="none"/>
+                            <text x="130" y="190" class="svg-desc">Layers 5-15: Choppy</text>
+                            
+                            <!-- Layer 15-25: Chaos -->
+                            <path d="M170 155 Q 190 100 210 200 Q 230 120 250 180 Q 270 100 290 220" stroke="var(--c-red)" stroke-width="3" fill="none"/>
+                            <text x="230" y="250" class="svg-desc">Layers 15-25: Chaos!</text>
+                            
+                            <!-- Layer 25+: Divergence -->
+                            <path d="M290 220 Q 310 50 330 300 Q 350 20 370 350" stroke="var(--c-red)" stroke-width="4" fill="none"/>
+                            <text x="330" y="380" class="svg-desc">Layer 25+: Training breaks</text>
+                            
+                            <!-- Gradients indicators -->
+                            <text x="200" y="320" class="svg-label" fill="var(--c-red)">What the network experiences:</text>
+                            <text x="50" y="340" class="svg-desc">• Loss: Can't converge</text>
+                            <text x="50" y="355" class="svg-desc">• Gradients: Explode/vanish</text>
+                            <text x="200" y="340" class="svg-desc">• Learning: Impossible</text>
+                            <text x="200" y="355" class="svg-desc">• Patterns: Can't recognize</text>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>GPT-2's Innovation: Pre-LN (Normalizing the Input)</h2>
+                <p class="smaller">GPT-2 and later models moved LayerNorm <span class="highlight">before</span> the main operation.</p>
+                <div class="two-col">
+                    <div>
+                        <svg class="viz-svg" viewBox="0 0 400 500">
+                            <defs><marker id="arrowhead-pre" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#FFF"/></marker></defs>
+                            <text x="200" y="30" class="svg-label" fill="var(--c-gpt)">GPT-2 style Pre-LN Block</text>
+                            <text x="200" y="70" class="svg-text">Input (x)</text>
+                            <path d="M200 80 V 110" class="svg-arrow" marker-end="url(#arrowhead-pre)"/>
+                            <path d="M200 115 H 100 V 315 H 200" class="svg-arrow" stroke="var(--c-green)" marker-end="url(#arrowhead-pre)"/>
+                            <rect x="125" y="115" width="150" height="50" class="svg-box" stroke="var(--c-green)" fill="#2e4c44"/>
+                            <text x="200" y="145" class="svg-text">LayerNorm</text>
+                            <path d="M200 165 V 195" class="svg-arrow" marker-end="url(#arrowhead-pre)"/>
+                            <rect x="150" y="195" width="100" height="50" class="svg-box" stroke="var(--c-purple)" fill="#3c2a4f"/>
+                            <text x="200" y="225" class="svg-text">F(LN(x))</text>
+                            <path d="M150 220 H 100" class="svg-arrow" marker-end="url(#arrowhead-pre)"/>
+                            <circle cx="200" cy="330" r="12" fill="var(--c-orange)"/>
+                            <text x="200" y="335" class="svg-text">+</text>
+                            <path d="M200 342 V 372" class="svg-arrow" marker-end="url(#arrowhead-pre)"/>
+                            <text x="200" y="400" class="svg-text">Output</text>
+                            
+                            <!-- Clean path indicator -->
+                            <text x="50" y="280" class="svg-desc" fill="var(--c-green)">Clean Path!</text>
+                            <path d="M120 270 Q 140 265 150 270" stroke="var(--c-green)" stroke-width="2" fill="none"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4>The Equation: <span class="gpt-color">`y = x + F(LN(x))`</span></h4>
+                        <p class="smaller">The input `x` is first normalized, then passed to `F`. The output of `F` is then added to the <span class="highlight">original, untouched `x`</span>.</p>
+                        <h4 class="fragment">The Benefit: A "Clean" Gradient Superhighway</h4>
+                        <p class="smaller fragment">The main residual path is <span class="highlight">never modified</span> by `F`. It provides a direct, clean connection for gradients to flow backward.</p>
+                        <p class="smaller fragment dim">This completely bypasses the complex derivatives of `F` and `LN`.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Critical Mathematical Difference</h2>
+                <p class="smaller">The gradient flow tells the whole story.</p>
+                <div class="two-col">
+                    <div>
+                        <h4>Pre-LN Gradient Flow</h4>
+                        <p class="smaller">The gradient of the output `y` with respect to the input `x` is:</p>
+                        <p class="smaller highlight">`dy/dx = 1 + dF/dx`</p>
+                        <p class="smaller">That <span class="highlight">`1`</span> term is revolutionary. It comes from the `y = x + ...` connection and guarantees that:</p>
+                        <ul class="smaller">
+                            <li>Gradients can never vanish (always ≥ 1)</li>
+                            <li>They pass back perfectly through the residual path</li>
+                            <li>Training remains stable even with 100+ layers</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <svg class="viz-svg" viewBox="0 0 400 400">
+                            <defs><marker id="grad-arrowhead" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="var(--c-orange)"/></marker></defs>
+                            
+                            <!-- Post-LN vs Pre-LN gradient comparison -->
+                            <text x="100" y="30" class="svg-label" fill="var(--c-red)">Post-LN</text>
+                            <text x="300" y="30" class="svg-label" fill="var(--c-green)">Pre-LN</text>
+                            
+                            <!-- Post-LN unstable gradients -->
+                            <text x="100" y="360" class="svg-desc">Layer 1</text>
+                            <text x="100" y="280" class="svg-desc">Layer 2</text>
+                            <text x="100" y="200" class="svg-desc">Layer 3</text>
+                            <text x="100" y="120" class="svg-desc">Layer 4</text>
+                            <path d="M100 340 V 80" class="svg-grad-arrow" style="stroke: var(--c-red); stroke-width: 2px;" class="fragment" data-fragment-index="1"/>
+                            <path d="M100 340 V 80" class="svg-grad-arrow" style="stroke: var(--c-red); stroke-width: 5px;" class="fragment" data-fragment-index="2"/>
+                            <path d="M100 340 V 80" class="svg-grad-arrow" style="stroke: var(--c-red); stroke-width: 10px; opacity: 0.8;" class="fragment" data-fragment-index="3"/>
+                            <text x="100" y="60" class="svg-text" fill="var(--c-red)" class="fragment" data-fragment-index="3">EXPLODES!</text>
+                            
+                            <!-- Pre-LN stable gradients -->
+                            <text x="300" y="360" class="svg-desc">Layer 1</text>
+                            <text x="300" y="280" class="svg-desc">Layer 2</text>
+                            <text x="300" y="200" class="svg-desc">Layer 3</text>
+                            <text x="300" y="120" class="svg-desc">Layer 4</text>
+                            <path d="M300 340 V 80" class="svg-grad-arrow" style="stroke: var(--c-green); stroke-width: 4px;"/>
+                            <text x="300" y="60" class="svg-text" fill="var(--c-green)">STABLE!</text>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Real Training Symptoms: What Variance Actually Looks Like</h2>
+                <p class="smaller">Let's see what high variance means in practice—concrete training behavior you'd observe.</p>
+                <div style="text-align: center;">
+                    <svg class="viz-svg" viewBox="0 0 1000 400">
+                        <text x="500" y="30" class="svg-label">Training Session: Post-LN vs Pre-LN</text>
+                        
+                        <!-- Post-LN training curve -->
+                        <text x="250" y="60" class="svg-label" fill="var(--c-red)">Post-LN Training (BERT-style)</text>
+                        
+                        <!-- Loss curve - chaotic -->
+                        <path d="M50 150 Q 70 140 90 160 Q 110 130 130 170 Q 150 110 170 190 Q 190 100 210 200 Q 230 80 250 220 Q 270 60 290 240" 
+                              stroke="var(--c-red)" stroke-width="3" fill="none"/>
+                        
+                        <!-- Gradient norm - exploding -->
+                        <path d="M50 280 Q 70 275 90 285 Q 110 270 130 295 Q 150 250 170 320 Q 190 200 210 350 Q 230 150 250 380 Q 270 100 290 390" 
+                              stroke="var(--c-orange)" stroke-width="2" fill="none"/>
+                        
+                        <text x="170" y="120" class="svg-desc" fill="var(--c-red)">Loss oscillates wildly</text>
+                        <text x="170" y="320" class="svg-desc" fill="var(--c-orange)">Gradient norm explodes</text>
+                        
+                        <!-- Training symptoms -->
+                        <text x="50" y="80" class="svg-desc">What you see in logs:</text>
+                        <text x="50" y="100" class="svg-desc">• Loss: 2.3 → 1.8 → 3.1 → 1.2 → 4.5</text>
+                        <text x="50" y="115" class="svg-desc">• Grad norm: 0.1 → 15.2 → 0.001 → 47.8</text>
+                        
+                        <!-- Pre-LN training curve -->
+                        <text x="750" y="60" class="svg-label" fill="var(--c-green)">Pre-LN Training (GPT-2 style)</text>
+                        
+                        <!-- Loss curve - smooth -->
+                        <path d="M550 200 Q 590 180 630 160 Q 670 140 710 120 Q 750 100 790 90 Q 830 85 870 80" 
+                              stroke="var(--c-green)" stroke-width="3" fill="none"/>
+                        
+                        <!-- Gradient norm - stable -->
+                        <path d="M550 280 Q 590 275 630 270 Q 670 275 710 270 Q 750 265 790 270 Q 830 275 870 270" 
+                              stroke="var(--c-blue)" stroke-width="2" fill="none"/>
+                        
+                        <text x="710" y="110" class="svg-desc" fill="var(--c-green)">Smooth convergence</text>
+                        <text x="710" y="290" class="svg-desc" fill="var(--c-blue)">Stable gradients</text>
+                        
+                        <text x="550" y="80" class="svg-desc">What you see in logs:</text>
+                        <text x="550" y="100" class="svg-desc">• Loss: 2.3 → 2.1 → 1.9 → 1.7 → 1.5</text>
+                        <text x="550" y="115" class="svg-desc">• Grad norm: 0.8 → 0.7 → 0.8 → 0.9 → 0.7</text>
+                        
+                        <!-- Timeline -->
+                        <text x="170" y="360" class="svg-desc">Training steps →</text>
+                        <text x="710" y="360" class="svg-desc">Training steps →</text>
+                    </svg>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <div class="two-col">
+                        <div>
+                            <h4 class="bert-color">Post-LN: Fighting Chaos</h4>
+                            <ul class="smaller">
+                                <li><span class="highlight">Loss jumps around</span> - can't find stable minimum</li>
+                                <li><span class="highlight">Gradients explode</span> - network updates too aggressively</li>
+                                <li><span class="highlight">Poor pattern learning</span> - energy spent on chaos control</li>
+                                <li><span class="highlight">Requires careful tuning</span> - learning rates, warmup, initialization</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="gpt-color">Pre-LN: Smooth Learning</h4>
+                            <ul class="smaller">
+                                <li><span class="highlight">Steady progress</span> - finds and follows gradient path</li>
+                                <li><span class="highlight">Stable updates</span> - gradients stay in reasonable range</li>
+                                <li><span class="highlight">Excellent learning</span> - energy focused on pattern recognition</li>
+                                <li><span class="highlight">Just works</span> - minimal hyperparameter tuning needed</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>Training Behavior: The Practical Impact</h2>
+                <p class="smaller">This isn't just theoretical—it has profound practical implications.</p>
+                <div class="two-col">
+                    <div style="border: 2px solid var(--c-red); padding: 20px; border-radius: 10px;">
+                        <h3 class="bert-color">Post-LN (BERT-style)</h3>
+                        <ul class="smaller">
+                            <li>Works for moderate depth (12-24 layers)</li>
+                            <li>Requires long <span class="highlight">learning rate warmup</span></li>
+                            <li>Careful initialization needed</li>
+                            <li>Training often unstable beyond 30 layers</li>
+                            <li>Limited scalability</li>
+                        </ul>
+                        <p class="smaller dim">BERT needed 40,000 warmup steps to train stably!</p>
+                    </div>
+                    <div style="border: 2px solid var(--c-green); padding: 20px; border-radius: 10px;">
+                        <h3 class="gpt-color">Pre-LN (GPT-2+ style)</h3>
+                        <ul class="smaller">
+                            <li>Inherently stable at any depth</li>
+                            <li>Often <span class="highlight">no warmup needed</span></li>
+                            <li>Robust to initialization</li>
+                            <li>Scales to 100+ layers easily</li>
+                            <li>Enabled massive model scaling</li>
+                        </ul>
+                        <p class="smaller dim">GPT-2 trained with minimal warmup from the start!</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Scaling Revolution: Numbers Don't Lie</h2>
+                <div class="two-col">
+                    <div>
+                        <h3>Before GPT-2 (Post-LN Era)</h3>
+                        <svg class="viz-svg" viewBox="0 0 400 300" style="transform: scale(0.9);">
+                            <!-- Layer count visualization -->
+                            <rect x="50" y="50" width="60" height="20" fill="var(--c-bert)" opacity="0.7"/>
+                            <text x="80" y="65" class="svg-text">Transformer: 6L</text>
+                            
+                            <rect x="50" y="80" width="120" height="20" fill="var(--c-bert)" opacity="0.8"/>
+                            <text x="110" y="95" class="svg-text">BERT-Base: 12L</text>
+                            
+                            <rect x="50" y="110" width="180" height="20" fill="var(--c-bert)" opacity="0.9"/>
+                            <text x="140" y="125" class="svg-text">BERT-Large: 24L</text>
+                            
+                            <text x="50" y="160" class="svg-desc">Practical Limit: ~30 layers</text>
+                            <text x="50" y="180" class="svg-desc" fill="var(--c-red)">Beyond this: Training becomes unstable</text>
+                        </svg>
+                        <p class="smaller dim">Training deeper models required increasingly careful initialization and was often unstable.</p>
+                    </div>
+                    <div>
+                        <h3>After GPT-2 (Pre-LN Era)</h3>
+                        <svg class="viz-svg" viewBox="0 0 400 300" style="transform: scale(0.9);">
+                            <!-- Exponential growth -->
+                            <rect x="50" y="50" width="240" height="20" fill="var(--c-gpt)" opacity="0.7"/>
+                            <text x="170" y="65" class="svg-text">GPT-2: 48L</text>
+                            
+                            <rect x="50" y="80" width="320" height="20" fill="var(--c-gpt)" opacity="0.8"/>
+                            <text x="210" y="95" class="svg-text">GPT-3: 96L</text>
+                            
+                            <rect x="50" y="110" width="350" height="20" fill="var(--c-gpt)" opacity="0.9"/>
+                            <text x="225" y="125" class="svg-text">PaLM: 118L</text>
+                            
+                            <text x="50" y="160" class="svg-desc">No practical limit found yet!</text>
+                            <text x="50" y="180" class="svg-desc" fill="var(--c-green)">Stable training at any depth</text>
+                        </svg>
+                        <p class="smaller dim">Deep models became trainable and stable, enabling the current era of large language models.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Code Change That Changed Everything</h2>
+                <p class="smaller">This revolutionary change was literally <span class="highlight">moving 2 lines of code</span>.</p>
+                
+                <div class="two-col">
+                    <div>
+                        <h4 class="bert-color">BERT-style (Post-LN)</h4>
+                        <pre class="smaller" style="background: #2d2d2d; padding: 15px; border-radius: 8px; border: 2px solid var(--c-bert);">
+<code style="color: #f8f8f2;">def transformer_block(x):
+    # Attention or MLP
+    out = function(x)
+    # Add residual
+    out = x + out
+    # Normalize AFTER addition
+    out = layer_norm(out)
+    return out</code></pre>
+                    </div>
+                    <div>
+                        <h4 class="gpt-color">GPT-2 style (Pre-LN)</h4>
+                        <pre class="smaller" style="background: #2d2d2d; padding: 15px; border-radius: 8px; border: 2px solid var(--c-gpt);">
+<code style="color: #f8f8f2;">def transformer_block(x):
+    # Normalize BEFORE function
+    norm_x = layer_norm(x)
+    # Attention or MLP on normalized input
+    out = function(norm_x)
+    # Add to original (clean path)
+    out = x + out
+    return out</code></pre>
+                    </div>
+                </div>
+                
+                <div class="fragment" style="margin-top: 30px; text-align: center;">
+                    <p class="highlight">Moving `layer_norm()` from line 4 to line 2 enabled the training of GPT-3, ChatGPT, and the entire modern LLM era.</p>
+                </div>
+            </section>
+
+            <section>
+                <h2>Variance Analysis: The Mathematical Proof</h2>
+                <p class="smaller">Let's prove why Pre-LN is fundamentally more stable.</p>
+                
+                <svg class="viz-svg" viewBox="0 0 800 400">
+                    <!-- Variance evolution over layers -->
+                    <text x="400" y="30" class="svg-label">Signal Variance Evolution</text>
+                    
+                    <!-- Post-LN variance growth -->
+                    <text x="200" y="60" class="svg-label" fill="var(--c-bert)">Post-LN: Var(x + F(x))</text>
+                    <path d="M50 350 Q 100 320 150 280 Q 200 240 250 200 Q 300 160 350 120" 
+                          stroke="var(--c-bert)" stroke-width="3" fill="none"/>
+                    <text x="200" y="380" class="svg-desc">Variance grows exponentially</text>
+                    
+                    <!-- Pre-LN stable variance -->
+                    <text x="600" y="60" class="svg-label" fill="var(--c-gpt)">Pre-LN: Var(x) + Var(F(LN(x)))</text>
+                    <path d="M450 300 L 750 280" stroke="var(--c-gpt)" stroke-width="3" fill="none"/>
+                    <text x="600" y="380" class="svg-desc">Variance remains controlled</text>
+                    
+                    <!-- Layer markers -->
+                    <text x="50" y="370" class="svg-desc">L1</text>
+                    <text x="150" y="370" class="svg-desc">L10</text>
+                    <text x="250" y="370" class="svg-desc">L20</text>
+                    <text x="350" y="370" class="svg-desc">L30</text>
+                    
+                    <text x="450" y="370" class="svg-desc">L1</text>
+                    <text x="550" y="370" class="svg-desc">L50</text>
+                    <text x="650" y="370" class="svg-desc">L96</text>
+                    <text x="750" y="370" class="svg-desc">L150</text>
+                    
+                    <!-- Mathematical equations -->
+                    <text x="200" y="150" class="svg-desc" fill="var(--c-bert)">σ²ₙ₊₁ = σ²ₙ + σ²F(x)</text>
+                    <text x="600" y="200" class="svg-desc" fill="var(--c-gpt)">σ²ₙ₊₁ ≈ σ²ₙ (controlled)</text>
+                </svg>
+            </section>
+
+            <section>
+                <h2>Learning Rate Schedules: The Hidden Complexity</h2>
+                <p class="smaller">Post-LN vs Pre-LN requires fundamentally different training strategies.</p>
+                
+                <div class="two-col">
+                    <div>
+                        <h4 class="bert-color">BERT's Learning Rate Schedule</h4>
+                        <svg class="viz-svg" viewBox="0 0 400 200" style="transform: scale(0.9);">
+                            <!-- Complex warmup schedule -->
+                            <path d="M20 180 L 80 120 L 200 80 Q 300 85 380 90" 
+                                  stroke="var(--c-bert)" stroke-width="3" fill="none"/>
+                            <text x="50" y="170" class="svg-desc">40K steps warmup!</text>
+                            <text x="150" y="100" class="svg-desc">Peak LR</text>
+                            <text x="300" y="110" class="svg-desc">Slow decay</text>
+                            <text x="200" y="40" class="svg-label" fill="var(--c-bert)">Complex Schedule Required</text>
+                        </svg>
+                        <ul class="smaller">
+                            <li>Linear warmup for 40,000 steps</li>
+                            <li>Without warmup: training diverges</li>
+                            <li>Careful tuning required for each model size</li>
+                            <li>Schedule must scale with depth</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="gpt-color">GPT-2's Learning Rate Schedule</h4>
+                        <svg class="viz-svg" viewBox="0 0 400 200" style="transform: scale(0.9);">
+                            <!-- Simple flat schedule -->
+                            <path d="M20 100 L 100 100 Q 200 105 380 110" 
+                                  stroke="var(--c-gpt)" stroke-width="3" fill="none"/>
+                            <text x="100" y="90" class="svg-desc">Minimal/No warmup</text>
+                            <text x="250" y="130" class="svg-desc">Gentle decay</text>
+                            <text x="200" y="40" class="svg-label" fill="var(--c-gpt)">Simple Schedule Works</text>
+                        </svg>
+                        <ul class="smaller">
+                            <li>Little to no warmup needed</li>
+                            <li>Robust to learning rate choice</li>
+                            <li>Same schedule works across model sizes</li>
+                            <li>Training "just works"</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Innovation Timeline: A Tale of Two Paradigms</h2>
+                <svg class="viz-svg" viewBox="0 0 1000 400">
+                    <!-- Timeline visualization -->
+                    <text x="500" y="30" class="svg-label">Transformer Architecture Evolution</text>
+                    
+                    <!-- Post-LN era -->
+                    <rect x="50" y="80" width="400" height="60" fill="var(--c-bert)" opacity="0.3" rx="10"/>
+                    <text x="250" y="105" class="svg-text" fill="var(--c-bert)">Post-LN Era (2017-2019)</text>
+                    <text x="250" y="125" class="svg-desc">Limited to ~30 layers</text>
+                    
+                    <!-- Models in Post-LN era -->
+                    <circle cx="100" cy="180" r="20" fill="var(--c-bert)" opacity="0.7"/>
+                    <text x="100" y="185" class="svg-text" font-size="8">T5mer</text>
+                    <text x="100" y="210" class="svg-desc">6L</text>
+                    
+                    <circle cx="200" cy="180" r="25" fill="var(--c-bert)" opacity="0.8"/>
+                    <text x="200" y="185" class="svg-text" font-size="8">BERT-B</text>
+                    <text x="200" y="210" class="svg-desc">12L</text>
+                    
+                    <circle cx="300" cy="180" r="30" fill="var(--c-bert)" opacity="0.9"/>
+                    <text x="300" y="185" class="svg-text" font-size="8">BERT-L</text>
+                    <text x="300" y="210" class="svg-desc">24L</text>
+                    
+                    <!-- Transition arrow -->
+                    <path d="M470 110 L530 110" stroke="var(--c-orange)" stroke-width="5" marker-end="url(#arrowhead)"/>
+                    <text x="500" y="100" class="svg-text" fill="var(--c-orange)">2019</text>
+                    <text x="500" y="130" class="svg-desc">The Breakthrough</text>
+                    
+                    <!-- Pre-LN era -->
+                    <rect x="550" y="80" width="400" height="60" fill="var(--c-gpt)" opacity="0.3" rx="10"/>
+                    <text x="750" y="105" class="svg-text" fill="var(--c-gpt)">Pre-LN Era (2019-Present)</text>
+                    <text x="750" y="125" class="svg-desc">Unlimited scaling potential</text>
+                    
+                    <!-- Models in Pre-LN era -->
+                    <circle cx="650" cy="180" r="35" fill="var(--c-gpt)" opacity="0.7"/>
+                    <text x="650" y="185" class="svg-text" font-size="8">GPT-2</text>
+                    <text x="650" y="210" class="svg-desc">48L</text>
+                    
+                    <circle cx="750" cy="180" r="45" fill="var(--c-gpt)" opacity="0.8"/>
+                    <text x="750" y="185" class="svg-text" font-size="8">GPT-3</text>
+                    <text x="750" y="210" class="svg-desc">96L</text>
+                    
+                    <circle cx="850" cy="180" r="50" fill="var(--c-gpt)" opacity="0.9"/>
+                    <text x="850" y="185" class="svg-text" font-size="8">PaLM</text>
+                    <text x="850" y="210" class="svg-desc">118L</text>
+                    
+                    <!-- Impact indicators -->
+                    <text x="250" y="280" class="svg-desc">Training complexity grows with depth</text>
+                    <text x="750" y="280" class="svg-desc">Stable training at any depth</text>
+                    
+                    <!-- Parameter count evolution -->
+                    <text x="100" y="330" class="svg-desc">110M</text>
+                    <text x="200" y="330" class="svg-desc">340M</text>
+                    <text x="650" y="330" class="svg-desc">1.5B</text>
+                    <text x="750" y="330" class="svg-desc">175B</text>
+                    <text x="850" y="330" class="svg-desc">540B</text>
+                </svg>
+            </section>
+
+            <section>
+                <h2>The Counterfactual: What If Pre-LN Wasn't Discovered?</h2>
+                <p class="smaller">Imagine a world where we never made this simple architectural change.</p>
+                
+                <div style="text-align: center; margin: 40px 0;">
+                    <svg class="viz-svg" viewBox="0 0 600 300" style="max-width: 600px;">
+                        <!-- Alternative timeline -->
+                        <text x="300" y="30" class="svg-label" fill="var(--c-red)">Alternative Timeline: Stuck with Post-LN</text>
+                        
+                        <!-- Stagnation curve -->
+                        <path d="M50 250 Q 150 200 250 180 Q 350 170 550 160" 
+                              stroke="var(--c-red)" stroke-width="3" fill="none" stroke-dasharray="10,5"/>
+                        
+                        <!-- Model limitations -->
+                        <text x="100" y="200" class="svg-desc">BERT-XL: 48L</text>
+                        <text x="100" y="220" class="svg-desc">(Unstable)</text>
+                        
+                        <text x="300" y="160" class="svg-desc">Max Practical: ~60L</text>
+                        <text x="300" y="180" class="svg-desc">(With heroic engineering)</text>
+                        
+                        <text x="500" y="140" class="svg-desc">Ceiling: ~100L</text>
+                        <text x="500" y="160" class="svg-desc">(Requires enormous resources)</text>
+                        
+                        <text x="300" y="280" class="svg-desc" fill="var(--c-red)">No GPT-3, No ChatGPT, No LLM Revolution</text>
+                    </svg>
+                </div>
+                
+                <div class="fragment">
+                    <p class="smaller">Without Pre-LN, we might still be struggling to train 50-layer models, and the current AI revolution might never have happened.</p>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Takeaway: Architecture Matters</h2>
+                <div style="text-align: center;">
+                    <p class="smaller">The shift from <span class="bert-color">Post-LN</span> to <span class="gpt-color">Pre-LN</span> wasn't just an optimization—it was <span class="highlight">the architectural breakthrough</span> that enabled modern AI.</p>
+                    
+                    <div style="margin: 40px 0;">
+                        <svg class="viz-svg" viewBox="0 0 800 200" style="max-width: 800px;">
+                            <!-- Summary comparison -->
+                            <rect x="50" y="50" width="300" height="100" fill="var(--c-bert)" opacity="0.2" rx="10" stroke="var(--c-bert)" stroke-width="2"/>
+                            <text x="200" y="80" class="svg-text" fill="var(--c-bert)">Post-LN: Limited Scale</text>
+                            <text x="200" y="100" class="svg-desc">Complex training, ~30 layer limit</text>
+                            <text x="200" y="120" class="svg-desc">Required careful engineering</text>
+                            
+                            <rect x="450" y="50" width="300" height="100" fill="var(--c-gpt)" opacity="0.2" rx="10" stroke="var(--c-gpt)" stroke-width="2"/>
+                            <text x="600" y="80" class="svg-text" fill="var(--c-gpt)">Pre-LN: Unlimited Scale</text>
+                            <text x="600" y="100" class="svg-desc">Simple training, 100+ layers</text>
+                            <text x="600" y="120" class="svg-desc">Training "just works"</text>
+                            
+                            <!-- Arrow between them -->
+                            <path d="M370 100 L430 100" stroke="var(--c-orange)" stroke-width="4" marker-end="url(#arrowhead)"/>
+                            <text x="400" y="90" class="svg-text" fill="var(--c-orange)">2019</text>
+                        </svg>
+                    </div>
+                    
+                    <div class="fragment">
+                        <p style="border-left: 4px solid var(--c-orange); padding-left: 20px; margin: 20px auto; max-width: 600px; text-align: left;">
+                            <strong>Moving 2 lines of code enabled:</strong><br>
+                            • GPT-3 (175B parameters, 96 layers)<br>
+                            • ChatGPT and the conversational AI era<br>
+                            • The entire modern LLM ecosystem<br>
+                            • Stable training of models with 100+ layers
+                        </p>
+                    </div>
+                    
+                    <div class="fragment" style="margin-top: 30px;">
+                        <p class="highlight">Sometimes the most impactful innovations are deceptively simple.</p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            width: 1600,
+            height: 900,
+            transition: 'slide',
+        });
+    </script>
+</body>
+</html>
