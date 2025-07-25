@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LayerNorm: A Mathematical Breakdown</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --c-blue: #42a5f5;
+            --c-green: #66bb6a;
+            --c-orange: #ffa726;
+        }
+        .reveal { font-family: var(--r-main-font); font-size: 28px; }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .formula-box { background-color: #2d333b; border-radius: 15px; padding: 20px; margin-top: 20px; border: 1px solid #484f58; }
+        .reveal .explanation { text-align: left; margin-top: 20px; font-size: 0.9em; }
+        .reveal .explanation li { margin-bottom: 15px; }
+        .reveal .dim-table { margin: 20px auto; font-size: 0.8em; border-collapse: collapse; }
+        .reveal .dim-table th, .reveal .dim-table td { border: 1px solid #484f58; padding: 10px 20px; }
+        .reveal .dim-table th { background-color: #37474f; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h2>The Full LayerNorm Formula</h2>
+                <p class="smaller">At a high level, the entire operation is captured by this equation:</p>
+                <div class="formula-box">
+                    $$ y = \gamma \odot \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}} + \beta $$
+                </div>
+                <p class="fragment smaller">Let's break this down piece by piece.</p>
+            </section>
+
+            <section>
+                <h2>Step 1: The Mean (μ)</h2>
+                <p class="smaller">First, we need to find the average value of all the features in our input token.</p>
+                <div class="formula-box">
+                    $$ \mu = \frac{1}{C} \sum_{i=1}^{C} x_i $$
+                </div>
+                <div class="explanation">
+                    <ul>
+                        <li><span class="highlight">$x_i$</span>: This is the i-th feature of our single input token vector.</li>
+                        <li><span class="highlight">$C$</span>: This is the total number of features, i.e., the embedding dimension.</li>
+                        <li><span class="highlight">$\sum x_i$</span>: We sum up every single feature value in the vector.</li>
+                        <li><span class="highlight">$\frac{1}{C} ...$</span>: We divide that sum by the number of features to get the mean.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section>
+                <h2>Step 2: The Variance (σ²)</h2>
+                <p class="smaller">Next, we calculate how much our features vary from the mean we just found.</p>
+                <div class="formula-box">
+                    $$ \sigma^2 = \frac{1}{C} \sum_{i=1}^{C} (x_i - \mu)^2 $$
+                </div>
+                 <div class="explanation">
+                    <ul>
+                        <li><span class="highlight">$(x_i - \mu)$</span>: For each feature, we find the difference between its value and the mean.</li>
+                        <li><span class="highlight">$(...)^2$</span>: We square that difference. (This ensures the result is positive and penalizes larger deviations more).</li>
+                        <li><span class="highlight">$\sum ...$</span>: We sum up all these squared differences.</li>
+                        <li><span class="highlight">$\frac{1}{C} ...$</span>: We find the average of the squared differences, which is the variance.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section>
+                <h2>Step 3: Normalization</h2>
+                <p class="smaller">Now we use the mean and variance to create a clean, standardized vector.</p>
+                <div class="formula-box">
+                    $$ \hat{x}_i = \frac{x_i - \mu}{\sqrt{\sigma^2 + \epsilon}} $$
+                </div>
+                <div class="explanation">
+                    <ul>
+                        <li><span class="highlight">$x_i - \mu$</span>: We center the data around zero.</li>
+                        <li><span class="highlight">$\sqrt{\sigma^2 + \epsilon}$</span>: This is the standard deviation (rstd). The tiny <span class="highlight">$\epsilon$</span> (epsilon) is added for numerical stability to prevent division by zero if the variance is zero.</li>
+                        <li>The result, <span class="highlight">$\hat{x}$</span>, is a new vector where the features have a mean of 0 and a variance of 1.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section>
+                <h2>Step 4 & Dimensions</h2>
+                <p class="smaller">Finally, we scale and shift the normalized vector using learned parameters.</p>
+                <div class="formula-box">
+                    $$ y = \gamma \odot \hat{x} + \beta $$
+                </div>
+                <p class="smaller" style="margin-top: 30px;">Here are the dimensions of each tensor for a <span class="highlight">single token</span> (batch size = 1):</p>
+                <table class="dim-table">
+                    <thead>
+                        <tr><th>Variable</th><th>Symbol</th><th>Dimension</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Input</td><td>$x$</td><td>$[C]$</td><td>The 1D vector for one token.</td></tr>
+                        <tr><td>Mean</td><td>$\mu$</td><td>Scalar</td><td>A single float, the average of x.</td></tr>
+                        <tr><td>Variance</td><td>$\sigma^2$</td><td>Scalar</td><td>A single float, the variance of x.</td></tr>
+                        <tr><td>Gamma</td><td>$\gamma$</td><td>$[C]$</td><td>A learned scaling parameter vector.</td></tr>
+                        <tr><td>Beta</td><td>$\beta$</td><td>$[C]$</td><td>A learned shifting parameter vector.</td></tr>
+                        <tr><td>Output</td><td>$y$</td><td>$[C]$</td><td>The final 1D output vector.</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/math/math.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            width: 1600,
+            height: 900,
+            transition: 'slide',
+            plugins: [ RevealMath.MathJax2 ]
+        });
+    </script>
+</body>
+</html>

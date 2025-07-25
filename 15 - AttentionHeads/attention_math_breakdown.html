@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Attention: A Mathematical Breakdown</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --c-blue: #42a5f5;
+            --c-green: #66bb6a;
+            --c-orange: #ffa726;
+            --c-purple: #ab47bc;
+        }
+        .reveal { font-family: var(--r-main-font); font-size: 26px; }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .formula-box { background-color: #2d333b; border-radius: 15px; padding: 20px; margin-top: 20px; border: 1px solid #484f58; }
+        .reveal .explanation { text-align: left; margin-top: 20px; font-size: 0.9em; }
+        .reveal .explanation li { margin-bottom: 15px; }
+        .reveal .dim-table { margin: 20px auto; font-size: 0.8em; border-collapse: collapse; }
+        .reveal .dim-table th, .reveal .dim-table td { border: 1px solid #484f58; padding: 10px 20px; }
+        .reveal .dim-table th { background-color: #37474f; }
+        .viz-svg { width: 100%; height: auto; background-color: #263238; border-radius: 15px; margin-top: 15px; }
+        .svg-text { font-family: var(--r-main-font); fill: white; text-anchor: middle; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h2>The Heart of the Transformer: Attention</h2>
+                <p class="smaller">A step-by-step breakdown of the math, dimensions, and execution of the attention mechanism.</p>
+            </section>
+
+            <section>
+                <h2>The Goal of Attention</h2>
+                <p class="smaller">For each token, we want to create a new representation that is a <span class="highlight">weighted average</span> of all other tokens in the sequence.</p>
+                <p class="fragment smaller">The weights are not fixed; they are calculated on the fly based on how <span class="highlight">relevant</span> each token is to the current one we're processing.</p>
+            </section>
+
+            <section>
+                <h2>Step 1: Projecting Inputs into Q, K, V</h2>
+                <p class="smaller">We start with our input tensor `X` and project it into three distinct matrices: Queries, Keys, and Values, using learned weight matrices.</p>
+                <div class="formula-box">
+                    $$ Q = X W_Q \quad K = X W_K \quad V = X W_V $$
+                </div>
+                <div class="explanation">
+                    <ul>
+                        <li><span class="highlight">$X$</span>: The input tensor of token embeddings. Dimension: `[T, C]`</li>
+                        <li><span class="highlight">$W_Q, W_K, W_V$</span>: Learned weight matrices. Dimension: `[C, C]`</li>
+                        <li><span class="highlight">$Q, K, V$</span>: The resulting Query, Key, and Value matrices. Dimension: `[T, C]`</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section>
+                <h2>Step 2: Splitting into Multiple Heads</h2>
+                <p class="smaller">To allow the model to focus on different types of relationships simultaneously, we split the Q, K, and V matrices into multiple, smaller "heads".</p>
+                <svg class="viz-svg" viewBox="0 0 800 300">
+                    <rect x="50" y="100" width="150" height="100" fill="var(--c-blue)" opacity="0.7"/>
+                    <text x="125" y="140" class="svg-text">Q Matrix</text>
+                    <text x="125" y="160" class="svg-text">[T, C]</text>
+                    <path d="M210 150 H 260" style="stroke:white; stroke-width:2; marker-end: url(#arrowhead);"/>
+                    <text x="235" y="140" class="svg-text">Reshape</text>
+                    <g>
+                        <rect x="270" y="75" width="100" height="50" fill="var(--c-purple)" opacity="0.7"/>
+                        <text x="320" y="100" class="svg-text">Head 1</text>
+                        <rect x="270" y="125" width="100" height="50" fill="var(--c-purple)" opacity="0.7"/>
+                        <text x="320" y="150" class="svg-text">Head 2</text>
+                        <text x="320" y="200" class="svg-text">...</text>
+                        <rect x="270" y="225" width="100" height="50" fill="var(--c-purple)" opacity="0.7"/>
+                        <text x="320" y="250" class="svg-text">Head H</text>
+                    </g>
+                    <text x="550" y="150" class="svg-text" style="font-size: 24px;">New Dimension: [H, T, D_h]</text>
+                    <text x="550" y="180" class="svg-text">Where C = H * D_h</text>
+                </svg>
+            </section>
+
+            <section>
+                <h2>Step 3: Scaled Dot-Product Attention</h2>
+                <p class="smaller">This is the core calculation, performed independently for each head.</p>
+                <div class="formula-box">
+                    $$ Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V $$
+                </div>
+                <p class="fragment smaller">Let's break this down further.</p>
+            </section>
+
+            <section>
+                <h2>Step 3a: Scoring (QKᵀ)</h2>
+                <p class="smaller">We compute a score matrix by taking the dot product of the Query matrix with the transpose of the Key matrix.</p>
+                <svg class="viz-svg" viewBox="0 0 800 300">
+                    <g>
+                        <rect x="50" y="100" width="150" height="100" fill="var(--c-purple)" opacity="0.7"/>
+                        <text x="125" y="140" class="svg-text">Q (Head i)</text>
+                        <text x="125" y="160" class="svg-text">[T, D_h]</text>
+                    </g>
+                    <text x="250" y="155" class="svg-text" style="font-size: 24px;">×</text>
+                    <g>
+                        <rect x="300" y="100" width="100" height="150" fill="var(--c-purple)" opacity="0.7"/>
+                        <text x="350" y="165" class="svg-text">Kᵀ (Head i)</text>
+                        <text x="350" y="185" class="svg-text">[D_h, T]</text>
+                    </g>
+                    <path d="M410 150 H 460" style="stroke:white; stroke-width:2; marker-end: url(#arrowhead);"/>
+                    <g>
+                        <rect x="470" y="75" width="200" height="200" fill="var(--c-orange)" opacity="0.7"/>
+                        <text x="570" y="165" class="svg-text">Scores</text>
+                        <text x="570" y="185" class="svg-text">[T, T]</text>
+                    </g>
+                </svg>
+                <p class="smaller">The resulting `[T, T]` matrix tells us how much each token should attend to every other token.</p>
+            </section>
+
+            <section>
+                <h2>Step 3b: Masking & Softmax</h2>
+                <p class="smaller">For decoder-style models (like GPT), we apply a causal mask so a token can't see into the future. Then, softmax converts scores to probabilities.</p>
+                <svg class="viz-svg" viewBox="0 0 800 350">
+                    <g>
+                        <rect x="50" y="75" width="200" height="200" fill="var(--c-orange)" opacity="0.7"/>
+                        <text x="150" y="165" class="svg-text">Scores</text>
+                        <text x="150" y="185" class="svg-text">[T, T]</text>
+                    </g>
+                    <path d="M260 175 H 310" style="stroke:white; stroke-width:2; marker-end: url(#arrowhead);"/>
+                    <text x="285" y="165" class="svg-text">Mask</text>
+                    <g>
+                        <rect x="320" y="75" width="200" height="200" fill="var(--c-orange)" opacity="0.7"/>
+                        <path d="M 320 75 L 520 75 L 520 275 Z" fill="#000" opacity="0.5"/>
+                        <text x="420" y="165" class="svg-text">Masked Scores</text>
+                    </g>
+                    <path d="M530 175 H 580" style="stroke:white; stroke-width:2; marker-end: url(#arrowhead);"/>
+                    <text x="555" y="165" class="svg-text">Softmax</text>
+                    <g>
+                        <rect x="590" y="75" width="200" height="200" fill="var(--c-green)" opacity="0.7"/>
+                        <text x="690" y="165" class="svg-text">Attention Probs</text>
+                        <text x="690" y="185" class="svg-text">[T, T]</text>
+                    </g>
+                </svg>
+            </section>
+
+            <section>
+                <h2>Step 3c: Weighted Sum with V</h2>
+                <p class="smaller">Finally, we multiply the attention probabilities by the Value matrix to get the output for this head.</p>
+                 <svg class="viz-svg" viewBox="0 0 800 300">
+                    <g>
+                        <rect x="50" y="75" width="200" height="200" fill="var(--c-green)" opacity="0.7"/>
+                        <text x="150" y="165" class="svg-text">Attention Probs</text>
+                        <text x="150" y="185" class="svg-text">[T, T]</text>
+                    </g>
+                    <text x="300" y="180" class="svg-text" style="font-size: 24px;">×</text>
+                    <g>
+                        <rect x="350" y="125" width="150" height="100" fill="var(--c-purple)" opacity="0.7"/>
+                        <text x="425" y="165" class="svg-text">V (Head i)</text>
+                        <text x="425" y="185" class="svg-text">[T, D_h]</text>
+                    </g>
+                    <path d="M510 175 H 560" style="stroke:white; stroke-width:2; marker-end: url(#arrowhead);"/>
+                    <g>
+                        <rect x="570" y="125" width="150" height="100" fill="var(--c-blue)" opacity="0.7"/>
+                        <text x="645" y="165" class="svg-text">Head Output</text>
+                        <text x="645" y="185" class="svg-text">[T, D_h]</text>
+                    </g>
+                </svg>
+            </section>
+
+            <section>
+                <h2>Step 4: Concatenate and Project</h2>
+                <p class="smaller">The outputs from all heads are concatenated back together and passed through a final linear projection layer.</p>
+                <svg class="viz-svg" viewBox="0 0 800 350">
+                     <g>
+                        <rect x="50" y="75" width="100" height="50" fill="var(--c-blue)" opacity="0.7"/>
+                        <text x="100" y="100" class="svg-text">Head 1</text>
+                        <rect x="50" y="125" width="100" height="50" fill="var(--c-blue)" opacity="0.7"/>
+                        <text x="100" y="150" class="svg-text">Head 2</text>
+                        <text x="100" y="200" class="svg-text">...</text>
+                        <rect x="50" y="225" width="100" height="50" fill="var(--c-blue)" opacity="0.7"/>
+                        <text x="100" y="250" class="svg-text">Head H</text>
+                    </g>
+                    <path d="M160 175 H 210" style="stroke:white; stroke-width:2; marker-end: url(#arrowhead);"/>
+                    <text x="185" y="165" class="svg-text">Concat</text>
+                    <g>
+                        <rect x="220" y="125" width="150" height="100" fill="var(--c-purple)" opacity="0.7"/>
+                        <text x="295" y="165" class="svg-text">Combined</text>
+                        <text x="295" y="185" class="svg-text">[T, C]</text>
+                    </g>
+                    <path d="M380 175 H 430" style="stroke:white; stroke-width:2; marker-end: url(#arrowhead);"/>
+                    <text x="405" y="165" class="svg-text">Project</text>
+                    <g>
+                        <rect x="440" y="125" width="150" height="100" fill="var(--c-green)" opacity="0.7"/>
+                        <text x="515" y="165" class="svg-text">Final Output</text>
+                        <text x="515" y="185" class="svg-text">[T, C]</text>
+                    </g>
+                </svg>
+            </section>
+
+            <section>
+                <h2>The HPC Reality: Token-Level Parallelism</h2>
+                <p class="smaller">It's inefficient to parallelize by head. Instead, we parallelize by <span class="highlight">token</span>. Each core takes a slice of the input tokens and computes the full multi-head attention for that slice.</p>
+                <svg class="viz-svg" viewBox="0 0 800 400">
+                    <rect x="50" y="50" width="200" height="300" fill="var(--c-blue)" opacity="0.7"/>
+                    <text x="150" y="80" class="svg-text">Input X [T, C]</text>
+                    <rect x="50" y="90" width="200" height="80" fill="var(--c-green)" opacity="0.7"/>
+                    <text x="150" y="130" class="svg-text">Token Slice 0</text>
+
+                    <path d="M260 130 H 310" style="stroke:white; stroke-width:2; marker-end: url(#arrowhead);"/>
+                    <rect x="320" y="90" width="200" height="80" fill="var(--c-gray)"/>
+                    <text x="420" y="130" class="svg-text">Core 0: Full MHA</text>
+
+                    <rect x="50" y="170" width="200" height="80" fill="var(--c-green)" opacity="0.7"/>
+                    <text x="150" y="210" class="svg-text">Token Slice 1</text>
+                    <path d="M260 210 H 310" style="stroke:white; stroke-width:2; marker-end: url(#arrowhead);"/>
+                    <rect x="320" y="170" width="200" height="80" fill="var(--c-gray)"/>
+                    <text x="420" y="210" class="svg-text">Core 1: Full MHA</text>
+
+                    <text x="150" y="280" class="svg-text">...</text>
+                    <text x="420" y="280" class="svg-text">...</text>
+                </svg>
+                <p class="smaller">This is more efficient because the `QK^T` calculation for each query token needs to see the <span class="highlight">entire Key matrix</span>. Splitting by token minimizes data duplication and communication between cores.</p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/plugin/math/math.js"></script>
+    <script>
+        Reveal.initialize({
+            controls: true,
+            progress: true,
+            center: true,
+            hash: true,
+            width: 1600,
+            height: 900,
+            transition: 'slide',
+            plugins: [ RevealMath.MathJax2 ]
+        });
+    </script>
+</body>
+</html>

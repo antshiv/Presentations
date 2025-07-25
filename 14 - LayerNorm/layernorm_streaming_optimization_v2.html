@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LayerNorm: The Streaming Optimization</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/theme/black.css" id="theme">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --r-main-font: 'Inter', sans-serif;
+            --r-heading-font: 'Inter', sans-serif;
+            --c-blue: #539bf5;
+            --c-green: #3fb950;
+            --c-orange: #f69d50;
+            --c-red: #f85149;
+            --c-purple: #b392f0;
+            --c-gray: #484f58;
+            --c-bg: #22272e;
+            --c-text: #cdd9e5;
+        }
+        .reveal { font-family: var(--r-main-font); font-size: 24px; background-color: var(--c-bg); color: var(--c-text); }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; font-weight: 700; color: #fff; }
+        .reveal .highlight { color: var(--c-orange); }
+        .reveal .dim { color: #8b949e; }
+        .reveal .smaller { font-size: 0.85em; }
+        .viz-container { background-color: #2d333b; border-radius: 15px; padding: 20px; margin-top: 20px; border: 1px solid var(--c-gray); }
+        .viz-svg { width: 100%; height: auto; }
+        .svg-text { font-family: var(--r-main-font); fill: var(--c-text); text-anchor: middle; font-size: 14px; }
+        .svg-label { font-size: 16px; font-weight: bold; fill: #fff; }
+        .svg-desc { font-size: 12px; fill: #8b949e; }
+        .svg-box { stroke-width: 2px; rx: 8; }
+        pre code { font-size: 0.7em !important; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <section>
+                <h1>LayerNorm: The Streaming Optimization</h1>
+                <h3>Hiding Memory Latency with Software Prefetching</h3>
+            </section>
+
+            <section>
+                <h2>The Final Frontier of Optimization</h2>
+                <p class="smaller">We have parallelized our code across cores and vectorized it with AVX. What's left?</p>
+                <p class="fragment smaller">The biggest bottleneck is often not the computation itself, but the time the CPU spends <span class="highlight">waiting for data</span> to arrive from memory.</p>
+                <p class="fragment smaller">This is called <span class="highlight">memory latency</span>. Our goal is to hide it.</p>
+            </section>
+
+            <section>
+                <h2>The Naive Data Flow: A Stalled Pipeline</h2>
+                <p class="smaller">Without optimization, the CPU processes a chunk of data, then stops and waits for the next one.</p>
+                <div class="viz-container">
+                    <svg id="stall-viz" class="viz-svg" viewBox="0 0 800 300">
+                        <text x="400" y="30" class="svg-label">Execution Pipeline (Without Prefetching)</text>
+                        <!-- Pipeline Stages -->
+                        <rect x="200" y="100" width="120" height="60" class="svg-box" stroke="var(--c-gray)" fill="#2d333b"/><text x="260" y="135" class="svg-text">Fetch</text>
+                        <rect x="340" y="100" width="120" height="60" class="svg-box" stroke="var(--c-gray)" fill="#2d333b"/><text x="400" y="135" class="svg-text">Decode</text>
+                        <rect x="480" y="100" width="120" height="60" class="svg-box" stroke="var(--c-gray)" fill="#2d333b"/><text x="540" y="135" class="svg-text">Execute</text>
+                        <!-- Data Chunks -->
+                        <g id="stall-chunk-a"><rect x="100" y="110" width="80" height="40" class="svg-box" stroke="var(--c-blue)" fill="var(--c-blue)"/><text x="140" y="135" class="svg-text">Chunk A</text></g>
+                        <g id="stall-chunk-b" opacity="0"><rect x="100" y="110" width="80" height="40" class="svg-box" stroke="var(--c-blue)" fill="var(--c-blue)"/><text x="140" y="135" class="svg-text">Chunk B</text></g>
+                        <!-- Stall Indicator -->
+                        <text id="stall-text" x="400" y="220" font-size="36" fill="var(--c-red)" opacity="0" font-weight="bold">STALL</text>
+                        <text id="stall-desc" x="400" y="250" class="svg-desc" opacity="0">Waiting for data from L1/L2 Cache...</text>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Optimized Flow: Hiding Latency with Prefetching</h2>
+                <p class="smaller">With software prefetching, we issue a non-blocking request for the *next* chunk of data while we are still working on the *current* one.</p>
+                <div class="viz-container">
+                    <svg id="prefetch-viz" class="viz-svg" viewBox="0 0 800 300">
+                         <text x="400" y="30" class="svg-label">Execution Pipeline (With Prefetching)</text>
+                        <!-- Pipeline Stages -->
+                        <rect x="200" y="100" width="120" height="60" class="svg-box" stroke="var(--c-gray)" fill="#2d333b"/><text x="260" y="135" class="svg-text">Fetch</text>
+                        <rect x="340" y="100" width="120" height="60" class="svg-box" stroke="var(--c-gray)" fill="#2d333b"/><text x="400" y="135" class="svg-text">Decode</text>
+                        <rect x="480" y="100" width="120" height="60" class="svg-box" stroke="var(--c-gray)" fill="#2d333b"/><text x="540" y="135" class="svg-text">Execute</text>
+                        <!-- Data Chunks -->
+                        <g id="prefetch-chunk-a"><rect x="100" y="110" width="80" height="40" class="svg-box" stroke="var(--c-blue)" fill="var(--c-blue)"/><text x="140" y="135" class="svg-text">Chunk A</text></g>
+                        <g id="prefetch-chunk-b" opacity="0"><rect x="100" y="110" width="80" height="40" class="svg-box" stroke="var(--c-blue)" fill="var(--c-blue)"/><text x="140" y="135" class="svg-text">Chunk B</text></g>
+                        <!-- Prefetch Arrow -->
+                        <g id="prefetch-arrow" opacity="0">
+                            <path d="M540 160 V 220 H 140 V 180" stroke="var(--c-green)" stroke-width="2" fill="none" stroke-dasharray="5 5"/>
+                            <text x="340" y="250" class="svg-desc" fill="var(--c-green)">_mm_prefetch( &ChunkB )</text>
+                        </g>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Code That Makes It Happen</h2>
+                <p class="smaller">This optimization is implemented with a single, powerful intrinsic instruction inside the loop.</p>
+                <pre><code class="c" data-trim data-noescape>
+// Inner loop for a single token
+for (j = 0; j <= d_model - unroll; j += unroll) {
+
+    // While processing the current chunk (j),
+    // tell the CPU to start fetching the NEXT chunk (j + 128).
+    _mm_prefetch((const char*)(in_ptr + j + 128), _MM_HINT_T0);
+
+    // Load and process the CURRENT chunk
+    __m512 v0 = _mm512_load_ps(in_ptr + j);
+    __m512 v1 = _mm512_load_ps(in_ptr + j + 16);
+    // ... etc ...
+
+    // By the time this computation is done, the next chunk is already in cache!
+}
+                </code></pre>
+            </section>
+
+            <section>
+                <h2>Conclusion: Keeping the Pipeline Full</h2>
+                <ul>
+                    <li class="fragment">High-performance computing is a battle against latency.</li>
+                    <li class="fragment">Vectorization (AVX) makes the <span class="highlight">computation</span> fast.</li>
+                    <li class="fragment">Prefetching makes the <span class="highlight">data access</span> fast.</li>
+                    <li class="fragment">By overlapping memory access with computation, we hide the latency and ensure the expensive execution units of the CPU never have to wait.</li>
+                </ul>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.3.1/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({ controls: true, progress: true, center: true, hash: true, width: 1600, height: 900, transition: 'slide' });
+
+        function setupStallAnimation() {
+            const chunkA = document.querySelector('#stall-chunk-a');
+            const chunkB = document.querySelector('#stall-chunk-b');
+            const stallText = document.querySelector('#stall-text');
+            const stallDesc = document.querySelector('#stall-desc');
+            if (!chunkA) return;
+
+            const tl = gsap.timeline({ repeat: -1, repeatDelay: 1 });
+
+            tl.to(chunkA, { x: 420, duration: 1.5, ease: 'power1.inOut' })
+              .set(chunkA, { opacity: 0 })
+              .to([stallText, stallDesc], { opacity: 1, duration: 0.2 })
+              .to([stallText, stallDesc], { opacity: 0, duration: 0.2, delay: 1.5 })
+              .set(chunkB, { opacity: 1, x: 0 })
+              .to(chunkB, { x: 420, duration: 1.5, ease: 'power1.inOut' })
+              .set(chunkB, { opacity: 0 })
+              .set(chunkA, { opacity: 1, x: 0 });
+        }
+
+        function setupPrefetchAnimation() {
+            const chunkA = document.querySelector('#prefetch-chunk-a');
+            const chunkB = document.querySelector('#prefetch-chunk-b');
+            const prefetchArrow = document.querySelector('#prefetch-arrow');
+            if (!chunkA) return;
+
+            const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.5 });
+
+            tl.to(chunkA, { x: 420, duration: 1.5, ease: 'power1.inOut' })
+              .set(chunkA, { opacity: 0 })
+              .set(chunkB, { opacity: 1, x: 120 })
+              .to(chunkB, { x: 420, duration: 1.5, ease: 'power1.inOut' })
+              .set(chunkB, { opacity: 0 })
+              .set(chunkA, { opacity: 1, x: 120 });
+
+            const arrowTl = gsap.timeline({ repeat: -1, repeatDelay: 2 });
+            arrowTl.to(prefetchArrow, { opacity: 1, duration: 0.3, delay: 0.5 })
+                   .to(prefetchArrow, { opacity: 0, duration: 0.3, delay: 0.7 });
+        }
+
+        Reveal.on('ready', () => {
+            if (Reveal.getCurrentSlide().querySelector('#stall-viz')) setupStallAnimation();
+            if (Reveal.getCurrentSlide().querySelector('#prefetch-viz')) setupPrefetchAnimation();
+        });
+
+        Reveal.on('slidechanged', event => {
+            if (event.currentSlide.querySelector('#stall-viz')) {
+                setupStallAnimation();
+            } else if (event.currentSlide.querySelector('#prefetch-viz')) {
+                setupPrefetchAnimation();
+            }
+        });
+
+    </script>
+</body>
+</html>
