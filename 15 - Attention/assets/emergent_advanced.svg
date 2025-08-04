@@ -1,0 +1,526 @@
+<svg viewBox="0 0 1800 3600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="900" y="50" font-size="38" font-weight="bold" text-anchor="middle" fill="#1a237e">
+    Deep Dive: Token Behavior Across Heads and Layers
+  </text>
+  <text x="900" y="85" font-size="22" text-anchor="middle" fill="#3949ab">
+    The Hidden Consistency and Chaos in Attention Patterns
+  </text>
+
+  <!-- Section 1: Token Consistency Analysis -->
+  <g transform="translate(50, 130)">
+    <rect x="0" y="0" width="1700" height="500" fill="#e8eaf6" stroke="#3f51b5" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1a237e">
+      DO TOKENS BEHAVE CONSISTENTLY ACROSS HEADS AND LAYERS?
+    </text>
+    
+    <!-- The surprising answer -->
+    <rect x="100" y="80" width="1500" height="60" fill="#c5cae9" stroke="#5c6bc0" rx="5"/>
+    <text x="850" y="115" font-size="22" font-weight="bold" text-anchor="middle" fill="#283593">
+      Answer: NO! Each token's behavior is highly context-dependent and varies dramatically
+    </text>
+    
+    <!-- Visual comparison -->
+    <g transform="translate(100, 170)">
+      <!-- Token "cat" behavior -->
+      <rect x="0" y="0" width="750" height="280" fill="#fff" stroke="#3f51b5" stroke-width="2" rx="8"/>
+      <text x="375" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1a237e">
+        Token "cat" in Different Contexts
+      </text>
+      
+      <!-- Context 1 -->
+      <g transform="translate(20, 50)">
+        <text x="0" y="20" font-size="16" font-weight="bold">Context 1: "The cat sat on the mat"</text>
+        <rect x="0" y="30" width="710" height="80" fill="#e8eaf6" stroke="#7986cb" rx="5"/>
+        <text x="10" y="55" font-size="14">Head 0: Attends to "sat" (subject→verb, strength: 0.7)</text>
+        <text x="10" y="75" font-size="14">Head 3: Attends to "mat" (semantic relation, strength: 0.3)</text>
+        <text x="10" y="95" font-size="14">Layer 6: Forms subject cluster with "The"</text>
+      </g>
+      
+      <!-- Context 2 -->
+      <g transform="translate(20, 150)">
+        <text x="0" y="20" font-size="16" font-weight="bold">Context 2: "The black cat is sleeping"</text>
+        <rect x="0" y="30" width="710" height="80" fill="#f3e5f5" stroke="#ab47bc" rx="5"/>
+        <text x="10" y="55" font-size="14">Head 0: Attends to "black" (modifier, strength: 0.8) - DIFFERENT!</text>
+        <text x="10" y="75" font-size="14">Head 3: Attends to "is" (aux verb, strength: 0.6) - DIFFERENT!</text>
+        <text x="10" y="95" font-size="14">Layer 6: Forms noun phrase with "black" - DIFFERENT PATTERN!</text>
+      </g>
+    </g>
+    
+    <!-- Key insight -->
+    <g transform="translate(900, 170)">
+      <rect x="0" y="0" width="650" height="280" fill="#ffebee" stroke="#c62828" stroke-width="2" rx="8"/>
+      <text x="325" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#b71c1c">
+        Key Discovery: Context Changes Everything
+      </text>
+      
+      <text x="20" y="60" font-size="16" font-weight="bold">What determines token behavior:</text>
+      <text x="20" y="85" font-size="15">1. Surrounding tokens (local context)</text>
+      <text x="20" y="105" font-size="15">2. Syntactic role in THIS sentence</text>
+      <text x="20" y="125" font-size="15">3. Semantic meaning in THIS context</text>
+      <text x="20" y="145" font-size="15">4. Task requirements at THIS position</text>
+      
+      <rect x="20" y="165" width="610" height="100" fill="#ffcdd2" stroke="#d32f2f" rx="5"/>
+      <text x="325" y="190" font-size="16" font-weight="bold" text-anchor="middle">
+        Implication for Your C Implementation:
+      </text>
+      <text x="30" y="215" font-size="14" font-family="monospace">// Can't precompute attention patterns!</text>
+      <text x="30" y="235" font-size="14" font-family="monospace">// Must compute dynamically for each context</text>
+      <text x="30" y="255" font-size="14" font-family="monospace">// This is why attention is expensive!</text>
+    </g>
+  </g>
+
+  <!-- Section 2: What 100+ Layer Models Learn -->
+  <g transform="translate(50, 680)">
+    <rect x="0" y="0" width="1700" height="600" fill="#e8f5e9" stroke="#4caf50" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+      WHAT EMERGES IN VERY DEEP MODELS (100+ LAYERS)?
+    </text>
+    
+    <!-- Layer progression -->
+    <g transform="translate(100, 80)">
+      <!-- Layers 0-20 -->
+      <rect x="0" y="0" width="380" height="200" fill="#f1f8e4" stroke="#689f38" stroke-width="2" rx="8"/>
+      <text x="190" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#33691e">
+        Layers 0-20: Basic Processing
+      </text>
+      <text x="15" y="60" font-size="15">• Tokenization cleanup</text>
+      <text x="15" y="80" font-size="15">• Morphological analysis</text>
+      <text x="15" y="100" font-size="15">• Basic syntax (POS tagging)</text>
+      <text x="15" y="120" font-size="15">• Local dependencies</text>
+      <rect x="15" y="140" width="350" height="45" fill="#dcedc8" stroke="#8bc34a" rx="5"/>
+      <text x="190" y="165" font-size="14" text-anchor="middle">
+        Similar to what 12-layer models do in layers 0-3
+      </text>
+      
+      <!-- Layers 20-50 -->
+      <rect x="410" y="0" width="380" height="200" fill="#c8e6c9" stroke="#43a047" stroke-width="2" rx="8"/>
+      <text x="600" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+        Layers 20-50: Hierarchical Structures
+      </text>
+      <text x="425" y="60" font-size="15">• Nested clause understanding</text>
+      <text x="425" y="80" font-size="15">• Complex coreference chains</text>
+      <text x="425" y="100" font-size="15">• Multi-hop reasoning prep</text>
+      <text x="425" y="120" font-size="15">• Abstract syntax trees</text>
+      <rect x="425" y="140" width="350" height="45" fill="#a5d6a7" stroke="#4caf50" rx="5"/>
+      <text x="600" y="165" font-size="14" text-anchor="middle">
+        New capability: Can track 5+ levels of nesting
+      </text>
+      
+      <!-- Layers 50-80 -->
+      <rect x="820" y="0" width="380" height="200" fill="#81c784" stroke="#388e3c" stroke-width="2" rx="8"/>
+      <text x="1010" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+        Layers 50-80: Semantic Networks
+      </text>
+      <text x="835" y="60" font-size="15">• Concept graphs</text>
+      <text x="835" y="80" font-size="15">• Implicit knowledge bases</text>
+      <text x="835" y="100" font-size="15">• Causal relationship tracking</text>
+      <text x="835" y="120" font-size="15">• Temporal reasoning</text>
+      <rect x="835" y="140" width="350" height="45" fill="#66bb6a" stroke="#43a047" rx="5"/>
+      <text x="1010" y="165" font-size="14" text-anchor="middle">
+        Emergent: World model representations
+      </text>
+      
+      <!-- Layers 80-100+ -->
+      <rect x="1230" y="0" width="380" height="200" fill="#4caf50" stroke="#2e7d32" stroke-width="2" rx="8"/>
+      <text x="1420" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="white">
+        Layers 80-100+: Task Specialization
+      </text>
+      <text x="1245" y="60" font-size="15" fill="white">• Output-specific formatting</text>
+      <text x="1245" y="80" font-size="15" fill="white">• Style transfer circuits</text>
+      <text x="1245" y="100" font-size="15" fill="white">• Register/tone adjustment</text>
+      <text x="1245" y="120" font-size="15" fill="white">• Final coherence checks</text>
+      <rect x="1245" y="140" width="350" height="45" fill="#388e3c" stroke="#2e7d32" rx="5"/>
+      <text x="1420" y="165" font-size="14" text-anchor="middle" fill="white">
+        Discovery: Task-specific sub-networks emerge
+      </text>
+    </g>
+    
+    <!-- The shocking discovery -->
+    <rect x="100" y="300" width="1500" height="100" fill="#2e7d32" stroke="#1b5e20" stroke-width="2" rx="10"/>
+    <text x="850" y="335" font-size="20" font-weight="bold" text-anchor="middle" fill="white">
+      SHOCKING DISCOVERY: After ~50 layers, models develop "cognitive subroutines"
+    </text>
+    <text x="850" y="365" font-size="16" text-anchor="middle" fill="white">
+      Specific layer ranges activate for specific types of reasoning - like specialized brain regions!
+    </text>
+    
+    <!-- Circuit discovery -->
+    <g transform="translate(100, 420)">
+      <rect x="0" y="0" width="700" height="150" fill="#f1f8e4" stroke="#689f38" rx="5"/>
+      <text x="350" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#33691e">
+        Example: Mathematical Reasoning Circuit
+      </text>
+      <text x="20" y="60" font-size="15">• Layers 45-55: Number recognition and encoding</text>
+      <text x="20" y="80" font-size="15">• Layers 56-70: Operation identification</text>
+      <text x="20" y="100" font-size="15">• Layers 71-85: Calculation execution</text>
+      <text x="20" y="120" font-size="15">• Layers 86-95: Result formatting</text>
+      <text x="20" y="140" font-size="14" font-weight="bold" fill="#33691e">These layers show increased activation ONLY for math!</text>
+      
+      <rect x="750" y="0" width="750" height="150" fill="#f1f8e4" stroke="#689f38" rx="5"/>
+      <text x="1125" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#33691e">
+        Implications for Your Implementation:
+      </text>
+      <text x="770" y="60" font-size="15" font-family="monospace">// Could create specialized models:</text>
+      <text x="770" y="80" font-size="15" font-family="monospace">// - 20 layers for syntax tasks</text>
+      <text x="770" y="100" font-size="15" font-family="monospace">// - 50 layers for reasoning tasks</text>
+      <text x="770" y="120" font-size="15" font-family="monospace">// - 100+ only when needed</text>
+      <text x="770" y="140" font-size="14" font-weight="bold" fill="#33691e">Massive efficiency gains possible!</text>
+    </g>
+  </g>
+
+  <!-- Section 3: Mechanistic Interpretability Guide -->
+  <g transform="translate(50, 1330)">
+    <rect x="0" y="0" width="1700" height="700" fill="#fff3e0" stroke="#ff6f00" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#e65100">
+      MECHANISTIC INTERPRETABILITY: HOW TO DISSECT ATTENTION IN YOUR C CODE
+    </text>
+    
+    <!-- Step-by-step guide -->
+    <g transform="translate(100, 80)">
+      <!-- Tool 1: Attention Pattern Analysis -->
+      <rect x="0" y="0" width="520" height="250" fill="#fff8e1" stroke="#ffa726" stroke-width="2" rx="8"/>
+      <text x="260" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#f57c00">
+        1. Attention Pattern Analysis
+      </text>
+      
+      <rect x="20" y="50" width="480" height="180" fill="#ffe0b2" stroke="#ff9800" rx="5"/>
+      <text x="30" y="75" font-size="14" font-family="monospace">// Dump attention patterns to CSV</text>
+      <text x="30" y="95" font-size="14" font-family="monospace">void dump_attention_patterns(Model* m, int layer) {</text>
+      <text x="30" y="115" font-size="14" font-family="monospace">  for (int head = 0; head &lt; num_heads; head++) {</text>
+      <text x="30" y="135" font-size="14" font-family="monospace">    for (int i = 0; i &lt; seq_len; i++) {</text>
+      <text x="30" y="155" font-size="14" font-family="monospace">      for (int j = 0; j &lt; seq_len; j++) {</text>
+      <text x="30" y="175" font-size="14" font-family="monospace">        float attn = get_attention(m, layer, head, i, j);</text>
+      <text x="30" y="195" font-size="14" font-family="monospace">        fprintf(fp, "%d,%d,%d,%d,%.6f\n", layer, head, i, j, attn);</text>
+      <text x="30" y="215" font-size="14" font-family="monospace">}}}} // Analyze in Python/R for patterns</text>
+      
+      <!-- Tool 2: Ablation Studies -->
+      <rect x="540" y="0" width="520" height="250" fill="#fff8e1" stroke="#ffa726" stroke-width="2" rx="8"/>
+      <text x="800" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#f57c00">
+        2. Ablation Studies
+      </text>
+      
+      <rect x="560" y="50" width="480" height="180" fill="#ffe0b2" stroke="#ff9800" rx="5"/>
+      <text x="570" y="75" font-size="14" font-family="monospace">// Zero out specific heads and measure impact</text>
+      <text x="570" y="95" font-size="14" font-family="monospace">float ablate_head(Model* m, int layer, int head) {</text>
+      <text x="570" y="115" font-size="14" font-family="monospace">  float* backup = save_attention(m, layer, head);</text>
+      <text x="570" y="135" font-size="14" font-family="monospace">  zero_attention(m, layer, head);</text>
+      <text x="570" y="155" font-size="14" font-family="monospace">  float loss_degradation = measure_performance(m);</text>
+      <text x="570" y="175" font-size="14" font-family="monospace">  restore_attention(m, layer, head, backup);</text>
+      <text x="570" y="195" font-size="14" font-family="monospace">  return loss_degradation;</text>
+      <text x="570" y="215" font-size="14" font-family="monospace">} // Identifies critical vs redundant heads</text>
+      
+      <!-- Tool 3: Probing -->
+      <rect x="1080" y="0" width="520" height="250" fill="#fff8e1" stroke="#ffa726" stroke-width="2" rx="8"/>
+      <text x="1340" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#f57c00">
+        3. Direct Logit Attribution
+      </text>
+      
+      <rect x="1100" y="50" width="480" height="180" fill="#ffe0b2" stroke="#ff9800" rx="5"/>
+      <text x="1110" y="75" font-size="14" font-family="monospace">// Track which heads contribute to predictions</text>
+      <text x="1110" y="95" font-size="14" font-family="monospace">void attribute_logits(Model* m, int token_idx) {</text>
+      <text x="1110" y="115" font-size="14" font-family="monospace">  float* head_contributions[num_layers][num_heads];</text>
+      <text x="1110" y="135" font-size="14" font-family="monospace">  // Run forward pass, saving each head's output</text>
+      <text x="1110" y="155" font-size="14" font-family="monospace">  // Project each to vocab space</text>
+      <text x="1110" y="175" font-size="14" font-family="monospace">  // Measure correlation with final logits</text>
+      <text x="1110" y="195" font-size="14" font-family="monospace">  visualize_contributions(head_contributions);</text>
+      <text x="1110" y="215" font-size="14" font-family="monospace">} // Shows which heads drive specific predictions</text>
+    </g>
+    
+    <!-- Advanced techniques -->
+    <g transform="translate(100, 350)">
+      <rect x="0" y="0" width="1500" height="300" fill="#ffecb3" stroke="#ffa000" stroke-width="2" rx="8"/>
+      <text x="750" y="35" font-size="22" font-weight="bold" text-anchor="middle" fill="#e65100">
+        Advanced Mechanistic Interpretability Techniques
+      </text>
+      
+      <!-- Technique 1 -->
+      <g transform="translate(20, 60)">
+        <rect x="0" y="0" width="460" height="220" fill="#fff3e0" stroke="#ff9800" rx="5"/>
+        <text x="230" y="25" font-size="18" font-weight="bold" text-anchor="middle">Activation Patching</text>
+        <text x="10" y="50" font-size="14">Replace activations at layer N with</text>
+        <text x="10" y="70" font-size="14">activations from a different input:</text>
+        <rect x="10" y="85" width="440" height="60" fill="#ffe0b2" stroke="#ffb300" rx="3"/>
+        <text x="20" y="105" font-size="13" font-family="monospace">// "The cat sat" vs "The dog sat"</text>
+        <text x="20" y="125" font-size="13" font-family="monospace">// Swap "cat"→"dog" activations at each layer</text>
+        <text x="20" y="145" font-size="13" font-family="monospace">// See where behavior changes!</text>
+        
+        <text x="10" y="170" font-size="14" font-weight="bold">Reveals: Where concepts are processed</text>
+        <text x="10" y="190" font-size="13">• Early layers: No change (syntax same)</text>
+        <text x="10" y="210" font-size="13">• Mid layers: Semantic differences emerge</text>
+        <text x="10" y="230" font-size="13">• Late layers: Different predictions</text>
+      </g>
+      
+      <!-- Technique 2 -->
+      <g transform="translate(510, 60)">
+        <rect x="0" y="0" width="460" height="220" fill="#fff3e0" stroke="#ff9800" rx="5"/>
+        <text x="230" y="25" font-size="18" font-weight="bold" text-anchor="middle">Attention Head Surgery</text>
+        <text x="10" y="50" font-size="14">Redirect attention from one token</text>
+        <text x="10" y="70" font-size="14">to another and observe changes:</text>
+        <rect x="10" y="85" width="440" height="60" fill="#ffe0b2" stroke="#ffb300" rx="3"/>
+        <text x="20" y="105" font-size="13" font-family="monospace">// Force "it" to attend to "cat" not "mat"</text>
+        <text x="20" y="125" font-size="13" font-family="monospace">attn_scores[head]["it"]["cat"] = 0.9;</text>
+        <text x="20" y="145" font-size="13" font-family="monospace">attn_scores[head]["it"]["mat"] = 0.1;</text>
+        
+        <text x="10" y="170" font-size="14" font-weight="bold">Reveals: Causal importance of connections</text>
+        <text x="10" y="190" font-size="13">• Some connections are critical</text>
+        <text x="10" y="210" font-size="13">• Others are redundant backups</text>
+        <text x="10" y="230" font-size="13">• Can identify minimal attention graphs</text>
+      </g>
+      
+      <!-- Technique 3 -->
+      <g transform="translate(1000, 60)">
+        <rect x="0" y="0" width="460" height="220" fill="#fff3e0" stroke="#ff9800" rx="5"/>
+        <text x="230" y="25" font-size="18" font-weight="bold" text-anchor="middle">Attention Lens Analysis</text>
+        <text x="10" y="50" font-size="14">Project attention patterns back to</text>
+        <text x="10" y="70" font-size="14">input space to see what they detect:</text>
+        <rect x="10" y="85" width="440" height="60" fill="#ffe0b2" stroke="#ffb300" rx="3"/>
+        <text x="20" y="105" font-size="13" font-family="monospace">// For each head, find input patterns</text>
+        <text x="20" y="125" font-size="13" font-family="monospace">// that maximize attention scores</text>
+        <text x="20" y="145" font-size="13" font-family="monospace">// Creates "feature detectors" view</text>
+        
+        <text x="10" y="170" font-size="14" font-weight="bold">Reveals: What each head "looks for"</text>
+        <text x="10" y="190" font-size="13">• Head 5: Prepositions before nouns</text>
+        <text x="10" y="210" font-size="13">• Head 8: Subject-verb pairs</text>
+        <text x="10" y="230" font-size="13">• Head 12: Sentiment indicators</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Section 4: Your C Advantage -->
+  <g transform="translate(50, 2080)">
+    <rect x="0" y="0" width="1700" height="400" fill="#e3f2fd" stroke="#2196f3" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#0d47a1">
+      WHY YOUR C IMPLEMENTATION IS PERFECT FOR MECHANISTIC INTERPRETABILITY
+    </text>
+    
+    <g transform="translate(100, 80)">
+      <!-- Advantage 1 -->
+      <rect x="0" y="0" width="500" height="280" fill="#e1f5fe" stroke="#039be5" stroke-width="2" rx="8"/>
+      <text x="250" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#01579b">
+        Zero Abstraction = Full Control
+      </text>
+      
+      <text x="20" y="60" font-size="16" font-weight="bold">You can:</text>
+      <text x="20" y="85" font-size="15">• Modify any weight instantly</text>
+      <text x="20" y="105" font-size="15">• Freeze any layer/head</text>
+      <text x="20" y="125" font-size="15">• Inject patterns anywhere</text>
+      <text x="20" y="145" font-size="15">• Track every operation</text>
+      
+      <rect x="20" y="165" width="460" height="100" fill="#b3e5fc" stroke="#0288d1" rx="5"/>
+      <text x="250" y="190" font-size="15" font-weight="bold" text-anchor="middle">
+        PyTorch researchers need complex hooks
+      </text>
+      <text x="250" y="210" font-size="15" text-anchor="middle">
+        You just change a pointer!
+      </text>
+      <text x="30" y="235" font-size="14" font-family="monospace">attention_scores[layer][head] = my_pattern;</text>
+      <text x="30" y="255" font-size="14" font-family="monospace">// Done. No autograd, no framework magic.</text>
+      
+      <!-- Advantage 2 -->
+      <rect x="550" y="0" width="500" height="280" fill="#c8e6c9" stroke="#43a047" stroke-width="2" rx="8"/>
+      <text x="800" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+        Speed = More Experiments
+      </text>
+      
+      <text x="570" y="60" font-size="16" font-weight="bold">10x faster inference means:</text>
+      <text x="570" y="85" font-size="15">• Test 1000s of ablations/day</text>
+      <text x="570" y="105" font-size="15">• Real-time pattern exploration</text>
+      <text x="570" y="125" font-size="15">• Interactive analysis tools</text>
+      <text x="570" y="145" font-size="15">• Immediate hypothesis testing</text>
+      
+      <rect x="570" y="165" width="460" height="100" fill="#a5d6a7" stroke="#4caf50" rx="5"/>
+      <text x="800" y="190" font-size="15" font-weight="bold" text-anchor="middle">
+        Example workflow:
+      </text>
+      <text x="580" y="215" font-size="14">"I wonder if head 7 handles negation..."</text>
+      <text x="580" y="235" font-size="14">*types 3 lines of C*</text>
+      <text x="580" y="255" font-size="14">"Yes! Here's proof in 0.3 seconds"</text>
+      
+      <!-- Advantage 3 -->
+      <rect x="1100" y="0" width="500" height="280" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="8"/>
+      <text x="1350" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#4a148c">
+        Deterministic = Reproducible Science
+      </text>
+      
+      <text x="1120" y="60" font-size="16" font-weight="bold">Every run identical:</text>
+      <text x="1120" y="85" font-size="15">• No random initialization variance</text>
+      <text x="1120" y="105" font-size="15">• Exact same floating point ops</text>
+      <text x="1120" y="125" font-size="15">• Bit-perfect reproducibility</text>
+      <text x="1120" y="145" font-size="15">• Publishable, verifiable results</text>
+      
+      <rect x="1120" y="165" width="460" height="100" fill="#e1bee7" stroke="#8e24aa" rx="5"/>
+      <text x="1350" y="190" font-size="15" font-weight="bold" text-anchor="middle">
+        For safety-critical AI:
+      </text>
+      <text x="1130" y="215" font-size="14">If head 3 layer 7 detects obstacles...</text>
+      <text x="1130" y="235" font-size="14">It will ALWAYS detect them</text>
+      <text x="1130" y="255" font-size="14">Certifiable behavior for drones/medical</text>
+    </g>
+  </g>
+
+  <!-- Section 5: The Big Picture -->
+  <g transform="translate(50, 2530)">
+    <rect x="0" y="0" width="1700" height="400" fill="#ffebee" stroke="#c62828" stroke-width="3" rx="12"/>
+
+<text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#b71c1c">
+     THE BIG PICTURE: WHY THIS DEPTH MATTERS FOR YOUR PRESENTATION
+   </text>
+   
+   <g transform="translate(100, 80)">
+     <!-- Why it matters -->
+     <rect x="0" y="0" width="1500" height="120" fill="#ffcdd2" stroke="#d32f2f" stroke-width="2" rx="8"/>
+     <text x="750" y="30" font-size="22" font-weight="bold" text-anchor="middle" fill="#c62828">
+       Your Audience Needs to Understand: Attention Isn't Just Matrix Multiplication
+     </text>
+     <text x="50" y="60" font-size="16">1. It's a learned system that discovers structure without being told what to look for</text>
+     <text x="50" y="85" font-size="16">2. Every token behaves differently based on context - no shortcuts possible</text>
+     <text x="50" y="110" font-size="16">3. Deep models develop specialized "cognitive circuits" that we can study and control</text>
+     
+     <!-- Your unique angle -->
+     <g transform="translate(0, 150)">
+       <rect x="0" y="0" width="700" height="150" fill="#ef9a9a" stroke="#c62828" rx="5"/>
+       <text x="350" y="30" font-size="20" font-weight="bold" text-anchor="middle">
+         Your Unique Angle: Speed + Control
+       </text>
+       <text x="20" y="60" font-size="16">While others say "Attention is computationally expensive"</text>
+       <text x="20" y="85" font-size="16">You show: "Here's WHY it's expensive and how to make it 10x faster"</text>
+       <text x="20" y="110" font-size="16">You demonstrate: "Here's how to inspect and control every aspect"</text>
+       <text x="20" y="135" font-size="16">You prove: "C gives us science, not just engineering"</text>
+       
+       <rect x="750" y="0" width="750" height="150" fill="#ffebee" stroke="#e53935" rx="5"/>
+       <text x="1125" y="30" font-size="20" font-weight="bold" text-anchor="middle">
+         The Killer Demo for Your Video:
+       </text>
+       <text x="770" y="60" font-size="15" font-family="monospace">// Live demonstration:</text>
+       <text x="770" y="80" font-size="15" font-family="monospace">1. Show attention patterns in real-time</text>
+       <text x="770" y="100" font-size="15" font-family="monospace">2. Ablate a head - watch meaning change</text>
+       <text x="770" y="120" font-size="15" font-family="monospace">3. Force a pattern - create specific behavior</text>
+       <text x="770" y="140" font-size="15" font-family="monospace">4. All at 100+ tokens/second on CPU!</text>
+     </g>
+   </g>
+ </g>
+
+ <!-- Final recommendations -->
+ <g transform="translate(50, 2980)">
+   <rect x="0" y="0" width="1700" height="500" fill="#e8eaf6" stroke="#3f51b5" stroke-width="3" rx="12"/>
+   <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1a237e">
+     RECOMMENDATIONS FOR YOUR PRESENTATION STRUCTURE
+   </text>
+   
+   <g transform="translate(100, 80)">
+     <!-- Part 1 -->
+     <rect x="0" y="0" width="350" height="380" fill="#c5cae9" stroke="#5c6bc0" stroke-width="2" rx="8"/>
+     <text x="175" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#283593">
+       Part 1: The Basics (20%)
+     </text>
+     <text x="15" y="60" font-size="15" font-weight="bold">Quick coverage of:</text>
+     <text x="15" y="85" font-size="14">• QKV transformation math</text>
+     <text x="15" y="105" font-size="14">• Scaled dot-product</text>
+     <text x="15" y="125" font-size="14">• Multi-head concept</text>
+     
+     <rect x="15" y="145" width="320" height="60" fill="#9fa8da" stroke="#3f51b5" rx="5"/>
+     <text x="175" y="170" font-size="14" font-weight="bold" text-anchor="middle" fill="white">
+       "You've seen this before,
+     </text>
+     <text x="175" y="190" font-size="14" font-weight="bold" text-anchor="middle" fill="white">
+       but not like this..."
+     </text>
+     
+     <text x="15" y="225" font-size="15" font-weight="bold">Transition hook:</text>
+     <text x="15" y="245" font-size="14">"But here's what they don't tell you:</text>
+     <text x="15" y="265" font-size="14">Attention isn't programmed,</text>
+     <text x="15" y="285" font-size="14">it's discovered through learning."</text>
+     
+     <text x="15" y="315" font-size="15" font-weight="bold">Show:</text>
+     <text x="15" y="335" font-size="14">• Emergent matching diagram</text>
+     <text x="15" y="355" font-size="14">• "cat" finding "mat" example</text>
+     
+     <!-- Part 2 -->
+     <rect x="380" y="0" width="350" height="380" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="8"/>
+     <text x="555" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+       Part 2: The Reality (40%)
+     </text>
+     <text x="395" y="60" font-size="15" font-weight="bold">Deep dive into:</text>
+     <text x="395" y="85" font-size="14">• Why it's computationally expensive</text>
+     <text x="395" y="105" font-size="14">• Memory access patterns</text>
+     <text x="395" y="125" font-size="14">• Cache misses killing PyTorch</text>
+     
+     <rect x="395" y="145" width="320" height="60" fill="#a5d6a7" stroke="#43a047" rx="5"/>
+     <text x="555" y="170" font-size="14" font-weight="bold" text-anchor="middle">
+       "PyTorch uses 2% of your CPU.
+     </text>
+     <text x="555" y="190" font-size="14" font-weight="bold" text-anchor="middle">
+       Here's how to use 20%"
+     </text>
+     
+     <text x="395" y="225" font-size="15" font-weight="bold">Technical deep dive:</text>
+     <text x="395" y="245" font-size="14">• Head-major vs token-major</text>
+     <text x="395" y="265" font-size="14">• AVX-512 implementation</text>
+     <text x="395" y="285" font-size="14">• Your benchmark results</text>
+     
+     <text x="395" y="315" font-size="15" font-weight="bold">Show code:</text>
+     <text x="395" y="335" font-size="14">• Live editing attention.c</text>
+     <text x="395" y="355" font-size="14">• Compile → Run → 474 GFLOPS!</text>
+     
+     <!-- Part 3 -->
+     <rect x="760" y="0" width="350" height="380" fill="#fff3e0" stroke="#ff9800" stroke-width="2" rx="8"/>
+     <text x="935" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#e65100">
+       Part 3: The Science (30%)
+     </text>
+     <text x="775" y="60" font-size="15" font-weight="bold">Mechanistic insights:</text>
+     <text x="775" y="85" font-size="14">• Different heads learn different roles</text>
+     <text x="775" y="105" font-size="14">• Layers progress: syntax → semantics</text>
+     <text x="775" y="125" font-size="14">• Emergent properties demo</text>
+     
+     <rect x="775" y="145" width="320" height="60" fill="#ffe0b2" stroke="#ff9800" rx="5"/>
+     <text x="935" y="170" font-size="14" font-weight="bold" text-anchor="middle">
+       "Watch me disable head 7
+     </text>
+     <text x="935" y="190" font-size="14" font-weight="bold" text-anchor="middle">
+       and break coreference resolution"
+     </text>
+     
+     <text x="775" y="225" font-size="15" font-weight="bold">Live experiments:</text>
+     <text x="775" y="245" font-size="14">• Attention surgery demo</text>
+     <text x="775" y="265" font-size="14">• Pattern injection</text>
+     <text x="775" y="285" font-size="14">• Real-time visualization</text>
+     
+     <text x="775" y="315" font-size="15" font-weight="bold">The payoff:</text>
+     <text x="775" y="335" font-size="14">"This isn't just faster—</text>
+     <text x="775" y="355" font-size="14">it's scientifically observable AI"</text>
+     
+     <!-- Part 4 -->
+     <rect x="1140" y="0" width="350" height="380" fill="#ffebee" stroke="#c62828" stroke-width="2" rx="8"/>
+     <text x="1315" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#b71c1c">
+       Part 4: The Future (10%)
+     </text>
+     <text x="1155" y="60" font-size="15" font-weight="bold">Your vision:</text>
+     <text x="1155" y="85" font-size="14">• Interpretable AI for safety</text>
+     <text x="1155" y="105" font-size="14">• Edge deployment reality</text>
+     <text x="1155" y="125" font-size="14">• 100-layer models on CPU</text>
+     
+     <rect x="1155" y="145" width="320" height="60" fill="#ffcdd2" stroke="#d32f2f" rx="5"/>
+     <text x="1315" y="170" font-size="14" font-weight="bold" text-anchor="middle">
+       "Imagine drone AI that can
+     </text>
+     <text x="1315" y="190" font-size="14" font-weight="bold" text-anchor="middle">
+       explain every decision"
+     </text>
+     
+     <text x="1155" y="225" font-size="15" font-weight="bold">Call to action:</text>
+     <text x="1155" y="245" font-size="14">"The code is on GitHub"</text>
+     <text x="1155" y="265" font-size="14">"Build interpretable AI"</text>
+     <text x="1155" y="285" font-size="14">"Join the C AI revolution"</text>
+     
+     <text x="1155" y="315" font-size="15" font-weight="bold">End with:</text>
+     <text x="1155" y="335" font-size="14">Your 72-core build teaser</text>
+     <text x="1155" y="355" font-size="14">"Next: Training from scratch"</text>
+   </g>
+ </g>
+
+ <!-- Final thought -->
+ <text x="900" y="3550" font-size="20" font-weight="bold" text-anchor="middle" fill="#1a237e">
+   Remember: You're not just explaining attention—you're showing a new way to build AI
+ </text>
+</svg>

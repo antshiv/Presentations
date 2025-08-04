@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergent Properties of Attention</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
+        body {
+            background-color: #111;
+            color: #eee;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        .infographic-container {
+            width: 100%;
+            height: auto;
+            max-width: 1800px;
+            background-color: #222;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        svg { overflow: visible; }
+        .title { font-family: 'Inter', sans-serif; font-size: 48px; font-weight: bold; fill: #e5e7eb; }
+        .subtitle { font-family: 'Inter', sans-serif; font-size: 20px; fill: #9ca3af; }
+        .hpc-tag { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: bold; fill: #fff; text-anchor: middle; }
+        
+        .section-header { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: bold; fill: #3b82f6; }
+        .section-subtext { font-family: 'Inter', sans-serif; font-size: 18px; fill: #9ca3af; }
+        .text-dim { font-family: 'Roboto Mono', monospace; font-size: 16px; fill: #d1d5db; }
+        
+        .connector { stroke: #4b5563; stroke-width: 3; marker-end: url(#arrow); }
+        .connector-active { stroke: #3b82f6; stroke-width: 5; marker-end: url(#arrow-active); }
+        .arrow { fill: #4b5563; stroke: none; }
+        .arrow-active { fill: #3b82f6; stroke: none; }
+        
+        .box-input { fill: #374151; stroke: #4b5563; stroke-width: 2; }
+        .box-proc { fill: #1f2937; stroke: #60a5fa; stroke-width: 2; }
+        .box-output { fill: #3b82f6; stroke: #1f2937; stroke-width: 3; }
+        .text-label { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: bold; fill: #e5e7eb; }
+        .text-small { font-family: 'Inter', sans-serif; font-size: 14px; fill: #9ca3af; }
+        
+        .head-box { fill: #2e3a47; stroke: #6b7280; stroke-width: 2; transition: all 0.3s ease-in-out; }
+        .head-label { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: bold; fill: #e5e7eb; text-anchor: middle; }
+        .head-specialty { font-family: 'Inter', sans-serif; font-size: 14px; fill: #9ca3af; text-anchor: middle; }
+        
+        .q-label { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: bold; fill: #f87171; }
+        .k-label { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: bold; fill: #22c55e; }
+        .v-label { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: bold; fill: #facc15; }
+        
+        .animate-flow-line {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: dash 3s forwards;
+            animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: 0; }
+        }
+        
+        .attention-line {
+            stroke: #3b82f6;
+            stroke-width: 2;
+            fill: none;
+            transition: all 0.5s ease-in-out;
+        }
+        .attention-line.active {
+            stroke: #f87171;
+            stroke-width: 4;
+        }
+
+        .highlight-on-hover:hover { stroke: #3b82f6; transform: scale(1.02); }
+        .highlight-on-hover:hover > .text-label, .highlight-on-hover:hover > .text-small { fill: #3b82f6; }
+    </style>
+</head>
+<body>
+    <div class="infographic-container">
+        <svg viewBox="0 0 1800 1400" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker id="arrow-active" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L10,5 L0,10 z" />
+                </marker>
+            </defs>
+
+            <!-- Title and Subtitle -->
+            <text x="900" y="60" text-anchor="middle" class="title">The Emergent Mind of a Transformer</text>
+            <text x="900" y="95" text-anchor="middle" class="subtitle">From Multi-Head Specialists to Layered Intelligence</text>
+            
+            <!-- Section 1: The Multi-Head Concept -->
+            <g transform="translate(100, 200)">
+                <text x="400" y="0" class="section-header">Attention is a Team of Specialists</text>
+                <text x="400" y="30" class="section-subtext">Each attention head learns to focus on a different aspect of the data.</text>
+                
+                <rect x="150" y="80" width="500" height="80" rx="10" ry="10" class="box-input" />
+                <text x="400" y="110" class="text-label">Input Embedding (Token Vector)</text>
+                <text x="400" y="135" class="text-dim">Shape: [1 x D]</text>
+                
+                <path d="M400,160 L400,230" class="connector" />
+                
+                <g transform="translate(100, 250)">
+                    <rect x="0" y="0" width="200" height="150" rx="10" ry="10" class="head-box" />
+                    <text x="100" y="30" class="head-label">Head 1</text>
+                    <text x="100" y="60" class="head-specialty">Specialty: Syntax & Grammar</text>
+                    <path d="M100,100 L100,200" class="attention-line" id="attn-1" />
+                </g>
+                <g transform="translate(300, 250)">
+                    <rect x="0" y="0" width="200" height="150" rx="10" ry="10" class="head-box" />
+                    <text x="100" y="30" class="head-label">Head 2</text>
+                    <text x="100" y="60" class="head-specialty">Specialty: Semantics & Meaning</text>
+                    <path d="M100,100 L100,200" class="attention-line" id="attn-2" />
+                </g>
+                <g transform="translate(500, 250)">
+                    <rect x="0" y="0" width="200" height="150" rx="10" ry="10" class="head-box" />
+                    <text x="100" y="30" class="head-label">Head 3</text>
+                    <text x="100" y="60" class="head-specialty">Specialty: Causality & Logic</text>
+                    <path d="M100,100 L100,200" class="attention-line" id="attn-3" />
+                </g>
+                
+                <path d="M400,230 L200,250" class="connector" />
+                <path d="M400,230 L400,250" class="connector" />
+                <path d="M400,230 L600,250" class="connector" />
+                
+                <rect x="150" y="470" width="500" height="80" rx="10" ry="10" class="box-output" />
+                <text x="400" y="500" class="text-label" fill="#111">Unified Output Vector</text>
+                <text x="400" y="525" class="text-small" fill="#111">A weighted sum of all head outputs</text>
+            </g>
+            
+            <!-- Section 2: Layered Intelligence -->
+            <g transform="translate(1000, 200)">
+                <text x="400" y="0" class="section-header">The Layered Journey of a Token</text>
+                <text x="400" y="30" class="section-subtext">Intelligence emerges as a token is refined through a stack of layers.</text>
+                
+                <g transform="translate(150, 70)">
+                    <rect x="0" y="0" width="500" height="150" rx="10" ry="10" class="box-input" />
+                    <text x="250" y="30" class="text-label">Initial Token Vector</text>
+                    <text x="250" y="60" class="text-small">"The dog chased the cat because it was hungry."</text>
+                    <text x="250" y="100" class="k-label">D O G</text>
+                    <text x="250" y="125" class="text-small">Vector for the word "dog"</text>
+                </g>
+                
+                <path d="M400,220 L400,280" class="connector" id="flow-1" />
+                
+                <g transform="translate(150, 280)">
+                    <rect x="0" y="0" width="500" height="150" rx="10" ry="10" class="box-proc" />
+                    <text x="250" y="30" class="text-label">Transformer Layer 1</text>
+                    <text x="250" y="60" class="text-small">Attention scores highest for "the" and "chased."</text>
+                    <text x="250" y="100" class="k-label">S Y N T A X</text>
+                    <text x="250" y="125" class="text-small">The token learns its grammatical role.</text>
+                </g>
+                
+                <path d="M400,430 L400,490" class="connector" id="flow-2" />
+                
+                <g transform="translate(150, 490)">
+                    <rect x="0" y="0" width="500" height="150" rx="10" ry="10" class="box-proc" />
+                    <text x="250" y="30" class="text-label">Transformer Layer 2</text>
+                    <text x="250" y="60" class="text-small">Attention scores highest for "cat" and "hungry."</text>
+                    <text x="250" y="100" class="k-label">S E M A N T I C S</text>
+                    <text x="250" y="125" class="text-small">The token learns its meaning and relationship to other words.</text>
+                </g>
+                
+                <path d="M400,640 L400,700" class="connector" id="flow-3" />
+                
+                <g transform="translate(150, 700)">
+                    <rect x="0" y="0" width="500" height="150" rx="10" ry="10" class="box-output" />
+                    <text x="250" y="30" class="text-label" fill="#111">Final Token Vector</text>
+                    <text x="250" y="60" class="text-small" fill="#111">The token has a rich, context-aware representation.</text>
+                    <text x="250" y="100" class="k-label" fill="#111">R E A S O N I N G</text>
+                    <text x="250" y="125" class="text-small" fill="#111">The new vector holds all the learned information.</text>
+                </g>
+            </g>
+        </svg>
+    </div>
+</body>
+</html>
+

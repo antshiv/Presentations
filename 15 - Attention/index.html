@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Attention Is All You Need - From Theory to AVX-512</title>
+
+    
+    
+  <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+  <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+  <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+  <!-- Theme used for syntax highlighting of code -->
+  <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+  <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+
+
+
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+        </div>
+    </div>
+
+  <script src="../reveal.js/dist/reveal.js"></script>
+  <script src="../reveal.js/plugin/zoom/zoom.js"></script>
+  <script src="../reveal.js/plugin/notes/notes.js"></script>
+  <script src="../reveal.js/plugin/search/search.js"></script>
+  <script src="../reveal.js/plugin/markdown/markdown.js"></script>
+  <script src="../reveal.js/plugin/highlight/highlight.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/math/math.min.js"></script>
+  <script>
+        // Initialize Reveal.js
+        document.addEventListener('DOMContentLoaded', function() {
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                center: true,
+                hash: true,
+                transition: 'slide',
+                plugins: [RevealZoom, RevealHighlight, RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+            });
+
+            Reveal.on('slidechanged', event => {
+                if (event.currentSlide.querySelector('#mlpGflopsChart')) {
+                    setTimeout(createCharts, 100); // Small delay to ensure DOM is ready
+                }
+            });
+
+            // Create charts on ready if we're already on the chart slide
+            Reveal.on('ready', event => {
+                if (event.currentSlide.querySelector('#mlpGflopsChart')) {
+                    setTimeout(createCharts, 100);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
