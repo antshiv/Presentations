@@ -1,0 +1,233 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Attention Is All You Need - From Theory to AVX-512</title>
+
+    <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+    <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+    <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --r-main-font-size: 28px;
+        }
+        .reveal .slides section {
+            font-size: 0.9em;
+        }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+            text-transform: none;
+        }
+        .formula-box {
+            background-color: rgba(45, 51, 59, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #484f58;
+        }
+        .dim-table {
+            margin: 20px auto;
+            font-size: 0.8em;
+            border-collapse: collapse;
+        }
+        .dim-table th, .dim-table td {
+            border: 1px solid #484f58;
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <h2>Attention Is All You Need</h2>
+                <h3>From Theory to AVX-512</h3>
+                <p>A Deep Dive into High-Performance Transformer Implementation</p>
+                <p><small>Created by bashbash</small></p>
+            </section>
+
+            <section>
+                <h3>The Power of Attention</h3>
+                <p>Attention allows a model to dynamically weigh the importance of all input tokens when processing any single token. It's the foundation of understanding context, relationships, and long-range dependencies in data.</p>
+                <div class="fragment">
+                    <h4>Before Attention (e.g., RNNs)</h4>
+                    <ul>
+                        <li>Sequential processing created an information bottleneck.</li>
+                        <li>Struggled with long-range dependencies (vanishing gradients).</li>
+                        <li>Context was a compressed, fixed-size state.</li>
+                    </ul>
+                </div>
+                <div class="fragment">
+                    <h4>With Attention</h4>
+                    <ul>
+                        <li>Every token has a direct connection to every other token.</li>
+                        <li>Parallel processing of all tokens becomes possible.</li>
+                        <li>Context is a dynamic, weighted sum of all token information.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section>
+                <h3>Multi-Head Attention: Evolving Intelligence</h3>
+                <p>Instead of one attention mechanism, we use multiple "heads" in parallel. Each head learns to focus on different aspects of the input.</p>
+                <ul class="fragment">
+                    <li><strong>Head 1</strong> might learn to track syntactic dependencies (subject-verb).</li>
+                    <li><strong>Head 2</strong> might focus on semantic relationships (synonyms, concepts).</li>
+                    <li><strong>Head 3</strong> might identify positional information.</li>
+                </ul>
+                <p class="fragment">Stacked in layers, these specialized heads allow the model to build up a rich, multi-faceted understanding of the input, leading to emergent intelligent behavior.</p>
+            </section>
+
+            <section>
+                <h3>Mechanistic Interpretability</h3>
+                <p>A cutting-edge field focused on understanding *how* a model arrives at its decisions. By analyzing the attention patterns and activation values within each head and layer, we can start to reverse-engineer the algorithms the model has learned.</p>
+                <p class="fragment">This helps us understand what specific features a model is looking for, how it reasons, and why it makes certain errors.</p>
+            </section>
+
+            <section data-background-color="#ffffff">
+                <h3>The Emergence of Intelligence</h3>
+                <img src="assets/emergent.svg" style="width: 95%; border: none; box-shadow: none;">
+            </section>
+
+            <section>
+                <h2>The Mathematical Journey of a Token</h2>
+                <p>Let's break down the core attention formula step-by-step.</p>
+                <div class="formula-box">
+                    $$ Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V $$
+                </div>
+            </section>
+
+            <section>
+                <h3>Step 1: Q, K, V Projection</h3>
+                <p>We start with our input tensor `X` and project it into three distinct matrices: Queries, Keys, and Values, using learned weight matrices.</p>
+                <div class="formula-box">
+                    $$ Q = X W_Q \quad K = X W_K \quad V = X W_V $$
+                </div>
+                <table class="dim-table">
+                    <tr><th>Tensor</th><th>Dimensions</th><th>Description</th></tr>
+                    <tr><td>X</td><td>[T, C]</td><td>Input token embeddings (e.g., 2048 tokens, 512 channels)</td></tr>
+                    <tr><td>W_q, W_k, W_v</td><td>[C, C]</td><td>Learned weight matrices</td></tr>
+                    <tr><td>Q, K, V</td><td>[T, C]</td><td>Query, Key, and Value matrices</td></tr>
+                </table>
+                <p class="fragment">This is the first major computation step, dominated by three large matrix multiplications (GEMM).</p>
+            </section>
+
+            <section>
+                <h3>Step 2: Split Into Heads</h3>
+                <p>We reshape Q, K, and V to create `H` independent attention "heads". This allows the model to learn different types of relationships in parallel.</p>
+                <p>From `[T, C]` we get `[H, T, D_h]` where `C = H * D_h`</p>
+                <table class="dim-table">
+                    <tr><th>Tensor</th><th>Dimensions</th><th>Description</th></tr>
+                    <tr><td>C</td><td>[512]</td><td>Original embedding dimension</td></tr>
+                    <tr><td>H</td><td>[8]</td><td>Number of attention heads</td></tr>
+                    <tr><td>D_h</td><td>[64]</td><td>Dimension per head (512 / 8)</td></tr>
+                    <tr><td>Q_h, K_h, V_h</td><td>[8, T, 64]</td><td>Q, K, V split into 8 heads</td></tr>
+                </table>
+                <p class="fragment"><strong>Memory Layout is Key:</strong> We arrange this in a "Head-Major" format `[H, T, D_h]` so that all data for a single head is contiguous in memory, which is crucial for cache performance.</p>
+            </section>
+
+            <section>
+                <h3>Step 3a: Scoring (QKᵀ)</h3>
+                <p>For each head, we compute a score matrix by multiplying the Query matrix with the transpose of the Key matrix. This determines the raw importance of every token to every other token.</p>
+                <div class="formula-box">
+                    $$ Scores_h = Q_h K_h^T $$
+                </div>
+                <table class="dim-table">
+                    <tr><th>Tensor</th><th>Dimensions</th><th>Description</th></tr>
+                    <tr><td>Q_h</td><td>[T, 64]</td><td>Queries for one head</td></tr>
+                    <tr><td>K_h^T</td><td>[64, T]</td><td>Transposed Keys for one head</td></tr>
+                    <tr><td>Scores_h</td><td>[T, T]</td><td>Attention scores (e.g., 2048x2048 matrix)</td></tr>
+                </table>
+                <p class="fragment">This is the second major GEMM operation, performed independently for each of the 8 heads.</p>
+            </section>
+
+            <section>
+                <h3>Step 3b: Mask, Scale, & Softmax</h3>
+                <p>We apply a causal mask (to prevent looking into the future), scale by `sqrt(d_k)` for stability, and apply softmax to turn scores into probabilities.</p>
+                <div class="formula-box">
+                    $$ P_h = softmax(\frac{Scores_h}{\sqrt{d_k}}) $$
+                </div>
+                <p>The output `P_h` is still a `[T, T]` matrix, but now each row sums to 1, representing a probability distribution.</p>
+                <p class="fragment"><strong>Optimization:</strong> This entire pipeline (mask, scale, softmax) is heavily optimized using AVX-512, processing 16 floating-point numbers at a time for maximum throughput.</p>
+            </section>
+
+            <section>
+                <h3>Step 3c & 4: Weighted Sum & Projection</h3>
+                <p>We multiply the attention probabilities `P_h` by the Value matrix `V_h` to get the output for each head. These are then concatenated and passed through a final projection layer.</p>
+                <div class="formula-box">
+                    $$ HeadOutput_h = P_h V_h \quad (\text{GEMM}) $$ 
+                    $$ Combined = Concat(HeadOutput_1, ..., HeadOutput_H) $$ 
+                    $$ FinalOutput = Combined W_O \quad (\text{GEMM})$$
+                </div>
+                <table class="dim-table">
+                    <tr><th>Tensor</th><th>Dimensions</th><th>Description</th></tr>
+                    <tr><td>P_h</td><td>[T, T]</td><td>Attention probabilities for one head</td></tr>
+                    <tr><td>V_h</td><td>[T, 64]</td><td>Values for one head</td></tr>
+                    <tr><td>HeadOutput_h</td><td>[T, 64]</td><td>The contextualized output for one head</td></tr>
+                    <tr><td>Combined</td><td>[T, 512]</td><td>Concatenated outputs from all 8 heads</td></tr>
+                    <tr><td>FinalOutput</td><td>[T, 512]</td><td>The final output of the attention block</td></tr>
+                </table>
+            </section>
+
+            <section>
+                <h3>Parallelism: Head vs. Token</h3>
+                <div style="display: flex; justify-content: space-around;">
+                    <div style="width: 45%;">
+                        <h4>Head Parallelism (Intuitive, but slow)</h4>
+                        <p>Assign each head to a different core. </p>
+                        <p><strong>Problem:</strong> To compute `Q_h K_h^T`, each core needs access to the *entire* Q and K matrices. This leads to massive memory contention and cache misses.</p>
+                    </div>
+                    <div style="width: 45%;">
+                        <h4>Token Parallelism (Your approach)</h4>
+                        <p>Assign a *slice of tokens* to each core.</p>
+                        <p><strong>Benefit:</strong> Each core computes the full multi-head attention for its tokens. It still needs the full K matrix, but the access patterns are much more predictable and cache-friendly. This is the key to scaling on multi-core CPUs.</p>
+                    </div>
+                </div>
+                <p class="fragment">With a <strong>Head-Major</strong> memory layout `[H, T, D_h]`, Token Parallelism becomes extremely efficient as each core can work on a contiguous block of memory for its assigned head.</p>
+            </section>
+
+            <section data-background-color="#ffffff">
+                <h3>Performance Deep Dive: The Bottlenecks</h3>
+                <img src="assets/attention_inference.svg" style="width: 95%; border: none; box-shadow: none;">
+            </section>
+
+            <section>
+                <h3>Performance</h3>
+                <p>By leveraging C, AVX-512, and careful memory management, we can achieve performance orders of magnitude faster than a standard Python implementation.</p>
+                <p><strong>Result: 400+ GFLOPS on a modern CPU.</strong></p>
+                <p class="fragment">This makes running powerful transformer models feasible on edge devices, in robotics, and in other environments where GPU resources are not available.</p>
+            </section>
+
+        </div>
+    </div>
+
+  <script src="../reveal.js/dist/reveal.js"></script>
+  <script src="../reveal.js/plugin/zoom/zoom.js"></script>
+  <script src="../reveal.js/plugin/notes/notes.js"></script>
+  <script src="../reveal.js/plugin/search/search.js"></script>
+  <script src="../reveal.js/plugin/markdown/markdown.js"></script>
+  <script src="../reveal.js/plugin/highlight/highlight.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/math/math.min.js"></script>
+  <script>
+        // Initialize Reveal.js
+        document.addEventListener('DOMContentLoaded', function() {
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                center: true,
+                hash: true,
+                transition: 'slide',
+                plugins: [RevealZoom, RevealHighlight, RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+            });
+        });
+    </script>
+</body>
+</html>

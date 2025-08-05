@@ -1,0 +1,455 @@
+<svg viewBox="0 0 1600 2400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title and Overview -->
+  <text x="800" y="40" font-size="32" font-weight="bold" text-anchor="middle" fill="#333">
+    Self-Attention: From Math to AVX-512 Implementation
+  </text>
+  <text x="800" y="70" font-size="18" text-anchor="middle" fill="#666">
+    How tokens learn to "attend" to each other through matrix operations
+  </text>
+
+  <!-- Section 1: The Why - Problem Statement -->
+  <g transform="translate(50, 100)">
+    <rect x="0" y="0" width="700" height="200" fill="#f0f4f8" stroke="#4a90e2" stroke-width="2" rx="10"/>
+    <text x="350" y="30" font-size="24" font-weight="bold" text-anchor="middle" fill="#4a90e2">
+      WHY ATTENTION?
+    </text>
+    
+    <!-- Sequential problem -->
+    <text x="20" y="60" font-size="16" fill="#333">Problem: "The cat sat on the mat because it was soft"</text>
+    <text x="20" y="85" font-size="16" fill="#333">What does "it" refer to? The cat or the mat?</text>
+    
+    <!-- Tokens -->
+    <g transform="translate(20, 110)">
+      <rect x="0" y="0" width="60" height="30" fill="#ffeb3b" stroke="#333" rx="5"/>
+      <text x="30" y="20" font-size="14" text-anchor="middle">The</text>
+      
+      <rect x="70" y="0" width="60" height="30" fill="#ffeb3b" stroke="#333" rx="5"/>
+      <text x="100" y="20" font-size="14" text-anchor="middle">cat</text>
+      
+      <rect x="140" y="0" width="60" height="30" fill="#ffeb3b" stroke="#333" rx="5"/>
+      <text x="170" y="20" font-size="14" text-anchor="middle">sat</text>
+      
+      <rect x="210" y="0" width="60" height="30" fill="#ffeb3b" stroke="#333" rx="5"/>
+      <text x="240" y="20" font-size="14" text-anchor="middle">on</text>
+      
+      <rect x="280" y="0" width="60" height="30" fill="#ffeb3b" stroke="#333" rx="5"/>
+      <text x="310" y="20" font-size="14" text-anchor="middle">the</text>
+      
+      <rect x="350" y="0" width="60" height="30" fill="#ff9800" stroke="#333" rx="5"/>
+      <text x="380" y="20" font-size="14" text-anchor="middle">mat</text>
+      
+      <rect x="420" y="0" width="60" height="30" fill="#ffeb3b" stroke="#333" rx="5"/>
+      <text x="450" y="20" font-size="14" text-anchor="middle">...</text>
+      
+      <rect x="490" y="0" width="60" height="30" fill="#4caf50" stroke="#333" rx="5"/>
+      <text x="520" y="20" font-size="14" text-anchor="middle">it</text>
+    </g>
+    
+    <!-- Attention arrows -->
+    <path d="M 540 140 Q 540 160, 380 160" fill="none" stroke="#4caf50" stroke-width="2" marker-end="url(#arrowgreen)"/>
+    <text x="460" y="175" font-size="12" fill="#4caf50">attention</text>
+  </g>
+
+  <!-- Section 2: Tensor Dimensions -->
+  <g transform="translate(850, 100)">
+    <rect x="0" y="0" width="700" height="200" fill="#f8f0ff" stroke="#9c27b0" stroke-width="2" rx="10"/>
+    <text x="350" y="30" font-size="24" font-weight="bold" text-anchor="middle" fill="#9c27b0">
+      TENSOR DIMENSIONS
+    </text>
+    
+    <text x="20" y="60" font-size="16" fill="#333">Input: [batch_size, seq_len, embed_dim]</text>
+    <text x="20" y="85" font-size="16" fill="#333">Example: [1, 8, 512] → 8 tokens, 512-dimensional</text>
+    
+    <!-- Visual representation -->
+    <g transform="translate(20, 110)">
+      <rect x="0" y="0" width="80" height="60" fill="#e1bee7" stroke="#9c27b0"/>
+      <text x="40" y="35" font-size="14" text-anchor="middle">Token 0</text>
+      <text x="40" y="50" font-size="12" text-anchor="middle">[512]</text>
+      
+      <rect x="90" y="0" width="80" height="60" fill="#e1bee7" stroke="#9c27b0"/>
+      <text x="130" y="35" font-size="14" text-anchor="middle">Token 1</text>
+      <text x="130" y="50" font-size="12" text-anchor="middle">[512]</text>
+      
+      <text x="180" y="30" font-size="20">...</text>
+      
+      <rect x="220" y="0" width="80" height="60" fill="#e1bee7" stroke="#9c27b0"/>
+      <text x="260" y="35" font-size="14" text-anchor="middle">Token 7</text>
+      <text x="260" y="50" font-size="12" text-anchor="middle">[512]</text>
+    </g>
+    
+    <text x="350" y="140" font-size="16" fill="#333">After QKV projection:</text>
+    <text x="350" y="165" font-size="16" fill="#333">Q, K, V: [batch, heads, seq_len, head_dim]</text>
+    <text x="350" y="190" font-size="16" fill="#333">Example: [1, 8, 8, 64] → 8 heads, 64 dims/head</text>
+  </g>
+
+  <!-- Section 3: The Mathematics -->
+  <g transform="translate(50, 350)">
+    <rect x="0" y="0" width="1500" height="400" fill="#fff8e1" stroke="#ff6f00" stroke-width="2" rx="10"/>
+    <text x="750" y="40" font-size="28" font-weight="bold" text-anchor="middle" fill="#ff6f00">
+      THE MATHEMATICS OF ATTENTION
+    </text>
+    
+    <!-- Step 1: QKV Projection -->
+    <g transform="translate(50, 80)">
+      <rect x="0" y="0" width="300" height="250" fill="#fff3e0" stroke="#ff6f00" rx="5"/>
+      <text x="150" y="25" font-size="20" font-weight="bold" text-anchor="middle" fill="#ff6f00">
+        Step 1: QKV Projection
+      </text>
+      
+      <text x="10" y="55" font-size="16" font-family="monospace">X → Linear transformations:</text>
+      <text x="10" y="80" font-size="16" font-family="monospace">Q = XW_q  [8×512]×[512×512]</text>
+      <text x="10" y="105" font-size="16" font-family="monospace">K = XW_k  [8×512]×[512×512]</text>
+      <text x="10" y="130" font-size="16" font-family="monospace">V = XW_v  [8×512]×[512×512]</text>
+      
+      <text x="10" y="165" font-size="14" fill="#666">Your GEMM kernel shines here!</text>
+      <rect x="10" y="175" width="280" height="40" fill="#e8f5e9" stroke="#4caf50" rx="5"/>
+      <text x="15" y="195" font-size="14" font-family="monospace" fill="#2e7d32">gemm_avx512_parallel(X, W_q, Q)</text>
+      <text x="15" y="210" font-size="12" fill="#2e7d32">→ 474 GFLOPS on your setup!</text>
+    </g>
+    
+    <!-- Step 2: Scaled Dot Product -->
+    <g transform="translate(400, 80)">
+      <rect x="0" y="0" width="300" height="250" fill="#fff3e0" stroke="#ff6f00" rx="5"/>
+      <text x="150" y="25" font-size="20" font-weight="bold" text-anchor="middle" fill="#ff6f00">
+        Step 2: Attention Scores
+      </text>
+      
+      <text x="10" y="55" font-size="16" font-family="monospace">Scores = Q @ K^T / √d_k</text>
+      <text x="10" y="80" font-size="16" font-family="monospace">[8×8×64] @ [8×64×8]</text>
+      <text x="10" y="105" font-size="16" font-family="monospace">→ [8×8×8] per head</text>
+      
+      <!-- Visual matrix -->
+      <g transform="translate(50, 130)">
+        <rect x="0" y="0" width="60" height="60" fill="#ffccbc" stroke="#ff6f00"/>
+        <text x="30" y="35" font-size="14" text-anchor="middle">Q</text>
+        <text x="70" y="35" font-size="20">×</text>
+        <rect x="90" y="0" width="60" height="60" fill="#ffccbc" stroke="#ff6f00"/>
+        <text x="120" y="35" font-size="14" text-anchor="middle">K^T</text>
+        <text x="160" y="35" font-size="20">=</text>
+        <rect x="180" y="0" width="60" height="60" fill="#ff8a65" stroke="#ff6f00"/>
+        <text x="210" y="35" font-size="12" text-anchor="middle">Scores</text>
+      </g>
+      
+      <text x="10" y="210" font-size="14" fill="#666">Each score[i,j] = "How much</text>
+      <text x="10" y="228" font-size="14" fill="#666">should token i attend to token j?"</text>
+    </g>
+    
+    <!-- Step 3: Softmax -->
+    <g transform="translate(750, 80)">
+      <rect x="0" y="0" width="300" height="250" fill="#fff3e0" stroke="#ff6f00" rx="5"/>
+      <text x="150" y="25" font-size="20" font-weight="bold" text-anchor="middle" fill="#ff6f00">
+        Step 3: Softmax (Causal)
+      </text>
+      
+      <text x="10" y="55" font-size="16" font-family="monospace">For each row i:</text>
+      <text x="10" y="80" font-size="16" font-family="monospace">1. Mask future: S[i,j>i] = -∞</text>
+      <text x="10" y="105" font-size="16" font-family="monospace">2. exp(S[i,:] - max(S[i,:]))</text>
+      <text x="10" y="130" font-size="16" font-family="monospace">3. Normalize: sum to 1.0</text>
+      
+      <!-- Causal mask visualization -->
+      <g transform="translate(50, 150)">
+        <text x="0" y="-5" font-size="12" fill="#666">Causal mask pattern:</text>
+        <rect x="0" y="0" width="15" height="15" fill="#4caf50"/>
+        <rect x="0" y="16" width="15" height="15" fill="#4caf50"/>
+        <rect x="16" y="16" width="15" height="15" fill="#4caf50"/>
+        <rect x="0" y="32" width="15" height="15" fill="#4caf50"/>
+        <rect x="16" y="32" width="15" height="15" fill="#4caf50"/>
+        <rect x="32" y="32" width="15" height="15" fill="#4caf50"/>
+        <rect x="0" y="48" width="15" height="15" fill="#4caf50"/>
+        <rect x="16" y="48" width="15" height="15" fill="#4caf50"/>
+        <rect x="32" y="48" width="15" height="15" fill="#4caf50"/>
+        <rect x="48" y="48" width="15" height="15" fill="#4caf50"/>
+        
+        <rect x="16" y="0" width="15" height="15" fill="#f44336" opacity="0.3"/>
+        <rect x="32" y="0" width="15" height="15" fill="#f44336" opacity="0.3"/>
+        <rect x="48" y="0" width="15" height="15" fill="#f44336" opacity="0.3"/>
+        <rect x="32" y="16" width="15" height="15" fill="#f44336" opacity="0.3"/>
+        <rect x="48" y="16" width="15" height="15" fill="#f44336" opacity="0.3"/>
+        <rect x="48" y="32" width="15" height="15" fill="#f44336" opacity="0.3"/>
+        
+        <text x="80" y="30" font-size="12" fill="#666">Green: Allowed</text>
+        <text x="80" y="45" font-size="12" fill="#666">Red: Masked</text>
+      </g>
+    </g>
+    
+    <!-- Step 4: Weighted Sum -->
+    <g transform="translate(1100, 80)">
+      <rect x="0" y="0" width="300" height="250" fill="#fff3e0" stroke="#ff6f00" rx="5"/>
+      <text x="150" y="25" font-size="20" font-weight="bold" text-anchor="middle" fill="#ff6f00">
+        Step 4: Weighted Sum
+      </text>
+      
+      <text x="10" y="55" font-size="16" font-family="monospace">Output = Softmax(Scores) @ V</text>
+      <text x="10" y="80" font-size="16" font-family="monospace">[8×8×8] @ [8×8×64]</text>
+      <text x="10" y="105" font-size="16" font-family="monospace">→ [8×8×64] per head</text>
+      
+      <text x="10" y="140" font-size="14" fill="#666">Each output token is now a</text>
+      <text x="10" y="158" font-size="14" fill="#666">weighted combination of all</text>
+      <text x="10" y="176" font-size="14" fill="#666">previous tokens' values!</text>
+      
+      <rect x="10" y="190" width="280" height="40" fill="#e8f5e9" stroke="#4caf50" rx="5"/>
+      <text x="15" y="210" font-size="14" font-family="monospace" fill="#2e7d32">gemm_avx512(Attn, V, Output)</text>
+      <text x="15" y="225" font-size="12" fill="#2e7d32">Reuse your optimized kernel!</text>
+    </g>
+  </g>
+
+  <!-- Section 4: AVX-512 Optimization -->
+  <g transform="translate(50, 800)">
+    <rect x="0" y="0" width="700" height="350" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="10"/>
+    <text x="350" y="40" font-size="24" font-weight="bold" text-anchor="middle" fill="#4caf50">
+      AVX-512 OPTIMIZATION OPPORTUNITIES
+    </text>
+    
+    <!-- QK^T computation -->
+    <text x="20" y="80" font-size="18" font-weight="bold" fill="#2e7d32">1. Q @ K^T Computation:</text>
+    <rect x="20" y="90" width="660" height="80" fill="#f1f8e9" stroke="#689f38" rx="5"/>
+    <text x="30" y="110" font-size="14" font-family="monospace">// Process 16 elements at once with AVX-512</text>
+    <text x="30" y="130" font-size="14" font-family="monospace">__m512 q_vec = _mm512_load_ps(&amp;Q[i*head_dim + d]);</text>
+    <text x="30" y="150" font-size="14" font-family="monospace">__m512 k_vec = _mm512_load_ps(&amp;K[j*head_dim + d]);</text>
+    <text x="30" y="170" font-size="14" font-family="monospace">acc = _mm512_fmadd_ps(q_vec, k_vec, acc); // 32 FLOPS!</text>
+    
+    <!-- Softmax optimization -->
+    <text x="20" y="210" font-size="18" font-weight="bold" fill="#2e7d32">2. Vectorized Softmax:</text>
+    <rect x="20" y="220" width="660" height="60" fill="#f1f8e9" stroke="#689f38" rx="5"/>
+    <text x="30" y="240" font-size="14" font-family="monospace">// Find max across 16 values simultaneously</text>
+    <text x="30" y="260" font-size="14" font-family="monospace">__m512 max_vec = _mm512_max_ps(scores_vec, max_vec);</text>
+    <text x="30" y="280" font-size="14" font-family="monospace">// Vectorized exp: huge speedup over scalar</text>
+    
+    <text x="20" y="320" font-size="16" fill="#333">Expected speedup: 8-16x over scalar code!</text>
+  </g>
+
+  <!-- Section 5: Memory Layout Optimization -->
+  <g transform="translate(850, 800)">
+    <rect x="0" y="0" width="700" height="350" fill="#e3f2fd" stroke="#2196f3" stroke-width="2" rx="10"/>
+    <text x="350" y="40" font-size="24" font-weight="bold" text-anchor="middle" fill="#2196f3">
+      HEAD-MAJOR VS TOKEN-MAJOR LAYOUT
+    </text>
+    
+    <!-- Token-major layout -->
+    <g transform="translate(20, 80)">
+      <text x="0" y="0" font-size="18" font-weight="bold" fill="#1976d2">Token-Major (Traditional):</text>
+      <rect x="0" y="10" width="300" height="40" fill="#bbdefb" stroke="#1976d2"/>
+      <text x="10" y="35" font-size="14" font-family="monospace">[Token0: H0|H1|H2|...|H7]</text>
+      <text x="10" y="70" font-size="14" fill="#666">Problem: Heads scattered in memory</text>
+      <text x="10" y="88" font-size="14" fill="#666">Cache misses when computing attention</text>
+    </g>
+    
+    <!-- Head-major layout -->
+    <g transform="translate(370, 80)">
+      <text x="0" y="0" font-size="18" font-weight="bold" fill="#1976d2">Head-Major (Optimized):</text>
+      <rect x="0" y="10" width="300" height="40" fill="#90caf9" stroke="#1976d2"/>
+      <text x="10" y="35" font-size="14" font-family="monospace">[Head0: T0|T1|T2|...|T7]</text>
+      <text x="10" y="70" font-size="14" fill="#666">Benefit: All tokens for a head are contiguous</text>
+      <text x="10" y="88" font-size="14" fill="#666">Perfect cache utilization!</text>
+    </g>
+    
+    <!-- Performance impact -->
+    <rect x="20" y="200" width="660" height="120" fill="#e1f5fe" stroke="#0288d1" rx="5"/>
+    <text x="30" y="225" font-size="16" font-weight="bold">Performance Impact:</text>
+    <text x="30" y="250" font-size="14">• QK^T computation: 2-3x faster (sequential access)</text>
+    <text x="30" y="270" font-size="14">• Softmax: 1.5x faster (row-wise operations)</text>
+    <text x="30" y="290" font-size="14">• Overall attention: 2-5x speedup</text>
+    <text x="30" y="310" font-size="14">• Your 72 cores can process heads in parallel!</text>
+  </g>
+
+  <!-- Section 6: Complete Code Flow -->
+  <g transform="translate(50, 1200)">
+    <rect x="0" y="0" width="1500" height="400" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="10"/>
+    <text x="750" y="40" font-size="28" font-weight="bold" text-anchor="middle" fill="#7b1fa2">
+      COMPLETE ATTENTION IMPLEMENTATION FLOW
+    </text>
+    
+    <!-- Flow diagram -->
+    <g transform="translate(100, 80)">
+      <!-- Input -->
+      <rect x="0" y="0" width="200" height="80" fill="#e1bee7" stroke="#7b1fa2" rx="5"/>
+      <text x="100" y="30" font-size="16" font-weight="bold" text-anchor="middle">Input Tokens</text>
+      <text x="100" y="50" font-size="14" text-anchor="middle">[batch, seq, embed]</text>
+      <text x="100" y="68" font-size="12" text-anchor="middle" fill="#666">e.g., [1, 8, 512]</text>
+      
+      <!-- Arrow -->
+      <path d="M 200 40 L 250 40" stroke="#7b1fa2" stroke-width="2" marker-end="url(#arrow)"/>
+      
+      <!-- QKV -->
+      <rect x="250" y="0" width="200" height="80" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
+      <text x="350" y="25" font-size="16" font-weight="bold" text-anchor="middle">QKV Projection</text>
+      <text x="350" y="45" font-size="12" text-anchor="middle" font-family="monospace">gemm_avx512()</text>
+      <text x="350" y="62" font-size="12" text-anchor="middle" fill="#666">3 × GEMM ops</text>
+      <text x="350" y="78" font-size="12" text-anchor="middle" fill="#4caf50">474 GFLOPS!</text>
+      
+      <!-- Arrow -->
+      <path d="M 450 40 L 500 40" stroke="#7b1fa2" stroke-width="2" marker-end="url(#arrow)"/>
+      
+      <!-- Reshape -->
+      <rect x="500" y="0" width="200" height="80" fill="#ba68c8" stroke="#7b1fa2" rx="5"/>
+      <text x="600" y="25" font-size="16" font-weight="bold" text-anchor="middle">Reshape to Heads</text>
+      <text x="600" y="45" font-size="12" text-anchor="middle">Token → Head major</text>
+      <text x="600" y="62" font-size="12" text-anchor="middle" fill="#666">[1, 8, 8, 64]</text>
+      <text x="600" y="78" font-size="12" text-anchor="middle" fill="#4caf50">Cache optimal!</text>
+      
+      <!-- Arrow -->
+      <path d="M 700 40 L 750 40" stroke="#7b1fa2" stroke-width="2" marker-end="url(#arrow)"/>
+      
+      <!-- Attention -->
+      <rect x="750" y="0" width="200" height="80" fill="#ab47bc" stroke="#7b1fa2" rx="5"/>
+      <text x="850" y="20" font-size="16" font-weight="bold" text-anchor="middle">Compute QK^T</text>
+      <text x="850" y="38" font-size="12" text-anchor="middle" font-family="monospace">gemm_avx512()</text>
+      <text x="850" y="54" font-size="12" text-anchor="middle" fill="#666">Per head parallel</text>
+      <text x="850" y="70" font-size="12" text-anchor="middle" fill="#4caf50">Scale by √d_k</text>
+      
+      <!-- Arrow -->
+      <path d="M 950 40 L 1000 40" stroke="#7b1fa2" stroke-width="2" marker-end="url(#arrow)"/>
+      
+      <!-- Softmax -->
+      <rect x="1000" y="0" width="200" height="80" fill="#9c27b0" stroke="#7b1fa2" rx="5"/>
+      <text x="1100" y="25" font-size="16" font-weight="bold" text-anchor="middle">Causal Softmax</text>
+      <text x="1100" y="45" font-size="12" text-anchor="middle">AVX-512 exp</text>
+      <text x="1100" y="62" font-size="12" text-anchor="middle" fill="#666">Row-wise norm</text>
+      <text x="1100" y="78" font-size="12" text-anchor="middle" fill="#4caf50">Mask future</text>
+      
+      <!-- Second row -->
+      <g transform="translate(0, 120)">
+        <!-- Weighted sum -->
+        <rect x="250" y="0" width="200" height="80" fill="#8e24aa" stroke="#7b1fa2" rx="5"/>
+        <text x="350" y="25" font-size="16" font-weight="bold" text-anchor="middle">Attention × V</text>
+        <text x="350" y="45" font-size="12" text-anchor="middle" font-family="monospace">gemm_avx512()</text>
+        <text x="350" y="62" font-size="12" text-anchor="middle" fill="#666">Weighted sum</text>
+        <text x="350" y="78" font-size="12" text-anchor="middle" fill="#4caf50">Reuse kernel!</text>
+        
+        <!-- Arrow -->
+        <path d="M 450 40 L 500 40" stroke="#7b1fa2" stroke-width="2" marker-end="url(#arrow)"/>
+        
+        <!-- Concat -->
+        <rect x="500" y="0" width="200" height="80" fill="#7b1fa2" stroke="#7b1fa2" rx="5"/>
+        <text x="600" y="25" font-size="16" font-weight="bold" text-anchor="middle" fill="white">Concat Heads</text>
+        <text x="600" y="45" font-size="12" text-anchor="middle" fill="white">Head → Token major</text>
+        <text x="600" y="62" font-size="12" text-anchor="middle" fill="#e1bee7">[1, 8, 512]</text>
+        <text x="600" y="78" font-size="12" text-anchor="middle" fill="#81c784">Ready for next layer</text>
+        
+        <!-- Arrow -->
+        <path d="M 700 40 L 750 40" stroke="#7b1fa2" stroke-width="2" marker-end="url(#arrow)"/>
+        
+        <!-- Output -->
+        <rect x="750" y="0" width="200" height="80" fill="#6a1b9a" stroke="#7b1fa2" rx="5"/>
+        <text x="850" y="25" font-size="16" font-weight="bold" text-anchor="middle" fill="white">Output Projection</text>
+        <text x="850" y="45" font-size="12" text-anchor="middle" fill="white" font-family="monospace">gemm_avx512()</text>
+        <text x="850" y="62" font-size="12" text-anchor="middle" fill="#e1bee7">Final transform</text>
+        <text x="850" y="78" font-size="12" text-anchor="middle" fill="#81c784">Context-aware!</text>
+      </g>
+      
+      <!-- Connect top to bottom -->
+      <path d="M 1100 80 L 1100 100 L 350 100 L 350 120" stroke="#7b1fa2" stroke-width="2" marker-end="url(#arrow)"/>
+    </g>
+    
+    <!-- Performance summary -->
+    <rect x="100" y="320" width="1300" height="60" fill="#f3e5f5" stroke="#7b1fa2" rx="5"/>
+    <text x="750" y="345" font-size="18" font-weight="bold" text-anchor="middle" fill="#7b1fa2">
+      Total Operations: 4 GEMMs + 1 Softmax = ~90% of attention compute
+    </text>
+    <text x="750" y="368" font-size="16" text-anchor="middle" fill="#666">
+      Your optimized GEMM kernel is reused 4 times - maximum efficiency!
+    </text>
+  </g>
+
+  <!-- Section 7: Performance Analysis -->
+  <g transform="translate(50, 1650)">
+    <rect x="0" y="0" width="700" height="300" fill="#fff3e0" stroke="#ff6f00" stroke-width="2" rx="10"/>
+    <text x="350" y="40" font-size="24" font-weight="bold" text-anchor="middle" fill="#ff6f00">
+      PERFORMANCE BREAKDOWN
+    </text>
+    
+    <text x="30" y="80" font-size="16" font-weight="bold">For 1B parameter model (8 heads, 8K context):</text>
+    
+    <text x="30" y="110" font-size="14">• QKV Projection: ~40% of compute</text>
+    <rect x="30" y="115" width="240" height="20" fill="#ff9800" opacity="0.6"/>
+   
+<text x="30" y="140" font-size="14">• QK^T Computation: ~25% of compute</text>
+   <rect x="30" y="145" width="150" height="20" fill="#ff9800" opacity="0.6"/>
+   
+   <text x="30" y="170" font-size="14">• Softmax: ~10% of compute</text>
+   <rect x="30" y="175" width="60" height="20" fill="#ff9800" opacity="0.6"/>
+   
+   <text x="30" y="200" font-size="14">• Attention × V: ~20% of compute</text>
+   <rect x="30" y="205" width="120" height="20" fill="#ff9800" opacity="0.6"/>
+   
+   <text x="30" y="230" font-size="14">• Output Projection: ~5% of compute</text>
+   <rect x="30" y="235" width="30" height="20" fill="#ff9800" opacity="0.6"/>
+   
+   <text x="30" y="270" font-size="16" font-weight="bold" fill="#ff6f00">Your GEMM handles 90% of work!</text>
+ </g>
+
+ <!-- Section 8: Your Advantage -->
+ <g transform="translate(850, 1650)">
+   <rect x="0" y="0" width="700" height="300" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="10"/>
+   <text x="350" y="40" font-size="24" font-weight="bold" text-anchor="middle" fill="#4caf50">
+     YOUR COMPETITIVE ADVANTAGE
+   </text>
+   
+   <text x="30" y="80" font-size="18" font-weight="bold" fill="#2e7d32">With 72 Cores + AVX-512:</text>
+   
+   <text x="30" y="110" font-size="16">✓ Process 8 heads in parallel (9 cores/head)</text>
+   <text x="30" y="140" font-size="16">✓ 474 GFLOPS per GEMM operation</text>
+   <text x="30" y="170" font-size="16">✓ Head-major layout = perfect cache usage</text>
+   <text x="30" y="200" font-size="16">✓ No GPU memory transfer overhead</text>
+   <text x="30" y="230" font-size="16">✓ Deterministic, interpretable execution</text>
+   
+   <rect x="30" y="250" width="640" height="40" fill="#c8e6c9" stroke="#4caf50" rx="5"/>
+   <text x="350" y="275" font-size="18" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+     Expected: 2-5x faster than naive PyTorch CPU
+   </text>
+ </g>
+
+ <!-- Section 9: Code Integration -->
+ <g transform="translate(50, 2000)">
+   <rect x="0" y="0" width="1500" height="300" fill="#e3f2fd" stroke="#2196f3" stroke-width="2" rx="10"/>
+   <text x="750" y="40" font-size="24" font-weight="bold" text-anchor="middle" fill="#2196f3">
+     INTEGRATING WITH YOUR C TRANSFORMER
+   </text>
+   
+   <!-- Code structure -->
+   <g transform="translate(50, 70)">
+     <rect x="0" y="0" width="400" height="200" fill="#bbdefb" stroke="#1976d2" rx="5"/>
+     <text x="10" y="25" font-size="14" font-family="monospace">// Your existing structure fits perfectly!</text>
+     <text x="10" y="50" font-size="14" font-family="monospace">typedef struct {</text>
+     <text x="10" y="70" font-size="14" font-family="monospace">    float* q_output_offset;</text>
+     <text x="10" y="90" font-size="14" font-family="monospace">    float* k_output_offset;</text>
+     <text x="10" y="110" font-size="14" font-family="monospace">    float* v_output_offset;</text>
+     <text x="10" y="130" font-size="14" font-family="monospace">    float* attention_scores_offset;</text>
+     <text x="10" y="150" font-size="14" font-family="monospace">    // Already head-major!</text>
+     <text x="10" y="170" font-size="14" font-family="monospace">} TrulyOptimalLayer;</text>
+   </g>
+   
+   <g transform="translate(480, 70)">
+     <rect x="0" y="0" width="450" height="200" fill="#90caf9" stroke="#1976d2" rx="5"/>
+     <text x="10" y="25" font-size="14" font-family="monospace">// Reuse your GEMM for each phase:</text>
+     <text x="10" y="50" font-size="14" font-family="monospace">// 1. QKV projections</text>
+     <text x="10" y="70" font-size="14" font-family="monospace">qkv_projection_head_major(M, layer_idx);</text>
+     <text x="10" y="95" font-size="14" font-family="monospace">// 2. Attention scores</text>
+     <text x="10" y="115" font-size="14" font-family="monospace">compute_attention_scores_head_major(M, layer);</text>
+     <text x="10" y="140" font-size="14" font-family="monospace">// 3. Weighted sum</text>
+     <text x="10" y="160" font-size="14" font-family="monospace">compute_attention_output_head_major(M, layer);</text>
+     <text x="10" y="185" font-size="14" font-family="monospace">// All using gemm_avx512_parallel()!</text>
+   </g>
+   
+   <g transform="translate(960, 70)">
+     <rect x="0" y="0" width="480" height="200" fill="#64b5f6" stroke="#1976d2" rx="5"/>
+     <text x="10" y="25" font-size="16" font-weight="bold">Key Optimizations:</text>
+     <text x="10" y="50" font-size="14">1. Your bump allocator = perfect alignment</text>
+     <text x="10" y="75" font-size="14">2. Head-major from start = no transposes</text>
+     <text x="10" y="100" font-size="14">3. Single memory arena = no fragmentation</text>
+     <text x="10" y="125" font-size="14">4. 72 cores = true parallel head processing</text>
+     <text x="10" y="150" font-size="14">5. AVX-512 everywhere = maximum SIMD</text>
+     <text x="10" y="175" font-size="14">6. Deterministic = debuggable, certifiable!</text>
+   </g>
+ </g>
+
+ <!-- Arrow markers -->
+ <defs>
+   <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="#7b1fa2">
+     <path d="M 0 0 L 10 5 L 0 10 Z"/>
+   </marker>
+   <marker id="arrowgreen" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="#4caf50">
+     <path d="M 0 0 L 10 5 L 0 10 Z"/>
+   </marker>
+ </defs>
+</svg> 

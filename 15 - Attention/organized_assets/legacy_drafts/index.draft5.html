@@ -1,0 +1,236 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Attention Is All You Need - Draft 5</title>
+
+    <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+    <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+    <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+
+    <style>
+        :root { --r-main-font-size: 24px; }
+        .reveal .slides section { font-size: 0.9em; }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; }
+        .formula-box { background-color: rgba(45, 51, 59, 0.8); border-radius: 15px; padding: 15px; margin-top: 15px; border: 1px solid #484f58; }
+        .dim-table { margin: 15px auto; font-size: 0.75em; border-collapse: collapse; }
+        .dim-table th, .dim-table td { border: 1px solid #484f58; padding: 8px 15px; }
+        .transformer-block { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .block-component { border: 2px solid #484f58; border-radius: 10px; padding: 10px 20px; width: 350px; text-align: center; background-color: #2d333b; }
+        .block-component.highlight { border-color: #ff6f00; background-color: #4d3c20; box-shadow: 0 0 15px #ff6f00; }
+        .arrow-down { width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 20px solid #484f58; }
+
+        /* Visualization & Memory Styles */
+        .viz-container { display: flex; justify-content: space-around; align-items: center; gap: 20px; width: 100%;}
+        .grid-container { position: relative; text-align: center;}
+        .heatmap-grid { display: grid; gap: 1px; border: 1px solid #666; margin: 0 auto;}
+        .heatmap-cell { background-color: #4a90e2; }
+        .legend { color: #ccc; font-size: 0.7em; margin-top: 5px;}
+        .op-label { font-size: 2.5em; color: #ccc; align-self: center;}
+        .heads-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .memory-layout { width: 48%; background-color: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #444;}
+        .memory-bar { display: flex; flex-wrap: wrap; border: 2px solid #888; background: #111; padding: 2px; border-radius: 5px; min-height: 40px;}
+        .mem-block { height: 20px; box-sizing: border-box; border: 1px solid #333; transition: all 0.3s;}
+        .head-color-0 { background-color: #e57373; } .head-color-1 { background-color: #81c784; } .head-color-2 { background-color: #64b5f6; } .head-color-3 { background-color: #ffd54f; }
+        .head-color-4 { background-color: #ba68c8; } .head-color-5 { background-color: #ff8a65; } .head-color-6 { background-color: #a1887f; } .head-color-7 { background-color: #90a4ae; }
+        .code-block-small { font-size: 0.7em !important; }
+        .highlight-box { border: 3px solid #ff6f00; padding: 5px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <h2>Attention Is All You Need</h2>
+                <h3>From Theory to AVX-512</h3>
+                <p>A Deep Dive into High-Performance Transformer Implementation</p>
+                <p><small>Created by bashbash</small></p>
+            </section>
+
+            <section>
+                <h3>Our Focus: The HPC of Attention</h3>
+                <p>We are focusing on the **Multi-Head Attention** mechanism, not as a theoretical concept, but as a high-performance computing challenge.</p>
+                <div class="transformer-block">
+                    <div class="block-component">Input (from LayerNorm)</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component highlight">
+                        <strong>Causal Multi-Head Attention</strong>
+                        <small>This is where 90% of the compute lies.</small>
+                    </div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">Add & Norm</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">...</div>
+                </div>
+            </section>
+
+            <section id="viz-memory-reorg">
+                <h3>The Head-Major Reorganization</h3>
+                <p>To enable parallel computation, we reorganize the Q, K, and V tensors from a token-centric layout to a head-centric one. This is a deliberate, out-of-place transposition for performance.</p>
+                <div class="viz-container">
+                    <div class="grid-container">
+                        <div class="heatmap-grid" id="reorg-q-grid"></div>
+                        <div class="legend">Q Tensor [T, C] (Token-Major)</div>
+                    </div>
+                    <div class="op-label">→</div>
+                    <div class="grid-container">
+                        <div class="heatmap-grid" id="reorg-heads-grid"></div>
+                        <div class="legend">Q Buffer [H, T, D_h] (Head-Major)</div>
+                    </div>
+                </div>
+                <p class="fragment"><small>For each head, we gather its feature columns from all tokens and write them into a new, contiguous memory block.</small></p>
+            </section>
+
+            <section id="viz-logical-physical">
+                <h3>Logical vs. Physical Memory: The HPC Insight</h3>
+                <p>This is the "aha" moment. We map the logical concept of "heads" to a physical memory layout that the CPU can process at maximum speed.</p>
+                <div class="viz-container">
+                    <div class="memory-layout">
+                        <h4>Logical View: 8 Separate Heads</h4>
+                        <div class="heads-container" id="logical-heads"></div>
+                    </div>
+                    <div class="memory-layout">
+                        <h4>Physical Reality: 1 Contiguous Block</h4>
+                        <p><small>In your C code, this is the `q_output_offset` buffer. Each colored block is perfectly contiguous, cache-aligned, and ready for a dedicated CPU core.</small></p>
+                        <div class="memory-bar" id="physical-bar"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="viz-parallelism-dance">
+                <h3>The Parallelism Dance: Token → Head → Token</h3>
+                <p>Our compute strategy shifts to match the data layout at each step.</p>
+                <div class="viz-container">
+                    <div class="memory-layout fragment" data-fragment-index="1">
+                        <h4>1. QKV Projection (Token-Parallel)</h4>
+                        <p><small>Cores work on horizontal slices of the input tensor. Efficient, but not for attention scores.</small></p>
+                        <!-- Visual of cores on token-major data -->
+                    </div>
+                     <div class="memory-layout fragment" data-fragment-index="2">
+                        <h4>2. Attention Scores (Head-Parallel)</h4>
+                        <p><small>Cores work on vertical slices of the re-organized Head-Major data. No memory contention. Maximum speed.</small></p>
+                        <!-- Visual of cores on head-major data -->
+                    </div>
+                     <div class="memory-layout fragment" data-fragment-index="3">
+                        <h4>3. Output/MLP (Token-Parallel)</h4>
+                        <p><small>Data is concatenated back to token-major, and cores again work on horizontal slices of tokens.</small></p>
+                        <!-- Visual of cores on token-major data -->
+                    </div>
+                </div>
+            </section>
+
+            <section data-background-color="#ffffff">
+                <h3>The Emergence of Intelligence</h3>
+                <img src="assets/emergent.svg" style="width: 95%; border: none; box-shadow: none;">
+            </section>
+
+            <section data-background-color="#ffffff">
+                <h3>Performance Deep Dive: The Bottlenecks</h3>
+                <img src="assets/attention_inference.svg" style="width: 95%; border: none; box-shadow: none;">
+            </section>
+
+            <section>
+                <h3>Performance</h3>
+                <p>By leveraging C, AVX-512, and a cache-optimal memory layout, we achieve performance orders of magnitude faster than a standard Python implementation.</p>
+                <p><strong>Result: 400+ GFLOPS on a modern CPU.</strong></p>
+                <p class="fragment">This is not just about theory. This is about engineering a solution that makes powerful AI feasible where it wasn't before.</p>
+            </section>
+
+        </div>
+    </div>
+
+  <script src="../reveal.js/dist/reveal.js"></script>
+  <script src="../reveal.js/plugin/zoom/zoom.js"></script>
+  <script src="../reveal.js/plugin/notes/notes.js"></script>
+  <script src="../reveal.js/plugin/search/search.js"></script>
+  <script src="../reveal.js/plugin/markdown/markdown.js"></script>
+  <script src="../reveal.js/plugin/highlight/highlight.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/math/math.min.js"></script>
+  <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                center: true,
+                hash: true,
+                transition: 'slide',
+                plugins: [RevealZoom, RevealHighlight, RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+            });
+
+            const HEAD_COLORS = ['#e57373', '#81c784', '#64b5f6', '#ffd54f', '#ba68c8', '#ff8a65', '#a1887f', '#90a4ae'];
+
+            function createGrid(container, rows, cols, colorFn) {
+                if (!container) return;
+                container.innerHTML = '';
+                container.style.gridTemplateColumns = `repeat(${cols}, 15px)`;
+                container.style.gridTemplateRows = `repeat(${rows}, 15px)`;
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        const cell = document.createElement('div');
+                        cell.classList.add('heatmap-cell');
+                        cell.style.backgroundColor = colorFn(i, j);
+                        container.appendChild(cell);
+                    }
+                }
+            }
+
+            function setupVizSlides() {
+                // Reorganization Viz
+                if (document.getElementById('viz-memory-reorg')) {
+                    const qGrid = document.getElementById('reorg-q-grid');
+                    const headsGrid = document.getElementById('reorg-heads-grid');
+                    createGrid(qGrid, 8, 16, (i, j) => HEAD_COLORS[j % 8]);
+                    createGrid(headsGrid, 8, 16, (i, j) => HEAD_COLORS[Math.floor(j/2)]);
+                }
+
+                // Logical vs Physical Viz
+                const logicalContainer = document.getElementById('logical-heads');
+                const physicalBar = document.getElementById('physical-bar');
+                if (document.getElementById('viz-logical-physical') && logicalContainer && physicalBar) {
+                    logicalContainer.innerHTML = '';
+                    physicalBar.innerHTML = '';
+
+                    for (let h = 0; h < 8; h++) {
+                        const headContainer = document.createElement('div');
+                        const headGrid = document.createElement('div');
+                        headGrid.classList.add('heatmap-grid');
+                        headGrid.id = `logical-head-${h}`;
+                        const legend = document.createElement('div');
+                        legend.classList.add('legend');
+                        legend.innerText = `Head ${h}`;
+                        headContainer.appendChild(headGrid);
+                        headContainer.appendChild(legend);
+                        logicalContainer.appendChild(headContainer);
+                        createGrid(headGrid, 8, 2, () => HEAD_COLORS[h]);
+
+                        const memBlock = document.createElement('div');
+                        memBlock.classList.add('mem-block');
+                        memBlock.style.width = '12.5%';
+                        memBlock.style.backgroundColor = HEAD_COLORS[h];
+                        memBlock.id = `physical-block-${h}`;
+                        physicalBar.appendChild(memBlock);
+
+                        headContainer.addEventListener('mouseover', () => {
+                            document.getElementById(`physical-block-${h}`).classList.add('highlight-box');
+                        });
+                        headContainer.addEventListener('mouseout', () => {
+                            document.getElementById(`physical-block-${h}`).classList.remove('highlight-box');
+                        });
+                    }
+                }
+            }
+
+            Reveal.on('ready', event => { setupVizSlides(); });
+            Reveal.on('slidechanged', event => { setupVizSlides(); });
+        });
+    </script>
+</body>
+</html>

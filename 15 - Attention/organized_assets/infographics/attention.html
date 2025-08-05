@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Attention Infographic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
+        body {
+            background-color: #111;
+            color: #eee;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        .infographic-container {
+            width: 100%;
+            height: auto;
+            max-width: 1800px;
+            background-color: #222;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        svg { overflow: visible; }
+        .title { font-family: 'Inter', sans-serif; font-size: 48px; font-weight: bold; fill: #e5e7eb; }
+        .subtitle { font-family: 'Inter', sans-serif; font-size: 20px; fill: #9ca3af; }
+        .hpc-tag { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: bold; fill: #fff; text-anchor: middle; }
+        
+        .section-header { font-family: 'Inter', sans-serif; font-size: 32px; font-weight: bold; fill: #3b82f6; }
+        .section-subtext { font-family: 'Inter', sans-serif; font-size: 18px; fill: #9ca3af; }
+        .text-dim { font-family: 'Roboto Mono', monospace; font-size: 16px; fill: #d1d5db; }
+        
+        .connector { stroke: #4b5563; stroke-width: 3; marker-end: url(#arrow); }
+        .connector-active { stroke: #3b82f6; stroke-width: 5; marker-end: url(#arrow-active); }
+        .arrow { fill: #4b5563; stroke: none; }
+        .arrow-active { fill: #3b82f6; stroke: none; }
+        
+        .box-input { fill: #374151; stroke: #4b5563; stroke-width: 2; transition: all 0.3s ease-in-out; }
+        .box-proc { fill: #1f2937; stroke: #60a5fa; stroke-width: 2; transition: all 0.3s ease-in-out; }
+        .box-output { fill: #3b82f6; stroke: #1f2937; stroke-width: 3; transition: all 0.3s ease-in-out; }
+        .box-title { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: bold; fill: #e5e7eb; }
+        .text-label { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: bold; fill: #e5e7eb; }
+        .text-small { font-family: 'Inter', sans-serif; font-size: 14px; fill: #9ca3af; }
+        .code-label { font-family: 'Roboto Mono', monospace; font-size: 16px; fill: #34d399; }
+        
+        .q-label { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: bold; fill: #f87171; }
+        .k-label { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: bold; fill: #22c55e; }
+        .v-label { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: bold; fill: #facc15; }
+        .head-specialty { font-family: 'Inter', sans-serif; font-size: 16px; fill: #d1d5db; }
+        
+        .callout-box { fill: #2e3a47; stroke: #60a5fa; stroke-width: 2; }
+        .callout-text { font-family: 'Inter', sans-serif; font-size: 18px; fill: #e5e7eb; }
+        .callout-title { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: bold; fill: #34d399; }
+        .callout-arrow { stroke: #f87171; stroke-width: 3; marker-end: url(#arrow-red); }
+        .arrow-red { fill: #f87171; stroke: none; }
+        
+        .animate-head-split {
+            transform-origin: center center;
+            transition: all 1s ease-in-out;
+        }
+        .animate-head-split:nth-child(1) { transform: translate(-300px, 0); }
+        .animate-head-split:nth-child(2) { transform: translate(0, 0); }
+        .animate-head-split:nth-child(3) { transform: translate(300px, 0); }
+        
+        .animate-flow-path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: dash 5s forwards;
+            animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="infographic-container">
+        <svg viewBox="0 0 1800 1200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker id="arrow-active" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L10,5 L0,10 z" />
+                </marker>
+            </defs>
+
+            <!-- Title and Subtitle -->
+            <text x="900" y="60" text-anchor="middle" class="title">The Attention Mechanism: An HPC Deep Dive</text>
+            <text x="900" y="95" text-anchor="middle" class="subtitle">From Conceptual Breakthrough to Low-Level Optimization</text>
+            <rect x="750" y="115" width="300" height="35" rx="5" ry="5" fill="#3b82f6">
+                <text x="900" y="138" class="hpc-tag">The DNA of an LLM</text>
+            </rect>
+
+            <!-- Global Dimensions Key -->
+            <g transform="translate(1500, 150)">
+                <text x="0" y="0" class="text-small">T = Tokens in Sequence</text>
+                <text x="0" y="20" class="text-small">D = Embedding Dimension</text>
+                <text x="0" y="40" class="text-small">H = Head Dimension</text>
+                <text x="0" y="60" class="text-small">N = Number of Attention Heads</text>
+                <text x="0" y="80" class="text-dim">Note: D = N x H</text>
+            </g>
+
+            <!-- Part 1: Layered Intelligence & The Why -->
+            <g transform="translate(100, 200)">
+                <text x="750" y="0" class="section-header">Attention Across Layers</text>
+                <text x="750" y="30" class="section-subtext">Each layer learns a progressively more abstract representation.</text>
+                
+                <path d="M750,150 L750,250" class="connector" />
+                
+                <rect x="600" y="70" width="300" height="80" rx="10" ry="10" class="box-output" />
+                <text x="750" y="100" class="text-label" fill="#111">Layer 1 Output</text>
+                <text x="750" y="120" class="text-small" fill="#111">Learns syntax &amp; grammar</text>
+                
+                <rect x="600" y="250" width="300" height="80" rx="10" ry="10" class="box-output" />
+                <text x="750" y="280" class="text-label" fill="#111">Layer 2 Output</text>
+                <text x="750" y="300" class="text-small" fill="#111">Learns semantic meaning</text>
+                
+                <rect x="600" y="430" width="300" height="80" rx="10" ry="10" class="box-output" />
+                <text x="750" y="460" class="text-label" fill="#111">Layer N Output</text>
+                <text x="750" y="480" class="text-small" fill="#111">Learns complex reasoning</text>
+                
+                <path d="M750,150 L750,250" class="connector" />
+                <path d="M750,330 L750,430" class="connector" />
+            </g>
+
+            <!-- Part 2: The Multi-Head & The Pipeline -->
+            <g transform="translate(100, 550)">
+                <text x="750" y="0" class="section-header">The Multi-Head Mechanism</text>
+                <text x="750" y="30" class="section-subtext">A team of experts working in parallel to build a richer output.</text>
+                
+                <!-- Input Embeddings -->
+                <rect x="0" y="70" width="250" height="80" rx="8" ry="8" class="box-input" />
+                <text x="125" y="100" class="text-label">Input Embeddings (X)</text>
+                <text x="125" y="120" class="text-dim">Shape: [T x D]</text>
+                
+                <!-- Split into Heads -->
+                <path d="M125,150 L125,220" class="connector" />
+                <rect x="0" y="220" width="250" height="60" rx="8" ry="8" class="box-proc" />
+                <text x="125" y="245" class="text-label">Split into N Heads</text>
+                
+                <!-- Individual Heads -->
+                <g transform="translate(30, 310)">
+                    <rect x="0" y="0" width="200" height="150" rx="8" ry="8" class="box-proc" fill="#4b5563" />
+                    <text x="100" y="25" class="text-label">Head 1</text>
+                    <text x="100" y="50" class="text-small">Role: Syntax</text>
+                    <text x="100" y="80" class="text-dim">Q, K, V: [T x H]</text>
+                </g>
+                <g transform="translate(250, 310)">
+                    <rect x="0" y="0" width="200" height="150" rx="8" ry="8" class="box-proc" fill="#4b5563" />
+                    <text x="100" y="25" class="text-label">Head 2</text>
+                    <text x="100" y="50" class="text-small">Role: Semantics</text>
+                    <text x="100" y="80" class="text-dim">Q, K, V: [T x H]</text>
+                </g>
+                <g transform="translate(470, 310)">
+                    <text x="100" y="75" class="text-label">...</text>
+                </g>
+                <g transform="translate(600, 310)">
+                    <rect x="0" y="0" width="200" height="150" rx="8" ry="8" class="box-proc" fill="#4b5563" />
+                    <text x="100" y="25" class="text-label">Head N</text>
+                    <text x="100" y="50" class="text-small">Role: Causality</text>
+                    <text x="100" y="80" class="text-dim">Q, K, V: [T x H]</text>
+                </g>
+
+                <path d="M125,280 L125,310" class="connector" />
+                <path d="M125,280 L350,310" class="connector" />
+                <path d="M125,280 L700,310" class="connector" />
+                
+                <!-- The Core Pipeline -->
+                <path d="M100,460 L300,460" class="connector" />
+                <rect x="300" y="440" width="100" height="40" rx="8" ry="8" class="box-proc" />
+                <text x="350" y="465" class="text-label">Q·Kᵀ</text>
+                <path d="M400,460 L500,460" class="connector" />
+                <rect x="500" y="440" width="100" height="40" rx="8" ry="8" class="box-proc" />
+                <text x="550" y="465" class="text-label">Softmax</text>
+                <path d="M600,460 L700,460" class="connector" />
+                <rect x="700" y="440" width="100" height="40" rx="8" ry="8" class="box-proc" />
+                <text x="750" y="465" class="text-label">Scores·V</text>
+                <path d="M800,460 L900,460" class="connector" />
+                
+                <rect x="900" y="420" width="300" height="80" rx="8" ry="8" class="box-output animate-pulse" />
+                <text x="1050" y="450" class="text-label" fill="#111">Head Output Z</text>
+                <text x="1050" y="470" class="text-dim" fill="#111">Shape: [T x H]</text>
+            </g>
+
+            <!-- Part 3: The HPC Advantage -->
+            <g transform="translate(100, 750)">
+                <text x="400" y="0" class="section-header">Your HPC Advantage</text>
+                <text x="400" y="30" class="section-subtext">How your first-principles approach maximizes performance.</text>
+                
+                <rect x="0" y="70" width="400" height="150" rx="8" ry="8" class="box-proc" />
+                <text x="200" y="100" class="text-label">Head-Major Memory Layout</text>
+                <text x="200" y="120" class="text-small">Layout: [head][token][head_dim]</text>
+                <text x="200" y="150" class="text-small">This layout keeps a single head's data contiguous,</text>
+                <text x="200" y="170" class="text-small">leading to better cache hit rates.</text>
+                
+                <rect x="450" y="70" width="400" height="150" rx="8" ry="8" class="callout-box" />
+                <text x="650" y="100" class="callout-title">Zero-Copy Projection</text>
+                <text x="650" y="130" class="callout-text">You skip the expensive concatenation step.</text>
+                <text x="650" y="150" class="callout-text">Instead, you read from strided head outputs</text>
+                <text x="650" y="170" class="callout-text">and write directly to the final output vector.</text>
+                
+                <rect x="900" y="70" width="400" height="150" rx="8" ry="8" class="box-proc" />
+                <text x="1100" y="100" class="text-label">AVX-512 Vectorization</text>
+                <text x="1100" y="120" class="text-small">AVX-512 allows your kernels to process 16 floats</text>
+                <text x="1100" y="140" class="text-small">in a single instruction, maximizing compute throughput.</text>
+                <text x="1100" y="170" class="code-label">`_mm512_fmadd_ps(a, b, c)`</text>
+            </g>
+        </svg>
+    </div>
+</body>
+</html>
+
