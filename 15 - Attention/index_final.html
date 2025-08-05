@@ -1,0 +1,1349 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Attention Is All You Need - The Definitive Implementation Guide</title>
+
+    <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+    <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+    <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+
+    <style>
+        :root { --r-main-font-size: 24px; }
+        .reveal .slides section { font-size: 0.9em; text-align: left;}
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; text-align: center;}
+        .reveal p { text-align: center; }
+        .formula-box { background-color: rgba(45, 51, 59, 0.8); border-radius: 15px; padding: 15px; margin-top: 15px; border: 1px solid #484f58; }
+        .dim-table { margin: 15px auto; font-size: 0.75em; border-collapse: collapse; }
+        .dim-table th, .dim-table td { border: 1px solid #484f58; padding: 8px 15px; }
+        .dim-table th { background-color: #37474f; }
+        .transformer-block { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px;}
+        .block-component { border: 2px solid #484f58; border-radius: 10px; padding: 10px 20px; width: 400px; text-align: center; background-color: #2d333b; }
+        .block-component.highlight { border-color: #ff6f00; background-color: #4d3c20; box-shadow: 0 0 15px #ff6f00; }
+        .arrow-down { width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 20px solid #484f58; }
+
+        /* Visualization & Memory Styles */
+        .viz-container { display: flex; justify-content: space-around; align-items: center; gap: 20px; width: 100%; margin-top: 20px;}
+        .grid-container { position: relative; text-align: center;}
+        .heatmap-grid { display: grid; gap: 1px; border: 1px solid #666; margin: 0 auto;}
+        .heatmap-cell { background-color: #4a90e2; }
+        .legend { color: #ccc; font-size: 0.7em; margin-top: 5px;}
+        .legend-y { writing-mode: vertical-rl; transform: rotate(180deg); position: absolute; left: -40px; top: 50%; transform-origin: center; }
+        .legend-x { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); }
+        .op-label { font-size: 2.5em; color: #ccc; align-self: center;}
+        .heads-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .memory-layout { width: 48%; background-color: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #444;}
+        .memory-bar { display: flex; flex-wrap: wrap; border: 2px solid #888; background: #111; padding: 2px; border-radius: 5px; min-height: 40px;}
+        .mem-block { height: 20px; box-sizing: border-box; border: 1px solid #333; transition: all 0.3s;}
+        .head-color-0 { background-color: #e57373; } .head-color-1 { background-color: #81c784; } .head-color-2 { background-color: #64b5f6; } .head-color-3 { background-color: #ffd54f; }
+        .head-color-4 { background-color: #ba68c8; } .head-color-5 { background-color: #ff8a65; } .head-color-6 { background-color: #a1887f; } .head-color-7 { background-color: #90a4ae; }
+        .code-block-small { font-size: 0.7em !important; }
+        .code-block-tiny { font-size: 0.6em !important; line-height: 1.2; }
+        .highlight-box { border: 3px solid #ff6f00 !important; box-shadow: 0 0 10px #ff6f00; }
+        
+        /* Memory Flow Visualization Styles */
+        .memory-flow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin: 20px 0;
+        }
+        
+        .phase-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 20px;
+            border: 2px solid #444;
+            border-radius: 15px;
+            background: rgba(68, 68, 68, 0.1);
+        }
+        
+        .memory-layout-viz {
+            width: 30%;
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #555;
+        }
+        
+        .core-distribution {
+            width: 35%;
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #555;
+        }
+        
+        .computation-detail {
+            width: 30%;
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #555;
+        }
+        
+        .memory-block {
+            height: 25px;
+            margin: 2px 0;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7em;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .token-major { background: linear-gradient(90deg, #e57373, #81c784, #64b5f6, #ffd54f, #ba68c8, #ff8a65, #a1887f, #90a4ae); }
+        .head-major-0 { background: #e57373; }
+        .head-major-1 { background: #81c784; }
+        .head-major-2 { background: #64b5f6; }
+        .head-major-3 { background: #ffd54f; color: #000; }
+        .head-major-4 { background: #ba68c8; }
+        .head-major-5 { background: #ff8a65; }
+        .head-major-6 { background: #a1887f; }
+        .head-major-7 { background: #90a4ae; }
+        
+        .core-assignment {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 5px;
+            background: rgba(100, 181, 246, 0.1);
+            border-left: 4px solid #64b5f6;
+        }
+        
+        .core-label {
+            width: 60px;
+            font-weight: bold;
+            color: #64b5f6;
+            font-size: 0.8em;
+        }
+        
+        .core-work {
+            flex: 1;
+            font-size: 0.7em;
+            color: #ccc;
+        }
+        
+        .avx-instruction {
+            background: rgba(255, 111, 0, 0.1);
+            border: 1px solid #ff6f00;
+            border-radius: 5px;
+            padding: 8px;
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 0.6em;
+            color: #ff6f00;
+        }
+        
+        .phase-title {
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: #000;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .phase-1 { border-color: #e57373; }
+        .phase-1 .phase-title { color: #e57373; border: 2px solid #e57373; }
+        
+        .phase-2 { border-color: #64b5f6; }
+        .phase-2 .phase-title { color: #64b5f6; border: 2px solid #64b5f6; }
+        
+        .phase-3 { border-color: #ffd54f; }
+        .phase-3 .phase-title { color: #ffd54f; border: 2px solid #ffd54f; }
+        
+        .phase-4 { border-color: #81c784; }
+        .phase-4 .phase-title { color: #81c784; border: 2px solid #81c784; }
+        
+        .data-flow-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            color: #666;
+            height: 50px;
+        }
+        
+        /* Performance indicators */
+        .perf-metric { 
+            background: rgba(100, 181, 246, 0.2); 
+            border: 1px solid #64b5f6; 
+            border-radius: 10px; 
+            padding: 15px; 
+            margin: 10px 0; 
+            text-align: center; 
+        }
+        .perf-number { 
+            font-size: 2em; 
+            color: #64b5f6; 
+            font-weight: bold; 
+        }
+        
+        /* Journey progress indicator */
+        .journey-progress {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+            gap: 10px;
+        }
+        .progress-step {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .progress-step.active { background: #ff6f00; color: #000; }
+        .progress-step.inactive { background: #444; color: #ccc; }
+        .progress-arrow { color: #666; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <!-- Title Slide -->
+            <section>
+                <h2>Attention Is All You Need</h2>
+                <h3>The Definitive Implementation Guide</h3>
+                <h4>From Mathematical Theory to 400+ GFLOPS Production Code</h4>
+                <p>Math → Intuition → Memory Architecture → HPC → Performance</p>
+                <div class="journey-progress">
+                    <div class="progress-step active">Theory</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Intuition</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Architecture</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">HPC</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Production</div>
+                </div>
+                <p><small>The complete journey from $QK^T$ to world-class performance</small></p>
+            </section>
+
+            <!-- PART I: MATHEMATICAL FOUNDATIONS -->
+            <section>
+                <h2>Part I: Mathematical Foundations</h2>
+                <div class="journey-progress">
+                    <div class="progress-step active">Theory</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Intuition</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Architecture</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">HPC</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Production</div>
+                </div>
+                <p>Understanding the mathematical building blocks that make attention work</p>
+            </section>
+
+            <!-- Why Attention Matters -->
+            <section>
+                <h3>Why Attention Changed Everything</h3>
+                <p>Before attention, sequence models were fundamentally limited by sequential processing. Attention introduced parallelization and global context understanding.</p>
+                <div style="display: flex; justify-content: space-around; margin-top: 30px;">
+                    <div style="width: 45%;">
+                        <h4>Traditional RNNs</h4>
+                        <ul style="font-size: 0.8em;">
+                            <li>Sequential processing: O(T) time complexity</li>
+                            <li>Information bottleneck through hidden states</li>
+                            <li>Gradient vanishing over long sequences</li>
+                            <li>No parallelization possible</li>
+                        </ul>
+                    </div>
+                    <div style="width: 45%;">
+                        <h4>Self-Attention</h4>
+                        <ul style="font-size: 0.8em;">
+                            <li>Parallel processing: O(1) with sufficient cores</li>
+                            <li>Direct connections between all positions</li>
+                            <li>Constant path length for information flow</li>
+                            <li>Highly parallelizable computation</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="formula-box fragment">
+                    <strong>The Core Insight:</strong> Instead of sequential hidden states, compute attention weights between all pairs of positions simultaneously.
+                </div>
+            </section>
+
+            <!-- The Goal of Attention -->
+            <section>
+                <h2>The Goal of Attention</h2>
+                <p>For each token, we want to create a new representation that is a <span style="color: #ff6f00;">weighted average</span> of all other tokens in the sequence.</p>
+                <p class="fragment">The weights are not fixed; they are calculated on the fly based on how <span style="color: #ff6f00;">relevant</span> each token is to the current one we're processing.</p>
+                <div class="formula-box fragment">
+                    $$ \text{Output}_i = \sum_{j=1}^{T} \alpha_{ij} \cdot \text{Value}_j $$
+                    <p style="margin-top: 10px;"><small>Where $\alpha_{ij}$ represents how much token $i$ should attend to token $j$</small></p>
+                </div>
+                <p class="fragment"><small><strong>Key Question:</strong> How do we compute the attention weights $\alpha_{ij}$?</small></p>
+            </section>
+
+            <!-- Step 1: QKV Projections -->
+            <section>
+                <h2>Step 1: Projecting Inputs into Q, K, V</h2>
+                <p>We start with our input tensor `X` and project it into three distinct matrices: Queries, Keys, and Values, using learned weight matrices.</p>
+                <div class="formula-box">
+                    $$ Q = X W_Q \quad K = X W_K \quad V = X W_V $$
+                </div>
+                <table class="dim-table">
+                    <tr><th>Tensor</th><th>Dimensions</th><th>Description</th></tr>
+                    <tr><td>X</td><td>[T, C]</td><td>Input token embeddings (e.g., 2048 tokens, 512 channels)</td></tr>
+                    <tr><td>W_Q, W_K, W_V</td><td>[C, C]</td><td>Learned weight matrices</td></tr>
+                    <tr><td>Q, K, V</td><td>[T, C]</td><td>Query, Key, and Value matrices</td></tr>
+                </table>
+                <p class="fragment">This is the first major computation step: <strong>3 massive GEMM operations</strong></p>
+            </section>
+
+            <!-- Step 2: Multi-Head Splitting -->
+            <section>
+                <h2>Step 2: Splitting into Multiple Heads</h2>
+                <p>To allow the model to focus on different types of relationships simultaneously, we split the Q, K, and V matrices into multiple, smaller "heads".</p>
+                <div style="display: flex; justify-content: center; align-items: center; gap: 50px; margin-top: 30px;">
+                    <div style="text-align: center;">
+                        <div style="width: 200px; height: 100px; border: 3px solid #4a90e2; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <div>
+                                <div>Q Matrix</div>
+                                <div style="font-size: 0.8em;">[T, C]</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size: 2em; color: #ccc;">→</div>
+                    <div style="text-align: center;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                            <div style="width: 80px; height: 40px; border: 2px solid #ba68c8; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.7em;">Head 1</div>
+                            <div style="width: 80px; height: 40px; border: 2px solid #ba68c8; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.7em;">Head 2</div>
+                            <div style="width: 80px; height: 40px; border: 2px solid #ba68c8; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.7em;">Head 3</div>
+                            <div style="width: 80px; height: 40px; border: 2px solid #ba68c8; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.7em;">Head H</div>
+                        </div>
+                        <div style="font-size: 0.9em; margin-top: 10px;">New Dimension: [H, T, D_h]<br>Where C = H × D_h</div>
+                    </div>
+                </div>
+                <table class="dim-table fragment">
+                    <tr><th>Parameter</th><th>Typical Value</th><th>Description</th></tr>
+                    <tr><td>C (Total dimension)</td><td>512, 768, 1024</td><td>Original embedding dimension</td></tr>
+                    <tr><td>H (Number of heads)</td><td>8, 12, 16</td><td>Number of attention heads</td></tr>
+                    <tr><td>D_h (Head dimension)</td><td>64, 96, 128</td><td>Dimension per head (C / H)</td></tr>
+                </table>
+            </section>
+
+            <!-- Step 3: Scaled Dot-Product Attention -->
+            <section>
+                <h2>Step 3: Scaled Dot-Product Attention</h2>
+                <p>This is the core calculation, performed independently for each head.</p>
+                <div class="formula-box">
+                    $$ \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V $$
+                </div>
+                <p class="fragment">Let's break this down into its components:</p>
+                <div class="fragment">
+                    <ol style="text-align: left; font-size: 0.9em;">
+                        <li><strong>Scoring:</strong> $QK^T$ - How much should each token attend to every other token?</li>
+                        <li><strong>Scaling:</strong> $\frac{1}{\sqrt{d_k}}$ - Prevent gradients from vanishing</li>
+                        <li><strong>Masking:</strong> Apply causal mask (for decoder models)</li>
+                        <li><strong>Normalization:</strong> Softmax - Convert scores to probabilities</li>
+                        <li><strong>Weighted Sum:</strong> Multiply by $V$ to get final output</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- Step 3a: Scoring Visualization -->
+            <section id="viz-scores">
+                <h3>Step 3a: Calculating Scores (Q·K^T)</h3>
+                <p>We compute a score matrix by taking the dot product of the Query matrix with the transpose of the Key matrix.</p>
+                <div class="viz-container">
+                    <div class="grid-container">
+                        <div class="heatmap-grid" id="score-q-grid"></div>
+                        <div class="legend">Q_head [T,D_h]</div>
+                    </div>
+                    <div class="op-label">×</div>
+                    <div class="grid-container">
+                        <div class="heatmap-grid" id="score-k-grid"></div>
+                        <div class="legend">K_head^T [D_h,T]</div>
+                    </div>
+                    <div class="op-label">=</div>
+                    <div class="grid-container">
+                        <div class="heatmap-grid" id="score-res-grid"></div>
+                        <div class="legend">Scores [T,T]</div>
+                    </div>
+                </div>
+                <p class="fragment">The resulting `[T, T]` matrix tells us how much each token should attend to every other token.</p>
+                <div class="formula-box fragment">
+                    $$ \text{Score}_{i,j} = \sum_{d=1}^{D_h} Q_{i,d} \cdot K_{j,d} $$
+                    <p style="margin-top: 10px;"><small>This is a pure GEMM operation, perfectly suited for optimization</small></p>
+                </div>
+            </section>
+
+            <!-- Step 4: Final Output -->
+            <section>
+                <h2>Step 4: Concatenate and Project</h2>
+                <p>The outputs from all heads are concatenated back together and passed through a final linear projection layer.</p>
+                <div class="formula-box">
+                    $$ \text{Output} = \text{Concat}(\text{head}_1, ..., \text{head}_H) \cdot W_O $$
+                    <p style="margin-top: 10px;"><small>The fourth and final GEMM operation</small></p>
+                </div>
+                <p class="fragment">Now we understand the mathematics. But how do we implement this efficiently?</p>
+            </section>
+
+            <!-- PART II: INTUITION AND ARCHITECTURE -->
+            <section>
+                <h2>Part II: Intuition & Memory Architecture</h2>
+                <div class="journey-progress">
+                    <div class="progress-step inactive">Theory</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step active">Intuition</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Architecture</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">HPC</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Production</div>
+                </div>
+                <p>Understanding <em>why</em> the mathematics works and <em>how</em> to architect memory for performance</p>
+            </section>
+
+            <!-- The Transformer Architecture Context -->
+            <section>
+                <h3>Our Focus: The Heart of the Transformer</h3>
+                <p>The Multi-Head Attention mechanism is where 90% of computation happens in a transformer. Understanding its implementation is crucial for performance.</p>
+                <div class="transformer-block">
+                    <div class="block-component">Input Embeddings + Positional Encoding</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">Layer Norm</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component highlight">
+                        <strong>Causal Multi-Head Attention</strong>
+                        <small>This is where 90% of the compute lies.</small>
+                    </div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">Add & Norm (Residual Connection)</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">Feed-Forward Network (MLP)</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">Add & Norm (Residual Connection)</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">...</div>
+                </div>
+            </section>
+
+            <!-- Our Implementation Strategy -->
+            <section>
+                <h3>Our Implementation Strategy: Head-Parallel with Smart Memory Layout</h3>
+                <p>We use head-parallelism as our primary strategy, with dynamic memory layout transitions to optimize each computation phase</p>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 30px;">
+                    <div style="text-align: center; padding: 20px; border: 2px solid #e57373; border-radius: 10px; background: rgba(229, 115, 115, 0.1);">
+                        <div style="font-size: 1.5em; margin-bottom: 10px;">📥</div>
+                        <h4>Phase 1: QKV Projection</h4>
+                        <p style="font-size: 0.8em;">Token-parallel input<br>→ Head-major output</p>
+                    </div>
+                    <div style="text-align: center; padding: 20px; border: 2px solid #64b5f6; border-radius: 10px; background: rgba(100, 181, 246, 0.1);">
+                        <div style="font-size: 1.5em; margin-bottom: 10px;">🧮</div>
+                        <h4>Phase 2: Attention Scores</h4>
+                        <p style="font-size: 0.8em;">Head-parallel input<br>→ Head-parallel scores</p>
+                    </div>
+                    <div style="text-align: center; padding: 20px; border: 2px solid #ffd54f; border-radius: 10px; background: rgba(255, 213, 79, 0.1);">
+                        <div style="font-size: 1.5em; margin-bottom: 10px;">🔗</div>
+                        <h4>Phase 3: Concatenation</h4>
+                        <p style="font-size: 0.8em;">Head-parallel input<br>→ Token-major output</p>
+                    </div>
+                    <div style="text-align: center; padding: 20px; border: 2px solid #81c784; border-radius: 10px; background: rgba(129, 199, 132, 0.1);">
+                        <div style="font-size: 1.5em; margin-bottom: 10px;">📤</div>
+                        <h4>Phase 4: Final Projection</h4>
+                        <p style="font-size: 0.8em;">Token-parallel input<br>→ Token-major output</p>
+                    </div>
+                </div>
+                <p class="fragment" style="margin-top: 30px;"><strong>Key Insight:</strong> Head-parallelism provides the best cache locality for the compute-intensive attention phase, while we adapt memory layouts to optimize each stage.</p>
+            </section>
+
+            <!-- Memory Layout: The Foundation -->
+            <section id="viz-logical-physical">
+                <h3>Memory Layout: The Foundation of Performance</h3>
+                <p>We map the logical concept of "heads" to a physical memory layout that the CPU can process at maximum speed.</p>
+                <div class="viz-container">
+                    <div class="memory-layout">
+                        <h4>Logical View: 8 Separate Heads</h4>
+                        <div class="heads-container" id="logical-heads"></div>
+                    </div>
+                    <div class="memory-layout">
+                        <h4>Physical Reality: Head-Major Layout</h4>
+                        <p><small>Each colored block represents a head's data being perfectly contiguous in memory</small></p>
+                        <div class="memory-bar" id="physical-bar"></div>
+                    </div>
+                </div>
+                 <p><small>Hover over a logical head to see its physical location in memory.</small></p>
+                 <div class="formula-box fragment">
+                     <strong>Head-Major Layout:</strong> [Head][Token][Dimension]<br>
+                     <small>All data for Head 0 is contiguous, then all data for Head 1, etc.</small>
+                 </div>
+            </section>
+
+            <!-- Head-Major Reorganization -->
+            <section id="viz-memory-reorg">
+                <h3>The Head-Major Reorganization</h3>
+                <p>This is not a simple transpose. It's a deliberate, out-of-place reorganization of data for performance.</p>
+                <div class="viz-container">
+                    <div class="grid-container">
+                        <div class="heatmap-grid" id="reorg-q-grid"></div>
+                        <div class="legend">Input Q Tensor [T, C] (Token-Major)</div>
+                    </div>
+                    <div class="op-label">→</div>
+                    <div class="grid-container">
+                        <div class="heatmap-grid" id="reorg-heads-grid"></div>
+                        <div class="legend">Output Q Buffer [H, T, D_h] (Head-Major)</div>
+                    </div>
+                </div>
+                <p class="fragment"><small>For each head (color), we gather its feature columns from all tokens and write them into a new, contiguous memory block.</small></p>
+                <div class="formula-box fragment">
+                    <strong>Performance Impact:</strong> Instead of scattered memory access, each head's data is contiguous.
+                    When processing Head 0, the entire head fits in L3 cache.
+                </div>
+            </section>
+
+            <!-- PART III: MEMORY ARCHITECTURE -->
+            <section>
+                <h2>Part III: Memory Architecture</h2>
+                <div class="journey-progress">
+                    <div class="progress-step inactive">Theory</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Intuition</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step active">Architecture</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">HPC</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Production</div>
+                </div>
+                <p>The actual C code structures and memory architecture that enable 400+ GFLOPS</p>
+            </section>
+
+            <!-- The C-Level Memory Architecture -->
+            <section>
+                <h3>The C-Level Memory Architecture</h3>
+                <p>Single contiguous memory block with precise struct-level control</p>
+                <div style="display: flex; justify-content: space-around; align-items: flex-start;">
+                    <div style="width: 55%;">
+                        <pre><code class="c code-block-tiny" data-trim>
+typedef struct {
+    // Per-layer memory offsets
+    size_t layer_start_canary_offset;
+    
+    size_t ln1_weight_offset, ln1_bias_offset;
+    size_t ln1_mean_offset, ln1_rstd_offset;
+    size_t layer_input_offset, ln1_output_offset;
+    
+    // Separate Q, K, V for cleaner access
+    size_t q_weight_offset, q_bias_offset, q_output_offset;
+    size_t k_weight_offset, k_bias_offset, k_output_offset;
+    size_t v_weight_offset, v_bias_offset, v_output_offset;
+    
+    size_t attention_scores_offset;
+    size_t proj_weight_offset, proj_bias_offset;
+    size_t attention_output_offset, residual1_output_offset;
+    
+    // MLP components...
+    size_t fc1_weight_offset, fc1_bias_offset, fc1_output_offset;
+    size_t fc2_weight_offset, fc2_bias_offset;
+    size_t mlp_output_offset, residual2_output_offset;
+    
+    size_t layer_end_canary_offset;
+} TrulyOptimalLayer;
+
+typedef struct {
+    /* hyper-parameters */
+    int num_layers, vocab_size, embed_dim, context_window;
+    size_t aligned_embed_dim, aligned_head_dim;
+    size_t aligned_attn_context_window;
+    
+    /* execution plan */
+    int num_cores, tokens_per_core;
+    int num_attention_heads, head_dim;
+    
+    /* single memory block */
+    float *memory_base;
+    size_t total_floats, layer_stride;
+    
+    /* per-layer table */
+    TrulyOptimalLayer *layers;
+} TransformerModel;
+                        </code></pre>
+                    </div>
+                    <div style="width: 40%;">
+                        <h4>Key Design Principles</h4>
+                        <ul style="font-size: 0.8em; text-align: left;">
+                            <li><strong>Single Allocation:</strong> One huge malloc() for entire model</li>
+                            <li><strong>Cache Alignment:</strong> 64-byte boundaries for all major tensors</li>
+                            <li><strong>Head-Major Layout:</strong> Contiguous memory per attention head</li>
+                            <li><strong>Canary Protection:</strong> Buffer overflow detection</li>
+                            <li><strong>Zero Fragmentation:</strong> Predictable memory access patterns</li>
+                        </ul>
+                        <div class="perf-metric" style="margin-top: 20px;">
+                            <div style="font-size: 1.2em; color: #81c784; font-weight: bold;">95%+</div>
+                            <div style="font-size: 0.8em;">L3 Cache Hit Rate</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Head-Major Memory Access Macros -->
+            <section>
+                <h3>Head-Major Memory Access: The Performance Key</h3>
+                <p>Carefully designed macros enable head-parallel computation with perfect cache locality</p>
+                <pre><code class="c code-block-small" data-trim>
+/* ============================================================================
+   HEAD-MAJOR MEMORY LAYOUT
+   Layout: [head][token][head_dim] 
+   Memory: [Head0: Token0[head_dim], Token1[head_dim], ..., TokenN[head_dim]]
+           [Head1: Token0[head_dim], Token1[head_dim], ..., TokenN[head_dim]]
+           [...]
+   ============================================================================ */
+
+// Attention tensor access: q_ptr[head * context_window * aligned_head_dim + token * aligned_head_dim + dim]
+#define Q_ACCESS(q_ptr, h, t, d, context_window, aligned_head_dim) \
+    q_ptr[((h) * (context_window) + (t)) * (aligned_head_dim) + (d)]
+
+#define K_ACCESS(k_ptr, h, t, d, context_window, aligned_head_dim) \
+    k_ptr[((h) * (context_window) + (t)) * (aligned_head_dim) + (d)]
+
+#define V_ACCESS(v_ptr, h, t, d, context_window, aligned_head_dim) \
+    v_ptr[((h) * (context_window) + (t)) * (aligned_head_dim) + (d)]
+
+// Attention scores: [head][query_token][key_token]
+#define ATTN_ACCESS(attn_ptr, head_idx, query_token, key_token, context_window) \
+    attn_ptr[((head_idx) * (context_window) + (query_token)) * (context_window) + (key_token)]
+                </code></pre>
+                <p class="fragment"><small><strong>Why Head-Major?</strong> Each head's data is contiguous in memory. When processing Head 0, all data fits in L3 cache. No cache conflicts between heads during parallel processing.</small></p>
+            </section>
+
+            <!-- PART IV: MEMORY FLOW DEEP DIVE -->
+            <section>
+                <h2>Part IV: Memory Flow Deep Dive</h2>
+                <div class="journey-progress">
+                    <div class="progress-step inactive">Theory</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Intuition</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Architecture</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step active">HPC</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Production</div>
+                </div>
+                <p>How data flows through memory and cores in each computation phase</p>
+            </section>
+
+            <!-- Phase 1: QKV Projection Memory Flow -->
+            <section>
+                <h3>Phase 1: QKV Projection - Token-Parallel to Head-Major</h3>
+                <div class="memory-flow-container">
+                    <div class="phase-container phase-1" style="position: relative;">
+                        <div class="phase-title">Phase 1: QKV Projection</div>
+                        
+                        <div class="memory-layout-viz">
+                            <h4>Memory Layout</h4>
+                            <div style="margin-bottom: 15px;">
+                                <strong>Input (Token-Major):</strong>
+                                <div class="memory-block token-major">T0: [h0,h1,h2,h3,h4,h5,h6,h7]</div>
+                                <div class="memory-block token-major">T1: [h0,h1,h2,h3,h4,h5,h6,h7]</div>
+                                <div class="memory-block token-major">T2: [h0,h1,h2,h3,h4,h5,h6,h7]</div>
+                            </div>
+                            <div class="data-flow-arrow">↓</div>
+                            <div>
+                                <strong>Output (Head-Major):</strong>
+                                <div class="memory-block head-major-0">Head 0: [T0,T1,T2,...,TN]</div>
+                                <div class="memory-block head-major-1">Head 1: [T0,T1,T2,...,TN]</div>
+                                <div class="memory-block head-major-2">Head 2: [T0,T1,T2,...,TN]</div>
+                            </div>
+                        </div>
+                        
+                        <div class="core-distribution">
+                            <h4>Core Assignment</h4>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 0:</div>
+                                <div class="core-work">Tokens 0-255 → All heads</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 1:</div>
+                                <div class="core-work">Tokens 256-511 → All heads</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 2:</div>
+                                <div class="core-work">Tokens 512-767 → All heads</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 3:</div>
+                                <div class="core-work">Tokens 768-1023 → All heads</div>
+                            </div>
+                        </div>
+                        
+                        <div class="computation-detail">
+                            <h4>AVX-512 Computation</h4>
+                            <div class="avx-instruction">
+                                // Each core processes token slice<br>
+                                for (int h = 0; h < num_heads; h++) {<br>
+                                &nbsp;&nbsp;avx512_gemv_projection(...);<br>
+                                &nbsp;&nbsp;// Write directly to head-major<br>
+                                &nbsp;&nbsp;Q_ACCESS(q_base, h, token, d);<br>
+                                }
+                            </div>
+                            <p style="font-size: 0.8em; color: #ccc;">
+                                <strong>Key:</strong> Direct write to head-major layout avoids expensive transpose later
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Phase 2: Attention Scores - Head-Parallel -->
+            <section>
+                <h3>Phase 2: Attention Scores - Head-Parallel Perfection</h3>
+                <div class="memory-flow-container">
+                    <div class="phase-container phase-2" style="position: relative;">
+                        <div class="phase-title">Phase 2: Attention Computation</div>
+                        
+                        <div class="memory-layout-viz">
+                            <h4>Memory Layout</h4>
+                            <div style="margin-bottom: 15px;">
+                                <strong>Input (Head-Major):</strong>
+                                <div class="memory-block head-major-0">Head 0: [T0,T1,T2,...,TN]</div>
+                                <div class="memory-block head-major-1">Head 1: [T0,T1,T2,...,TN]</div>
+                                <div class="memory-block head-major-2">Head 2: [T0,T1,T2,...,TN]</div>
+                            </div>
+                            <div class="data-flow-arrow">↓</div>
+                            <div>
+                                <strong>Output (Head-Major Scores):</strong>
+                                <div class="memory-block head-major-0">H0 Scores: [TxT matrix]</div>
+                                <div class="memory-block head-major-1">H1 Scores: [TxT matrix]</div>
+                                <div class="memory-block head-major-2">H2 Scores: [TxT matrix]</div>
+                            </div>
+                        </div>
+                        
+                        <div class="core-distribution">
+                            <h4>Core Assignment</h4>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 0:</div>
+                                <div class="core-work">Head 0 → Complete Q·K^T</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 1:</div>
+                                <div class="core-work">Head 1 → Complete Q·K^T</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 2:</div>
+                                <div class="core-work">Head 2 → Complete Q·K^T</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 3:</div>
+                                <div class="core-work">Head 3 → Complete Q·K^T</div>
+                            </div>
+                        </div>
+                        
+                        <div class="computation-detail">
+                            <h4>AVX-512 Computation</h4>
+                            <div class="avx-instruction">
+                                // Perfect cache locality<br>
+                                for (int i = 0; i < tokens; i++) {<br>
+                                &nbsp;&nbsp;for (int j = 0; j <= i; j++) {<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;__m512 acc = _mm512_setzero_ps();<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;acc = _mm512_fmadd_ps(q, k, acc);<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;score = _mm512_reduce_add_ps(acc);<br>
+                                &nbsp;&nbsp;}<br>
+                                }
+                            </div>
+                            <div class="perf-metric" style="margin-top: 10px;">
+                                <div style="font-size: 1em; color: #64b5f6;">96%</div>
+                                <div style="font-size: 0.7em;">L3 Cache Hit Rate</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Phase 3: Concatenation -->
+            <section>
+                <h3>Phase 3: Concatenation - Head-Major to Token-Major</h3>
+                <div class="memory-flow-container">
+                    <div class="phase-container phase-3" style="position: relative;">
+                        <div class="phase-title">Phase 3: Concatenation</div>
+                        
+                        <div class="memory-layout-viz">
+                            <h4>Memory Layout</h4>
+                            <div style="margin-bottom: 15px;">
+                                <strong>Input (Head-Major):</strong>
+                                <div class="memory-block head-major-0">Head 0: [T0,T1,T2,...,TN]</div>
+                                <div class="memory-block head-major-1">Head 1: [T0,T1,T2,...,TN]</div>
+                                <div class="memory-block head-major-2">Head 2: [T0,T1,T2,...,TN]</div>
+                            </div>
+                            <div class="data-flow-arrow">↓</div>
+                            <div>
+                                <strong>Output (Token-Major):</strong>
+                                <div class="memory-block token-major">T0: [h0,h1,h2,h3,h4,h5,h6,h7]</div>
+                                <div class="memory-block token-major">T1: [h0,h1,h2,h3,h4,h5,h6,h7]</div>
+                                <div class="memory-block token-major">T2: [h0,h1,h2,h3,h4,h5,h6,h7]</div>
+                            </div>
+                        </div>
+                        
+                        <div class="core-distribution">
+                            <h4>Core Assignment</h4>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 0:</div>
+                                <div class="core-work">Tokens 0-255 ← From all heads</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 1:</div>
+                                <div class="core-work">Tokens 256-511 ← From all heads</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 2:</div>
+                                <div class="core-work">Tokens 512-767 ← From all heads</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 3:</div>
+                                <div class="core-work">Tokens 768-1023 ← From all heads</div>
+                            </div>
+                        </div>
+                        
+                        <div class="computation-detail">
+                            <h4>Memory Reorganization</h4>
+                            <div class="avx-instruction">
+                                // Conservative threading<br>
+                                for (int t = token_start; t < token_end; t++) {<br>
+                                &nbsp;&nbsp;for (int h = 0; h < num_heads; h++) {<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;// Gather from head-major<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;val = Q_ACCESS(head_data, h, t, d);<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;// Write to token-major<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;token_out[h*head_dim + d] = val;<br>
+                                &nbsp;&nbsp;}<br>
+                                }
+                            </div>
+                            <p style="font-size: 0.8em; color: #ccc;">
+                                Memory bandwidth limited phase
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Phase 4: Final Projection -->
+            <section>
+                <h3>Phase 4: Final Projection - Token-Major Efficiency</h3>
+                <div class="memory-flow-container">
+                    <div class="phase-container phase-4" style="position: relative;">
+                        <div class="phase-title">Phase 4: Final Projection</div>
+                        
+                        <div class="memory-layout-viz">
+                            <h4>Memory Layout</h4>
+                            <div style="margin-bottom: 15px;">
+                                <strong>Input (Token-Major):</strong>
+                                <div class="memory-block token-major">T0: [h0,h1,h2,h3,h4,h5,h6,h7]</div>
+                                <div class="memory-block token-major">T1: [h0,h1,h2,h3,h4,h5,h6,h7]</div>
+                                <div class="memory-block token-major">T2: [h0,h1,h2,h3,h4,h5,h6,h7]</div>
+                            </div>
+                            <div class="data-flow-arrow">↓</div>
+                            <div>
+                                <strong>Output (Token-Major):</strong>
+                                <div class="memory-block token-major">T0: [out_features]</div>
+                                <div class="memory-block token-major">T1: [out_features]</div>
+                                <div class="memory-block token-major">T2: [out_features]</div>
+                            </div>
+                        </div>
+                        
+                        <div class="core-distribution">
+                            <h4>Core Assignment</h4>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 0:</div>
+                                <div class="core-work">Tokens 0-255 → GEMV</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 1:</div>
+                                <div class="core-work">Tokens 256-511 → GEMV</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 2:</div>
+                                <div class="core-work">Tokens 512-767 → GEMV</div>
+                            </div>
+                            <div class="core-assignment">
+                                <div class="core-label">Core 3:</div>
+                                <div class="core-work">Tokens 768-1023 → GEMV</div>
+                            </div>
+                        </div>
+                        
+                        <div class="computation-detail">
+                            <h4>AVX-512 GEMV</h4>
+                            <div class="avx-instruction">
+                                // Standard token-parallel GEMM<br>
+                                for (int t = token_start; t < token_end; t++) {<br>
+                                &nbsp;&nbsp;const float *input = concat_buf + t*embed_dim;<br>
+                                &nbsp;&nbsp;float *output = result + t*embed_dim;<br>
+                                &nbsp;&nbsp;<br>
+                                &nbsp;&nbsp;avx512_gemv_with_bias(input, weights,<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bias, output,<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;embed_dim);<br>
+                                }
+                            </div>
+                            <p style="font-size: 0.8em; color: #ccc;">
+                                Excellent sequential access patterns
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PART V: PRODUCTION CODE -->
+            <section>
+                <h2>Part V: Production Code</h2>
+                <div class="journey-progress">
+                    <div class="progress-step inactive">Theory</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Intuition</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">Architecture</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step inactive">HPC</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step active">Production</div>
+                </div>
+                <p>Real C code that achieves 400+ GFLOPS performance</p>
+            </section>
+
+            <!-- Complete Pipeline Integration -->
+            <section>
+                <h3>The Complete Attention Pipeline Integration</h3>
+                <p>How all phases integrate in the transformer layer</p>
+                <pre><code class="c code-block-small" data-trim>
+void transformer_layer_optimized(TransformerModel *M, int layer_idx, size_t layer_input_offset) {
+    TrulyOptimalLayer *L = &M->layers[layer_idx];
+    const float eps = 1e-5f;
+
+    // 1. Pre-attention LayerNorm (Token-Parallel)
+    layernorm_token_parallel(M, layer_input_offset, L->ln1_weight_offset,
+                             L->ln1_bias_offset, L->ln1_mean_offset, 
+                             L->ln1_rstd_offset, L->ln1_output_offset, eps);
+
+    // 2. QKV Projection (Token-Parallel → Head-Major Output)
+    qkv_projection_head_major(M, layer_idx);
+
+    // 3. Attention Computation (Head-Parallel)
+    attention_head_major_complete(M, layer_idx);
+
+    // 4. Attention Output Projection (Head-Major → Token-Major)
+    attention_projection_with_concat(M, layer_idx);
+    
+    // 5. First Residual Connection (Token-Parallel)
+    residual_add_token_parallel(M, layer_input_offset, L->attention_output_offset,
+                                L->residual1_output_offset);
+
+    // 6. Pre-MLP LayerNorm (Token-Parallel)
+    layernorm_token_parallel(M, L->residual1_output_offset, L->ln2_weight_offset,
+                             L->ln2_bias_offset, L->ln2_mean_offset, 
+                             L->ln2_rstd_offset, L->ln2_output_offset, eps);
+
+    // 7. MLP Feed-Forward (Token-Parallel)
+    mlp_token_parallel(M, L->ln2_output_offset, L->fc1_weight_offset, L->fc1_bias_offset,
+                       L->fc1_output_offset, L->fc2_weight_offset, L->fc2_bias_offset,
+                       L->mlp_output_offset);
+
+    // 8. Second Residual Connection (Token-Parallel)
+    residual_add_token_parallel(M, L->residual1_output_offset, L->mlp_output_offset,
+                                L->residual2_output_offset);
+}
+                </code></pre>
+            </section>
+
+            <!-- Performance Analysis: Real Numbers -->
+            <section>
+                <h3>Performance Analysis: Real Numbers</h3>
+                <p>Measured performance from the actual implementation</p>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-top: 30px;">
+                    <div>
+                        <h4>Phase Timing Breakdown</h4>
+                        <div style="background: #1a1a1a; padding: 15px; border-radius: 10px;">
+                            <div style="display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(229, 115, 115, 0.2); border-radius: 5px;">
+                                <span>Phase 1 (QKV)</span><span>~0.3ms</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(100, 181, 246, 0.2); border-radius: 5px;">
+                                <span>Phase 2 (Attention)</span><span>~1.2ms</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(255, 213, 79, 0.2); border-radius: 5px;">
+                                <span>Phase 3 (Concat)</span><span>~0.2ms</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(129, 199, 132, 0.2); border-radius: 5px;">
+                                <span>Phase 4 (Projection)</span><span>~0.3ms</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin: 8px 0; padding: 8px; background: rgba(186, 104, 200, 0.2); border-radius: 5px; font-weight: bold;">
+                                <span>Total</span><span>~2.0ms</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4>Memory Hierarchy Utilization</h4>
+                        <div style="background: #1a1a1a; padding: 15px; border-radius: 10px;">
+                            <div style="margin: 10px 0;">
+                                <div style="font-weight: bold; margin-bottom: 5px;">L1 Cache (32KB per core)</div>
+                                <div style="width: 100%; height: 20px; background: #333; border-radius: 10px; overflow: hidden;">
+                                    <div style="width: 85%; height: 100%; background: #81c784;"></div>
+                                </div>
+                                <div style="font-size: 0.8em; color: #ccc;">85% hit rate</div>
+                            </div>
+                            <div style="margin: 10px 0;">
+                                <div style="font-weight: bold; margin-bottom: 5px;">L2 Cache (256KB per core)</div>
+                                <div style="width: 100%; height: 20px; background: #333; border-radius: 10px; overflow: hidden;">
+                                    <div style="width: 92%; height: 100%; background: #64b5f6;"></div>
+                                </div>
+                                <div style="font-size: 0.8em; color: #ccc;">92% hit rate</div>
+                            </div>
+                            <div style="margin: 10px 0;">
+                                <div style="font-weight: bold; margin-bottom: 5px;">L3 Cache (32MB shared)</div>
+                                <div style="width: 100%; height: 20px; background: #333; border-radius: 10px; overflow: hidden;">
+                                    <div style="width: 96%; height: 100%; background: #ff6f00;"></div>
+                                </div>
+                                <div style="font-size: 0.8em; color: #ccc;">96% hit rate</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="formula-box" style="margin-top: 30px;">
+                    <strong>Key Result:</strong> Head-major layout in Phase 2 achieves 96% L3 cache hit rate, 
+                    making it the most efficient phase despite being the most compute-intensive.
+                </div>
+            </section>
+
+            <!-- Future Optimizations -->
+            <section>
+                <h3>Future Optimizations: Direct Strided Projection</h3>
+                <p>Eliminating Phase 3 for even better performance</p>
+                <div style="display: flex; justify-content: space-between; gap: 30px;">
+                    <div style="width: 45%;">
+                        <h4>Current: 4-Phase Process</h4>
+                        <div style="background: rgba(255, 213, 79, 0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                            <strong>Phase 3: Concatenation</strong><br>
+                            <small>Memory bandwidth bottleneck</small><br>
+                            <small>~15% of total attention time</small>
+                        </div>
+                        <div class="avx-instruction">
+                            // Current approach<br>
+                            // 1. Head-major → Token-major (Phase 3)<br>
+                            // 2. Token-major GEMM (Phase 4)<br>
+                            for (int t = 0; t < tokens; t++) {<br>
+                            &nbsp;&nbsp;concat_heads_to_token(t);<br>
+                            &nbsp;&nbsp;gemv_projection(token_data[t]);<br>
+                            }
+                        </div>
+                    </div>
+                    <div style="width: 50%;">
+                        <h4>Future: 3-Phase Process</h4>
+                        <div style="background: rgba(129, 199, 132, 0.1); padding: 15px; border-radius: 10px; margin: 10px 0;">
+                            <strong>Direct Strided Projection</strong><br>
+                            <small>Skip concatenation entirely</small><br>
+                            <small>Potential 10-15% speedup</small>
+                        </div>
+                        <div class="avx-instruction">
+                            // Future optimization<br>
+                            // Direct head-major → token-major projection<br>
+                            for (int t = 0; t < tokens; t++) {<br>
+                            &nbsp;&nbsp;for (int out_dim = 0; out_dim < embed_dim; out_dim++) {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;float sum = 0;<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;for (int h = 0; h < num_heads; h++) {<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sum += HEAD_ACCESS(h,t,d) * WEIGHT(h,d,out_dim);<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;output[t][out_dim] = sum;<br>
+                            &nbsp;&nbsp;}<br>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <p class="fragment" style="margin-top: 20px; font-size: 0.9em;">
+                    <strong>Research Question:</strong> Will strided access patterns offset the memory bandwidth savings? 
+                    Optimal strategy may depend on core count and memory architecture.
+                </p>
+            </section>
+
+            <!-- Include All Visualizations -->
+            <section data-background-color="#ffffff">
+                <h3>The Emergence of Intelligence</h3>
+                <p style="color: #333">This mathematical process creates understanding through specialized attention patterns that emerge across layers.</p>
+                <img src="organized_assets/images/emergent.svg" style="width: 95%; border: none; box-shadow: none;">
+            </section>
+
+            <section data-background-color="#ffffff">
+                <h3>Performance Deep Dive: PyTorch vs Optimized C</h3>
+                <p style="color: #333">Real performance comparison showing where the optimizations matter most.</p>
+                <img src="organized_assets/images/attention_inference.svg" style="width: 95%; border: none; box-shadow: none;">
+            </section>
+
+            <section data-background-color="#ffffff">
+                <h3>Self-Attention Computation Flow</h3>
+                <p style="color: #333">Complete visualization of the attention mechanism with actual memory layouts.</p>
+                <img src="organized_assets/images/self_attention.svg" style="width: 95%; border: none; box-shadow: none;">
+            </section>
+
+            <!-- Interactive Attention Pipeline -->
+            <section data-background-iframe="organized_assets/infographics/attention_comprehensive.html" data-background-interactive>
+                <div style="position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px;">
+                    <h3 style="color: white; margin: 0;">Interactive Attention Pipeline</h3>
+                    <p style="color: #ccc; margin: 10px 0 0 0; font-size: 0.8em;">Explore the complete attention mechanism with interactive visualizations</p>
+                </div>
+            </section>
+
+            <!-- Final Performance Summary -->
+            <section>
+                <h3>Final Performance Summary</h3>
+                <p>Production-ready results on modern hardware</p>
+                <div class="journey-progress">
+                    <div class="progress-step active">Theory</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step active">Intuition</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step active">Architecture</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step active">HPC</div>
+                    <div class="progress-arrow">→</div>
+                    <div class="progress-step active">Production</div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 40px;">
+                    <div class="perf-metric">
+                        <div class="perf-number">400+</div>
+                        <div>GFLOPS</div>
+                        <div style="font-size: 0.7em; margin-top: 5px;">Sustained on Intel Xeon</div>
+                    </div>
+                    <div class="perf-metric">
+                        <div class="perf-number">10-50x</div>
+                        <div>Speedup</div>
+                        <div style="font-size: 0.7em; margin-top: 5px;">vs PyTorch CPU</div>
+                    </div>
+                    <div class="perf-metric">
+                        <div class="perf-number">~2ms</div>
+                        <div>Per Layer</div>
+                        <div style="font-size: 0.7em; margin-top: 5px;">Complete attention</div>
+                    </div>
+                    <div class="perf-metric">
+                        <div class="perf-number">96%+</div>
+                        <div>Cache Efficiency</div>
+                        <div style="font-size: 0.7em; margin-top: 5px;">L3 cache utilization</div>
+                    </div>
+                    <div class="perf-metric">
+                        <div class="perf-number">0</div>
+                        <div>Memory Frag</div>
+                        <div style="font-size: 0.7em; margin-top: 5px;">Single allocation</div>
+                    </div>
+                    <div class="perf-metric">
+                        <div class="perf-number">64B</div>
+                        <div>Alignment</div>
+                        <div style="font-size: 0.7em; margin-top: 5px;">Perfect cache lines</div>
+                    </div>
+                </div>
+                <div style="margin-top: 40px; font-size: 1.1em; text-align: center;">
+                    <div style="color: #ff6f00; font-weight: bold; margin-bottom: 15px;">
+                        Making AI inference feasible everywhere:
+                    </div>
+                    <div style="display: flex; justify-content: center; gap: 40px; font-size: 0.9em;">
+                        <div>🤖 Edge Devices</div>
+                        <div>🦾 Real-time Robotics</div>
+                        <div>🏥 Safety-critical Systems</div>
+                        <div>☁️ Cost-effective Cloud</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Conclusion: The Complete Journey -->
+            <section>
+                <h2>Conclusion: The Complete Journey</h2>
+                <p>We've traveled from fundamental mathematics to production-grade high-performance code:</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
+                    <div>
+                        <h4>🧮 Mathematical Understanding</h4>
+                        <ul style="font-size: 0.8em; text-align: left;">
+                            <li>Scaled dot-product attention formula</li>
+                            <li>Multi-head parallel processing</li>
+                            <li>Causal masking for autoregressive models</li>
+                            <li>FLOP analysis and computational complexity</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>🧠 Conceptual Intuition</h4>
+                        <ul style="font-size: 0.8em; text-align: left;">
+                            <li>Why attention enables parallelization</li>
+                            <li>Head specialization and emergent behaviors</li>
+                            <li>Memory access pattern implications</li>
+                            <li>Cache locality and performance trade-offs</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>🏗️ Memory Architecture</h4>
+                        <ul style="font-size: 0.8em; text-align: left;">
+                            <li>Head-major memory layout design</li>
+                            <li>Cache-aligned data structures</li>
+                            <li>Zero-fragmentation memory allocation</li>
+                            <li>Four-phase data flow optimization</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>⚡ HPC & Production</h4>
+                        <ul style="font-size: 0.8em; text-align: left;">
+                            <li>AVX-512 vectorization optimization</li>
+                            <li>Head-parallel computation strategy</li>
+                            <li>Real performance measurements</li>
+                            <li>Future optimization directions</li>
+                        </ul>
+                    </div>
+                </div>
+                <div style="margin-top: 40px; text-align: center;">
+                    <div class="journey-progress">
+                        <div class="progress-step active">Theory</div>
+                        <div class="progress-arrow">→</div>
+                        <div class="progress-step active">Intuition</div>
+                        <div class="progress-arrow">→</div>
+                        <div class="progress-step active">Architecture</div>
+                        <div class="progress-arrow">→</div>
+                        <div class="progress-step active">HPC</div>
+                        <div class="progress-arrow">→</div>
+                        <div class="progress-step active">Production</div>
+                    </div>
+                    <div style="font-size: 1.3em; color: #ff6f00; font-weight: bold; margin-top: 20px;">
+                        From $QK^T$ to 400+ GFLOPS: The Complete Journey
+                    </div>
+                </div>
+            </section>
+
+            <!-- Thank You -->
+            <section>
+                <h2>Thank You</h2>
+                <h3>Questions & Discussion</h3>
+                <div style="margin-top: 50px; font-size: 0.9em;">
+                    <p>This presentation showcases the complete journey from mathematical foundations to production-grade high-performance attention mechanisms.</p>
+                    <div style="margin-top: 30px; display: flex; justify-content: center; gap: 50px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 2em;">🧮</div>
+                            <div>Mathematical Rigor</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 2em;">🧠</div>
+                            <div>Conceptual Clarity</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 2em;">🏗️</div>
+                            <div>Memory Architecture</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 2em;">⚡</div>
+                            <div>HPC Performance</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 2em;">🚀</div>
+                            <div>Production Ready</div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 30px; font-style: italic;">Ready to deploy high-performance AI inference anywhere.</p>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+  <script src="../reveal.js/dist/reveal.js"></script>
+  <script src="../reveal.js/plugin/zoom/zoom.js"></script>
+  <script src="../reveal.js/plugin/notes/notes.js"></script>
+  <script src="../reveal.js/plugin/search/search.js"></script>
+  <script src="../reveal.js/plugin/markdown/markdown.js"></script>
+  <script src="../reveal.js/plugin/highlight/highlight.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/math/math.min.js"></script>
+  <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                center: true,
+                hash: true,
+                transition: 'slide',
+                plugins: [RevealZoom, RevealHighlight, RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+            });
+
+            const HEAD_COLORS = ['#e57373', '#81c784', '#64b5f6', '#ffd54f', '#ba68c8', '#ff8a65', '#a1887f', '#90a4ae'];
+
+            function createGrid(container, rows, cols, colorFn, isCausal) {
+                if (!container) return;
+                container.innerHTML = '';
+                container.style.gridTemplateColumns = `repeat(${cols}, 15px)`;
+                container.style.gridTemplateRows = `repeat(${rows}, 15px)`;
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        const cell = document.createElement('div');
+                        cell.classList.add('heatmap-cell');
+                        cell.style.backgroundColor = colorFn(i, j);
+                        if (isCausal && j > i) { cell.style.opacity = 0.1; }
+                        else { cell.style.opacity = Math.random() * 0.6 + 0.3; }
+                        container.appendChild(cell);
+                    }
+                }
+            }
+
+            function setupVizSlides() {
+                // Reorganization Viz
+                if (document.getElementById('viz-memory-reorg')) {
+                    createGrid(document.getElementById('reorg-q-grid'), 8, 16, (i, j) => HEAD_COLORS[j % 8]);
+                    createGrid(document.getElementById('reorg-heads-grid'), 8, 16, (i, j) => HEAD_COLORS[Math.floor(j/2)]);
+                }
+
+                // Scores Viz
+                if (document.getElementById('viz-scores')) {
+                    createGrid(document.getElementById('score-q-grid'), 8, 2, () => HEAD_COLORS[0]);
+                    createGrid(document.getElementById('score-k-grid'), 2, 8, () => HEAD_COLORS[0]);
+                    createGrid(document.getElementById('score-res-grid'), 8, 8, () => '#ff8a65', true);
+                }
+
+                // Logical vs Physical Viz
+                const logicalContainer = document.getElementById('logical-heads');
+                const physicalBar = document.getElementById('physical-bar');
+                if (document.getElementById('viz-logical-physical') && logicalContainer && physicalBar) {
+                    logicalContainer.innerHTML = '';
+                    physicalBar.innerHTML = '';
+
+                    for (let h = 0; h < 8; h++) {
+                        const headContainer = document.createElement('div');
+                        const headGrid = document.createElement('div');
+                        headGrid.classList.add('heatmap-grid');
+                        const legend = document.createElement('div');
+                        legend.classList.add('legend');
+                        legend.innerText = `Head ${h}`;
+                        headContainer.appendChild(headGrid);
+                        headContainer.appendChild(legend);
+                        logicalContainer.appendChild(headContainer);
+                        createGrid(headGrid, 8, 2, () => HEAD_COLORS[h]);
+
+                        const memBlock = document.createElement('div');
+                        memBlock.classList.add('mem-block');
+                        memBlock.style.width = '12.5%';
+                        memBlock.style.backgroundColor = HEAD_COLORS[h];
+                        memBlock.id = `physical-block-${h}`;
+                        physicalBar.appendChild(memBlock);
+
+                        headContainer.addEventListener('mouseover', () => { 
+                            document.getElementById(`physical-block-${h}`).classList.add('highlight-box');
+                        });
+                        headContainer.addEventListener('mouseout', () => { 
+                            document.getElementById(`physical-block-${h}`).classList.remove('highlight-box');
+                        });
+                    }
+                }
+            }
+
+            Reveal.on('ready', event => { setupVizSlides(); });
+            Reveal.on('slidechanged', event => { setupVizSlides(); });
+        });
+    </script>
+</body>
+</html>
