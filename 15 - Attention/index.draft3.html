@@ -1,0 +1,299 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Attention Is All You Need - Draft 3</title>
+
+    <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+    <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+    <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --r-main-font-size: 26px;
+        }
+        .reveal .slides section {
+            font-size: 0.9em;
+        }
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+            text-transform: none;
+        }
+        .formula-box { background-color: rgba(45, 51, 59, 0.8); border-radius: 15px; padding: 20px; margin-top: 20px; border: 1px solid #484f58; }
+        .dim-table { margin: 20px auto; font-size: 0.8em; border-collapse: collapse; }
+        .dim-table th, .dim-table td { border: 1px solid #484f58; padding: 10px 20px; }
+        .transformer-block { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .block-component { border: 2px solid #484f58; border-radius: 10px; padding: 10px 20px; width: 350px; text-align: center; background-color: #2d333b; }
+        .block-component.highlight { border-color: #ff6f00; background-color: #4d3c20; box-shadow: 0 0 15px #ff6f00; }
+        .arrow-down { width: 0; height: 0; border-left: 15px solid transparent; border-right: 15px solid transparent; border-top: 20px solid #484f58; }
+
+        /* Visualization Styles */
+        .viz-container { display: flex; justify-content: center; align-items: center; gap: 20px; position: relative; min-height: 400px;}
+        .grid-container { position: relative; }
+        .heatmap-grid { display: grid; gap: 2px; border: 1px solid #666;}
+        .heatmap-cell { background-color: #4a90e2; transition: all 0.5s; }
+        .legend { position: absolute; color: #ccc; font-size: 0.7em; }
+        .legend-y { writing-mode: vertical-rl; transform: rotate(180deg); left: -40px; top: 50%; transform-origin: center; }
+        .legend-x { top: -30px; left: 50%; transform: translateX(-50%); }
+        .op-label { font-size: 2em; color: #ccc; }
+
+        /* Head Splitting Viz */
+        .heads-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+
+        /* Memory Layout Viz */
+        .memory-viz { display: flex; justify-content: space-around; width: 100%; }
+        .memory-layout { width: 45%; }
+        .memory-bar { display: flex; flex-wrap: wrap; border: 2px solid #888; background: #111; padding: 2px; border-radius: 5px;}
+        .mem-block { width: 12.5%; height: 20px; box-sizing: border-box; border: 1px solid #333;}
+        .head-color-0 { background-color: #e57373; }
+        .head-color-1 { background-color: #81c784; }
+        .head-color-2 { background-color: #64b5f6; }
+        .head-color-3 { background-color: #ffd54f; }
+        .head-color-4 { background-color: #ba68c8; }
+        .head-color-5 { background-color: #ff8a65; }
+        .head-color-6 { background-color: #a1887f; }
+        .head-color-7 { background-color: #90a4ae; }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <h2>Attention Is All You Need</h2>
+                <h3>From Theory to AVX-512</h3>
+                <p>A Deep Dive into High-Performance Transformer Implementation</p>
+                <p><small>Created by bashbash</small></p>
+            </section>
+
+            <section>
+                <h3>Our Focus: The Heart of the Transformer</h3>
+                <p>Today, we're diving deep into the Multi-Head Attention mechanism, the core component of a modern autoregressive transformer block.</p>
+                <div class="transformer-block">
+                    <div class="block-component">Input (from LayerNorm)</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component highlight">
+                        <strong>Causal Multi-Head Attention</strong>
+                        <small>(Our Focus)</small>
+                    </div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">Add & Norm</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">Feed-Forward Network</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">Add & Norm</div>
+                    <div class="arrow-down"></div>
+                    <div class="block-component">Output</div>
+                </div>
+            </section>
+
+            <section id="viz-input">
+                <h3>Visualizing the Input Tensor</h3>
+                <p>We start with the output of LayerNorm, a tensor `X` of shape `[T, C]`.</p>
+                <div class="viz-container">
+                    <div class="grid-container" id="input-container">
+                        <div class="legend legend-y">Tokens (T)</div>
+                        <div class="legend legend-x">Embedding Features (C)</div>
+                        <div class="heatmap-grid" id="input-grid"></div>
+                    </div>
+                </div>
+                <p><small>Visualizing an 8x8 slice of a [2048, 512] tensor. Each cell is a single float.</small></p>
+            </section>
+
+            <section id="viz-projection">
+                <h3>Step 1: QKV Projection</h3>
+                <p>We multiply `X` by three learned weight matrices (`W_q`, `W_k`, `W_v`) to get the Q, K, and V tensors.</p>
+                <div class="viz-container">
+                    <div class="grid-container"><div class="heatmap-grid" id="proj-x-grid"></div><div class="legend legend-x">X [T,C]</div></div>
+                    <div class="op-label">×</div>
+                    <div class="grid-container"><div class="heatmap-grid" id="proj-w-grid"></div><div class="legend legend-x">W_q [C,C]</div></div>
+                    <div class="op-label">=</div>
+                    <div class="grid-container"><div class="heatmap-grid" id="proj-q-grid"></div><div class="legend legend-x">Q [T,C]</div></div>
+                </div>
+                <p class="fragment"><small>This is a massive computation (3x GEMM) that your AVX-512 kernels hyper-accelerate.</small></p>
+            </section>
+
+            <section id="viz-split">
+                <h3>Step 2: Splitting into Heads</h3>
+                <p>We reshape the `Q` tensor from `[T, C]` into `H` separate `[T, D_h]` matrices. This is a memory operation, not a computation.</p>
+                <div class="viz-container">
+                    <div class="grid-container"><div class="heatmap-grid" id="split-q-grid"></div><div class="legend legend-x">Q [T,C]</div></div>
+                    <div class="op-label">→</div>
+                    <div class="heads-container" id="split-heads-container"></div>
+                </div>
+                <p class="fragment"><small>This reorganization is where the concept of "Head-Major" memory layout becomes critical for performance.</small></p>
+            </section>
+
+            <section id="viz-scores">
+                <h3>Step 3: Calculating Scores</h3>
+                <p>For each head, we multiply its `Q` with the transposed `K` to get a `[T, T]` score matrix.</p>
+                <div class="viz-container">
+                    <div class="grid-container"><div class="heatmap-grid" id="score-q-grid"></div><div class="legend legend-x">Q_h [T,D_h]</div></div>
+                    <div class="op-label">×</div>
+                    <div class="grid-container"><div class="heatmap-grid" id="score-k-grid"></div><div class="legend legend-x">K_h^T [D_h,T]</div></div>
+                    <div class="op-label">=</div>
+                    <div class="grid-container"><div class="heatmap-grid" id="score-res-grid"></div><div class="legend legend-x">Scores [T,T]</div></div>
+                </div>
+                <p class="fragment"><small>After this, we apply the causal mask, scale, and run softmax to get the final attention probabilities.</small></p>
+            </section>
+
+            <section id="viz-memory">
+                <h3>Memory Layout: The Unseen Performance Multiplier</h3>
+                <p>How data is arranged in memory dramatically impacts speed. This is where your C implementation has a massive advantage.</p>
+                <div class="memory-viz">
+                    <div class="memory-layout">
+                        <h4>Token-Major (The Slow Way)</h4>
+                        <p><small>Head data is scattered. Accessing Head 0 requires jumping all over memory, causing constant cache misses.</small></p>
+                        <div class="memory-bar" id="token-major-bar"></div>
+                    </div>
+                    <div class="memory-layout">
+                        <h4>Head-Major (Your Optimized Way)</h4>
+                        <p><small>All data for a single head is contiguous. A core can read what it needs in one sequential, cache-friendly operation.</small></p>
+                        <div class="memory-bar" id="head-major-bar"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>The Mathematical Journey of a Token</h2>
+                <p>Let's review the core attention formula with our new visual understanding.</p>
+                <div class="formula-box">
+                    $$ Attention(Q, K, V) = softmax(\frac{QK^T}{\sqrt{d_k}})V $$
+                </div>
+            </section>
+
+            <section data-background-color="#ffffff">
+                <h3>The Emergence of Intelligence</h3>
+                <img src="assets/emergent.svg" style="width: 95%; border: none; box-shadow: none;">
+            </section>
+
+            <section data-background-color="#ffffff">
+                <h3>Performance Deep Dive: The Bottlenecks</h3>
+                <img src="assets/attention_inference.svg" style="width: 95%; border: none; box-shadow: none;">
+            </section>
+
+            <section>
+                <h3>Performance</h3>
+                <p>By leveraging C, AVX-512, and a cache-optimal memory layout, we achieve performance orders of magnitude faster than a standard Python implementation.</p>
+                <p><strong>Result: 400+ GFLOPS on a modern CPU.</strong></p>
+                <p class="fragment">This makes running powerful transformer models feasible on edge devices, in robotics, and in other environments where GPU resources are not available.</p>
+            </section>
+
+        </div>
+    </div>
+
+  <script src="../reveal.js/dist/reveal.js"></script>
+  <script src="../reveal.js/plugin/zoom/zoom.js"></script>
+  <script src="../reveal.js/plugin/notes/notes.js"></script>
+  <script src="../reveal.js/plugin/search/search.js"></script>
+  <script src="../reveal.js/plugin/markdown/markdown.js"></script>
+  <script src="../reveal.js/plugin/highlight/highlight.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/plugin/math/math.min.js"></script>
+  <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            Reveal.initialize({
+                controls: true,
+                progress: true,
+                center: true,
+                hash: true,
+                transition: 'slide',
+                plugins: [RevealZoom, RevealHighlight, RevealMarkdown, RevealNotes, RevealMath.KaTeX ]
+            });
+
+            const HEAD_COLORS = ['#e57373', '#81c784', '#64b5f6', '#ffd54f', '#ba68c8', '#ff8a65', '#a1887f', '#90a4ae'];
+
+            function createGrid(containerId, rows, cols, cellColor, isCausal) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                container.innerHTML = '';
+                container.style.gridTemplateColumns = `repeat(${cols}, 25px)`;
+                container.style.gridTemplateRows = `repeat(${rows}, 25px)`;
+                for (let i = 0; i < rows; i++) {
+                    for (let j = 0; j < cols; j++) {
+                        const cell = document.createElement('div');
+                        cell.classList.add('heatmap-cell');
+                        if (cellColor) cell.style.backgroundColor = cellColor;
+                        if (isCausal && j > i) {
+                            cell.style.opacity = 0.1;
+                        } else {
+                            cell.style.opacity = Math.random() * 0.6 + 0.2;
+                        }
+                        container.appendChild(cell);
+                    }
+                }
+            }
+
+            function createMemoryLayouts() {
+                const tokenMajorBar = document.getElementById('token-major-bar');
+                const headMajorBar = document.getElementById('head-major-bar');
+                if (!tokenMajorBar || !headMajorBar) return;
+
+                // Token-Major
+                for (let i = 0; i < 64; i++) {
+                    const block = document.createElement('div');
+                    block.classList.add('mem-block', `head-color-${i % 8}`);
+                    tokenMajorBar.appendChild(block);
+                }
+
+                // Head-Major
+                for (let i = 0; i < 8; i++) {
+                    for (let j = 0; j < 8; j++) {
+                         const block = document.createElement('div');
+                        block.classList.add('mem-block', `head-color-${i}`);
+                        headMajorBar.appendChild(block);
+                    }
+                }
+            }
+
+            function setupVizSlides() {
+                // Input Viz
+                if (document.getElementById('viz-input')) {
+                    createGrid('input-grid', 8, 16, '#4a90e2');
+                }
+                // Projection Viz
+                if (document.getElementById('viz-projection')) {
+                    createGrid('proj-x-grid', 8, 8, '#4a90e2');
+                    createGrid('proj-w-grid', 8, 8, '#e57373');
+                    createGrid('proj-q-grid', 8, 8, '#81c784');
+                }
+                // Split Viz
+                const headsContainer = document.getElementById('split-heads-container');
+                if (document.getElementById('viz-split') && headsContainer) {
+                    createGrid('split-q-grid', 8, 16, '#81c784');
+                    headsContainer.innerHTML = '';
+                    for(let i=0; i<8; i++) {
+                        const headGrid = document.createElement('div');
+                        headGrid.classList.add('heatmap-grid');
+                        headGrid.style.border = `2px solid ${HEAD_COLORS[i]}`;
+                        headsContainer.appendChild(headGrid);
+                        createGrid(headGrid, 8, 2, HEAD_COLORS[i]);
+                    }
+                }
+                // Score Viz
+                if (document.getElementById('viz-scores')) {
+                    createGrid('score-q-grid', 8, 2, HEAD_COLORS[0]);
+                    createGrid('score-k-grid', 2, 8, HEAD_COLORS[0]);
+                    createGrid('score-res-grid', 8, 8, '#ff8a65', true);
+                }
+                // Memory Viz
+                if (document.getElementById('viz-memory')) {
+                    createMemoryLayouts();
+                }
+            }
+
+            Reveal.on('ready', event => {
+                setupVizSlides();
+            });
+            Reveal.on('slidechanged', event => {
+                setupVizSlides();
+            });
+        });
+    </script>
+</body>
+</html>
