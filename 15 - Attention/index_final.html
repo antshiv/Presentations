@@ -219,6 +219,10 @@
         <div class="slides">
             <!-- Title Slide -->
             <section>
+<aside class="notes">
+SLIDE 1: Title Slide - Attention Is All You Need
+Welcome everyone! Today we're going on an incredible journey - from the mathematical theory behind attention mechanisms all the way to production-grade C code that achieves over 400 GFLOPS. This isn't just theory - by the end of this presentation, you'll understand exactly how to build world-class attention implementations. We're going to progress through five distinct phases: Theory, Intuition, Architecture, HPC, and finally Production. We'll start with the famous QK^T formula and end with code that achieves performance comparable to the best implementations in the world.
+</aside>
                 <h2>Attention Is All You Need</h2>
                 <h3>The Definitive Implementation Guide</h3>
                 <h4>From Mathematical Theory to 400+ GFLOPS Production Code</h4>
@@ -239,6 +243,10 @@
 
             <!-- PART I: MATHEMATICAL FOUNDATIONS -->
             <section>
+<aside class="notes">
+SLIDE 2: Part I - Mathematical Foundations
+Let's begin with Part 1 - the mathematical foundations. We're now in the Theory phase of our journey. It's crucial to understand these mathematical building blocks before we move to implementation. We need to understand not just what the formulas do, but WHY they work. This mathematical understanding will inform all of our optimization decisions later. Without this foundation, we'd be optimizing blindly.
+</aside>
                 <h2>Part I: Mathematical Foundations</h2>
                 <div class="journey-progress">
                     <div class="progress-step active">Theory</div>
@@ -256,6 +264,10 @@
 
             <!-- Why Attention Matters -->
             <section>
+<aside class="notes">
+SLIDE 3: Why Attention Changed Everything
+Before attention mechanisms, sequence models were fundamentally limited. Traditional RNNs had to process sequences one step at a time - that's O(T) time complexity with no possibility of parallelization. They suffered from information bottlenecks where all context had to squeeze through hidden states, and gradient vanishing problems meant they couldn't handle long sequences effectively. Self-attention changed everything by introducing parallel processing - O(1) time complexity if you have enough cores. It creates direct connections between all positions in the sequence with constant path length for information flow. The core insight is revolutionary: instead of sequential hidden states, we compute attention weights between ALL pairs of positions simultaneously.
+</aside>
                 <h3>Why Attention Changed Everything</h3>
                 <p>Before attention, sequence models were fundamentally limited by sequential processing. Attention introduced parallelization and global context understanding.</p>
                 <div style="display: flex; justify-content: space-around; margin-top: 30px;">
@@ -285,6 +297,10 @@
 
             <!-- The Goal of Attention -->
             <section>
+<aside class="notes">
+SLIDE 4: The Goal of Attention
+So what's the goal of attention? For each token in our sequence, we want to create a new representation that is a weighted average of all other tokens. The key insight is that these weights are not fixed - they're calculated dynamically based on how relevant each token is to the current one we're processing. The formula is Output_i equals the sum over all j of alpha_ij times Value_j, where alpha_ij represents how much token i should attend to token j. The fundamental question becomes: How do we compute these attention weights alpha_ij? That's what we'll explore next.
+</aside>
                 <h2>The Goal of Attention</h2>
                 <p>For each token, we want to create a new representation that is a <span style="color: #ff6f00;">weighted average</span> of all other tokens in the sequence.</p>
                 <p class="fragment">The weights are not fixed; they are calculated on the fly based on how <span style="color: #ff6f00;">relevant</span> each token is to the current one we're processing.</p>
@@ -297,6 +313,10 @@
 
             <!-- Step 1: QKV Projections -->
             <section>
+<aside class="notes">
+SLIDE 5: Step 1 - Projecting Inputs into Q, K, V
+The first step is to transform our input into three distinct matrices: Queries, Keys, and Values. We start with our input tensor X and project it using learned weight matrices. Q equals X times W_Q, K equals X times W_K, and V equals X times W_V. Our input X has dimensions T by C - for example, 2048 tokens with 512 channels each. The weight matrices W_Q, W_K, and W_V are all C by C - these are learned parameters that the model updates during training. The output Q, K, and V matrices are all T by C. This is our first major computation step - three massive GEMM operations. These projections transform the input into queries, keys, and values that will be used for the attention computation.
+</aside>
                 <h2>Step 1: Projecting Inputs into Q, K, V</h2>
                 <p>We start with our input tensor `X` and project it into three distinct matrices: Queries, Keys, and Values, using learned weight matrices.</p>
                 <div class="formula-box">
@@ -313,6 +333,10 @@
 
             <!-- Step 2: Multi-Head Splitting -->
             <section>
+<aside class="notes">
+SLIDE 6: Step 2 - Splitting into Multiple Heads
+To allow the model to focus on different types of relationships simultaneously, we split the Q, K, and V matrices into multiple smaller "heads". We go from one large Q matrix of dimensions T by C to H heads, each of dimension T by D_h. This gives us a new structure with dimensions H by T by D_h. Typical values you'll see in practice: C (total dimension) might be 512, 768, or 1024. H (number of heads) is typically 8, 12, or 16. And D_h (dimension per head) is 64, 96, or 128 - where C equals H times D_h. Each head can learn to focus on different aspects of the relationships between tokens - some might focus on syntactic relationships, others on semantic relationships, and so on.
+</aside>
                 <h2>Step 2: Splitting into Multiple Heads</h2>
                 <p>To allow the model to focus on different types of relationships simultaneously, we split the Q, K, and V matrices into multiple, smaller "heads".</p>
                 <div style="display: flex; justify-content: center; align-items: center; gap: 50px; margin-top: 30px;">
@@ -345,6 +369,10 @@
 
             <!-- Step 3: Scaled Dot-Product Attention -->
             <section>
+<aside class="notes">
+SLIDE 7: Step 3 - Scaled Dot-Product Attention
+This is the core calculation, and it's performed independently for each head. The formula is Attention of Q, K, V equals softmax of QK^T divided by square root of d_k, all multiplied by V. Let me break this down into its components. First, we compute scores with QK^T - this tells us how much each token should attend to every other token. Then we scale by 1 over square root of d_k to prevent gradients from vanishing. For decoder models, we apply a causal mask to prevent looking at future tokens. We normalize with softmax to convert scores to probabilities. Finally, we compute the weighted sum by multiplying by V to get our final output.
+</aside>
                 <h2>Step 3: Scaled Dot-Product Attention</h2>
                 <p>This is the core calculation, performed independently for each head.</p>
                 <div class="formula-box">
@@ -364,6 +392,10 @@
 
             <!-- Step 3a: Scoring Visualization -->
             <section id="viz-scores">
+<aside class="notes">
+SLIDE 8: Step 3a - Calculating Scores Visualization
+Let's visualize how we calculate those attention scores. We compute a score matrix by taking the dot product of the Query matrix with the transpose of the Key matrix. Q_head with dimensions T by D_h multiplied by K_head transpose with dimensions D_h by T gives us Scores with dimensions T by T. This resulting T by T matrix tells us how much each token should attend to every other token in the sequence. The formula for each element is Score_ij equals the sum over dimension d of Q_id times K_jd. This is a pure GEMM operation - a matrix multiply - which is perfectly suited for optimization. The visualization shows how these matrices multiply together to produce the attention scores.
+</aside>
                 <h3>Step 3a: Calculating Scores (Q·K^T)</h3>
                 <p>We compute a score matrix by taking the dot product of the Query matrix with the transpose of the Key matrix.</p>
                 <div class="viz-container">
@@ -391,6 +423,10 @@
 
             <!-- Step 4: Final Output -->
             <section>
+<aside class="notes">
+SLIDE 10: Step 4 - Concatenate and Project
+The final step is to combine all the head outputs back together. The outputs from all heads are concatenated and then passed through a final linear projection layer. The formula is Output equals Concatenate of head_1 through head_H, multiplied by W_O. This is the fourth and final GEMM operation in the attention mechanism. After this projection, we have our final attention output with the same dimensions as our input. Now we understand the mathematics, but the key question is: how do we implement this efficiently? That's what we'll explore in the next section.
+</aside>
                 <h2>Step 4: Concatenate and Project</h2>
                 <p>The outputs from all heads are concatenated back together and passed through a final linear projection layer.</p>
                 <div class="formula-box">
@@ -402,6 +438,10 @@
 
             <!-- PART II: INTUITION AND ARCHITECTURE -->
             <section>
+<aside class="notes">
+SLIDE 11: Part II - Intuition & Memory Architecture
+We're now moving from the Theory phase to the Intuition phase of our journey. In this section, we need to understand WHY the mathematics works the way it does, and HOW to architect memory for maximum performance. This is where we bridge the gap between mathematical understanding and practical implementation. We're starting to think like performance engineers, not just mathematicians. The decisions we make here about memory layout will determine whether our implementation runs at 10 GFLOPS or 400 GFLOPS.
+</aside>
                 <h2>Part II: Intuition & Memory Architecture</h2>
                 <div class="journey-progress">
                     <div class="progress-step inactive">Theory</div>
@@ -419,6 +459,10 @@
 
             <!-- The Transformer Architecture Context -->
             <section>
+<aside class="notes">
+SLIDE 12: Our Focus - The Heart of the Transformer
+Let's put attention in context within the full transformer architecture. The transformer has many components - embeddings, layer normalization, attention, residual connections, and MLPs. But here's the key insight: Multi-Head Attention is where 90% of the computation happens in a transformer. This makes it the computational bottleneck and the most important component to optimize. If we can make attention fast, we've made the entire transformer fast. Understanding its implementation is absolutely crucial for performance. This is where we need to focus all our optimization efforts.
+</aside>
                 <h3>Our Focus: The Heart of the Transformer</h3>
                 <p>The Multi-Head Attention mechanism is where 90% of computation happens in a transformer. Understanding its implementation is crucial for performance.</p>
                 <div class="transformer-block">
@@ -443,6 +487,10 @@
 
             <!-- Our Implementation Strategy -->
             <section>
+<aside class="notes">
+SLIDE 13: Our Implementation Strategy - Head-Parallel with Smart Memory Layout
+Our implementation uses head-parallelism as the primary strategy, with dynamic memory layout transitions to optimize each computation phase. We have four distinct phases. Phase 1 is QKV Projection - we go from token-parallel input to head-major output. Phase 2 is Attention Scores - head-parallel input to head-parallel scores. Phase 3 is Concatenation - head-parallel input to token-major output. Phase 4 is Final Projection - token-parallel input to token-major output. The key insight here is that head-parallelism provides the best cache locality for the compute-intensive attention phase, while we adapt memory layouts to optimize each stage. This strategy is what enables us to achieve world-class performance.
+</aside>
                 <h3>Our Implementation Strategy: Head-Parallel with Smart Memory Layout</h3>
                 <p>We use head-parallelism as our primary strategy, with dynamic memory layout transitions to optimize each computation phase</p>
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 30px;">
@@ -472,6 +520,10 @@
 
             <!-- Memory Layout: The Foundation -->
             <section id="viz-logical-physical">
+<aside class="notes">
+SLIDE 14: Memory Layout - The Foundation of Performance
+Now let's talk about memory layout, which is the foundation of performance. We need to map the logical concept of "heads" to a physical memory layout that the CPU can process at maximum speed. Logically, we think of 8 separate heads that operate independently. But the physical reality is different - we use a Head-Major Layout where each head's data is perfectly contiguous in memory. The layout is Head, then Token, then Dimension. All data for Head 0 is contiguous, then all data for Head 1, and so on. This enables perfect cache locality during head-parallel processing. When we're processing Head 0, all of its data fits in cache without interfering with other heads.
+</aside>
                 <h3>Memory Layout: The Foundation of Performance</h3>
                 <p>We map the logical concept of "heads" to a physical memory layout that the CPU can process at maximum speed.</p>
                 <div class="viz-container">
@@ -494,6 +546,10 @@
 
             <!-- Head-Major Reorganization -->
             <section id="viz-memory-reorg">
+<aside class="notes">
+SLIDE 15: The Head-Major Reorganization
+This reorganization is not a simple transpose - it's a deliberate, out-of-place reorganization of data for performance. We transform from input Q Tensor with dimensions T by C in Token-Major layout to output Q Buffer with dimensions H by T by D_h in Head-Major layout. For each head, represented by different colors in the visualization, we gather its feature columns from all tokens and write them into a new, contiguous memory block. The performance impact is huge: instead of scattered memory access where we're jumping around in memory, each head's data is contiguous. When processing Head 0, the entire head fits in L3 cache. This is the key to our performance.
+</aside>
                 <h3>The Head-Major Reorganization</h3>
                 <p>This is not a simple transpose. It's a deliberate, out-of-place reorganization of data for performance.</p>
                 <div class="viz-container">
@@ -516,6 +572,10 @@
 
             <!-- PART III: MEMORY ARCHITECTURE -->
             <section>
+<aside class="notes">
+SLIDE 16: Part III - Memory Architecture
+We're now entering the Architecture phase of our journey. Here we'll see the actual C code structures and memory architecture that enable 400+ GFLOPS performance. This is where theory meets reality in terms of data structures and memory management. We're going to see exactly how we organize memory at the C struct level to achieve maximum performance.
+</aside>
                 <h2>Part III: Memory Architecture</h2>
                 <div class="journey-progress">
                     <div class="progress-step inactive">Theory</div>
@@ -533,6 +593,10 @@
 
             <!-- The C-Level Memory Architecture -->
             <section>
+<aside class="notes">
+SLIDE 17: The C-Level Memory Architecture
+Our memory architecture uses a single contiguous memory block with precise struct-level control. The key design principles are: Single Allocation - we do one huge malloc for the entire model, avoiding fragmentation. Cache Alignment - all major tensors are aligned to 64-byte boundaries. Head-Major Layout - contiguous memory per attention head. Canary Protection - we can detect buffer overflows. Zero Fragmentation - completely predictable memory access patterns. The result is over 95% L3 Cache Hit Rate. The TrulyOptimalLayer struct shows how we track precise memory offsets for every tensor. The TransformerModel struct manages the entire model with aligned dimensions and execution planning. This level of control over memory is what separates a toy implementation from a production one.
+</aside>
                 <h3>The C-Level Memory Architecture</h3>
                 <p>Single contiguous memory block with precise struct-level control</p>
                 <div style="display: flex; justify-content: space-around; align-items: flex-start;">
@@ -601,6 +665,10 @@ typedef struct {
 
             <!-- Head-Major Memory Access Macros -->
             <section>
+<aside class="notes">
+SLIDE 18: Head-Major Memory Access - The Performance Key
+Here we see the carefully designed macros that enable head-parallel computation with perfect cache locality. Our Head-Major Memory Layout follows the pattern: head, then token, then head_dim. In memory, it's organized as Head0 with all its tokens, then Head1 with all its tokens, and so on. The access macros - Q_ACCESS, K_ACCESS, V_ACCESS - handle tensor access, while ATTN_ACCESS handles attention scores with the pattern head, query_token, key_token. Why is Head-Major so important? Because each head's data is contiguous in memory. When processing Head 0, all its data fits in L3 cache. There are no cache conflicts between heads during parallel processing. This is absolutely critical for performance.
+</aside>
                 <h3>Head-Major Memory Access: The Performance Key</h3>
                 <p>Carefully designed macros enable head-parallel computation with perfect cache locality</p>
                 <pre><code class="c code-block-small" data-trim>
@@ -631,6 +699,10 @@ typedef struct {
 
             <!-- PART IV: MEMORY FLOW DEEP DIVE -->
             <section>
+<aside class="notes">
+SLIDE 19: Part IV - Memory Flow Deep Dive
+We're now entering the HPC - High Performance Computing - phase of our journey. In this section, we'll see exactly how data flows through memory and cores in each computation phase. This is the detailed execution model that achieves high performance. We'll track data movement, core assignments, and cache behavior through each phase of the attention mechanism.
+</aside>
                 <h2>Part IV: Memory Flow Deep Dive</h2>
                 <div class="journey-progress">
                     <div class="progress-step inactive">Theory</div>
@@ -648,6 +720,10 @@ typedef struct {
 
             <!-- Phase 1: QKV Projection Memory Flow -->
             <section>
+<aside class="notes">
+SLIDE 20: Phase 1 - QKV Projection Memory Flow
+Phase 1 transforms from Token-Major to Head-Major layout. The input is in Token-Major layout where each token contains data for all heads - like T0 containing h0 through h7. The output is Head-Major where each head's data is contiguous - Head 0 contains all tokens T0 through TN. For core assignment, each core processes a slice of tokens. Core 0 handles tokens 0-255, Core 1 handles 256-511, and so on. Each core processes its token slice for all heads. The AVX-512 computation shows direct write to head-major layout. The key optimization here is that we write directly to head-major layout, avoiding an expensive transpose operation later. This phase prepares the data for efficient head-parallel processing in Phase 2.
+</aside>
                 <h3>Phase 1: QKV Projection - Token-Parallel to Head-Major</h3>
                 <div class="memory-flow-container">
                     <div class="phase-container phase-1" style="position: relative;">
@@ -710,6 +786,10 @@ typedef struct {
 
             <!-- Phase 2: Attention Scores - Head-Parallel -->
             <section>
+<aside class="notes">
+SLIDE 21: Phase 2 - Attention Scores Head-Parallel Perfection
+Phase 2 is where most of the computation happens, and it's perfectly organized for head-parallel execution. Both input and output are in Head-Major layout. For core assignment, each core handles one complete head - Core 0 processes Head 0, Core 1 processes Head 1, and so on. Each core computes the complete Q times K transpose for its assigned head. We achieve perfect cache locality because each core's data fits entirely in cache. The AVX-512 computation uses nested loops over tokens with FMA instructions for maximum throughput. This phase achieves 96% L3 Cache Hit Rate. Each head's data fits perfectly in cache with no interference between cores. This is why the head-major layout is so crucial - it enables this perfect parallelization.
+</aside>
                 <h3>Phase 2: Attention Scores - Head-Parallel Perfection</h3>
                 <div class="memory-flow-container">
                     <div class="phase-container phase-2" style="position: relative;">
@@ -775,6 +855,10 @@ typedef struct {
 
             <!-- Phase 3: Concatenation -->
             <section>
+<aside class="notes">
+SLIDE 22: Phase 3 - Concatenation from Head-Major to Token-Major
+Phase 3 transforms the data back from Head-Major to Token-Major layout for the final projection. The input is Head-Major with each head's data contiguous. The output is Token-Major where each token contains data from all heads. Core assignment returns to token-parallel - each core handles a slice of tokens, gathering data from all heads. Core 0 handles tokens 0-255, gathering from all heads, and so on. This is a memory reorganization phase with conservative threading due to memory bandwidth limits. Unlike the compute-intensive Phase 2, this phase is primarily memory bandwidth limited. Each core gathers data for its assigned tokens from all heads, which requires careful memory access patterns to avoid bottlenecks.
+</aside>
                 <h3>Phase 3: Concatenation - Head-Major to Token-Major</h3>
                 <div class="memory-flow-container">
                     <div class="phase-container phase-3" style="position: relative;">
@@ -840,6 +924,10 @@ typedef struct {
 
             <!-- Phase 4: Final Projection -->
             <section>
+<aside class="notes">
+SLIDE 23: Phase 4 - Final Projection Token-Major Efficiency
+Phase 4 is the final projection, a standard token-parallel GEMM operation. Both input and output are in Token-Major layout. Each core processes a slice of tokens - Core 0 handles tokens 0-255, Core 1 handles 256-511, and so on. This is a standard token-parallel GEMM operation with AVX-512 GEMV instructions. We get excellent sequential access patterns because the data is already in token-major layout from Phase 3. This phase benefits from the memory layout established in Phase 3. It's a straightforward parallel GEMM operation with good cache behavior. The sequential access patterns mean we can achieve high memory bandwidth utilization.
+</aside>
                 <h3>Phase 4: Final Projection - Token-Major Efficiency</h3>
                 <div class="memory-flow-container">
                     <div class="phase-container phase-4" style="position: relative;">
@@ -905,6 +993,10 @@ typedef struct {
 
             <!-- PART V: PRODUCTION CODE -->
             <section>
+<aside class="notes">
+SLIDE 24: Part V - Production Code
+We've finally reached the Production phase of our journey. This is where everything comes together - the real C code that achieves 400+ GFLOPS performance. We'll see working, optimized production code that integrates all the concepts we've discussed. This isn't pseudocode or simplified examples - this is the actual implementation that achieves world-class performance.
+</aside>
                 <h2>Part V: Production Code</h2>
                 <div class="journey-progress">
                     <div class="progress-step inactive">Theory</div>
@@ -922,6 +1014,10 @@ typedef struct {
 
             <!-- Complete Pipeline Integration -->
             <section>
+<aside class="notes">
+SLIDE 25: The Complete Attention Pipeline Integration
+Here's how all phases integrate in the transformer_layer_optimized function. The complete flow has 8 steps. First, Pre-attention LayerNorm with token-parallel processing. Second, QKV Projection going from token-parallel to head-major output. Third, Attention Computation with head-parallel processing. Fourth, Attention Output Projection from head-major to token-major. Fifth, First Residual Connection with token-parallel addition. Sixth, Pre-MLP LayerNorm. Seventh, MLP Feed-Forward operations. Eighth, Second Residual Connection. Each phase is optimized for its specific memory layout and parallelization strategy. The function shown is the actual production code that orchestrates all these operations efficiently.
+</aside>
                 <h3>The Complete Attention Pipeline Integration</h3>
                 <p>How all phases integrate in the transformer layer</p>
                 <pre><code class="c code-block-small" data-trim>
@@ -966,6 +1062,10 @@ void transformer_layer_optimized(TransformerModel *M, int layer_idx, size_t laye
 
             <!-- Performance Analysis: Real Numbers -->
             <section>
+<aside class="notes">
+SLIDE 26: Performance Analysis - Real Numbers
+Let's look at real, measured performance from our implementation. Phase timing breakdown: Phase 1 QKV takes about 0.3 milliseconds. Phase 2 Attention takes about 1.2 milliseconds - this is the bottleneck. Phase 3 Concatenation takes about 0.2 milliseconds. Phase 4 Final Projection takes about 0.3 milliseconds. Total time is approximately 2.0 milliseconds. For memory hierarchy utilization: L1 Cache achieves 85% hit rate. L2 Cache achieves 92% hit rate. L3 Cache achieves 96% hit rate. The key result is that head-major layout in Phase 2 achieves 96% L3 cache hit rate. This is what enables our high performance. Memory bandwidth utilization shows excellent efficiency across all cache levels.
+</aside>
                 <h3>Performance Analysis: Real Numbers</h3>
                 <p>Measured performance from the actual implementation</p>
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-top: 30px;">
@@ -1024,6 +1124,10 @@ void transformer_layer_optimized(TransformerModel *M, int layer_idx, size_t laye
 
             <!-- Future Optimizations -->
             <section>
+<aside class="notes">
+SLIDE 27: Future Optimizations - Direct Strided Projection
+Looking forward, we can optimize further by eliminating Phase 3. Currently we have a 4-phase process: QKV to Head-major, then Attention, then concatenation to Token-major, then Final projection. In the future, we could have a 3-phase process: QKV to Head-major, then Attention, then Direct strided projection. This would eliminate the memory reorganization overhead in Phase 3 by doing strided writes directly from head-major attention output. Expected improvement is 10-15% additional performance gain. This optimization is more complex to implement but could push us even closer to theoretical peak performance.
+</aside>
                 <h3>Future Optimizations: Direct Strided Projection</h3>
                 <p>Eliminating Phase 3 for even better performance</p>
                 <div style="display: flex; justify-content: space-between; gap: 30px;">
@@ -1099,9 +1203,13 @@ void transformer_layer_optimized(TransformerModel *M, int layer_idx, size_t laye
             </section>
             <!-- Interactive Attention Pipeline -->
             <section data-background-iframe="organized_assets/infographics/attention_comprehensive.html" data-background-interactive>
+<aside class="notes">
+SLIDE 32: Interactive Attention Comprehensive Visualization
+This comprehensive interactive visualization brings together everything we've learned. You can see the complete attention mechanism in action, with all the optimizations we've discussed. The visualization shows data flow, memory layouts, and performance characteristics all in one place.
+</aside>
             </section>
 
-            <!-- Final Performance Summary -->
+            <!-- Final Performance Summary 
             <section>
                 <h3>Final Performance Summary</h3>
                 <p>Production-ready results on modern hardware</p>
@@ -1160,9 +1268,13 @@ void transformer_layer_optimized(TransformerModel *M, int layer_idx, size_t laye
                     </div>
                 </div>
             </section>
-
+        -->
             <!-- Conclusion: The Complete Journey -->
             <section>
+<aside class="notes">
+SLIDE 34: Conclusion - The Complete Journey
+We've traveled from fundamental mathematics to production-grade high-performance code. Our mathematical understanding includes scaled dot-product attention, multi-head processing, causal masking, and FLOP analysis. Our conceptual intuition covers head-parallel strategy, memory layout transitions, cache optimization, and AVX-512 vectorization. Our memory architecture uses single allocation strategy, head-major layout, precise offset control, and canary protection. Our HPC and production implementation achieves 400+ GFLOPS performance, 96% L3 cache hit rate, production-ready C code, and full transformer integration. This is the complete transformation from theory to world-class implementation.
+</aside>
                 <h2>Conclusion: The Complete Journey</h2>
                 <p>We've traveled from fundamental mathematics to production-grade high-performance code:</p>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">

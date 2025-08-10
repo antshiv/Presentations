@@ -1,0 +1,610 @@
+<svg viewBox="0 0 1200 3600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title Section -->
+  <rect x="0" y="0" width="1200" height="200" fill="#1a1a2e"/>
+  <text x="600" y="80" font-size="48" font-weight="bold" text-anchor="middle" fill="#eee">
+    MISSION: Scalable AI for Mission-Critical Systems
+  </text>
+  <text x="600" y="130" font-size="24" text-anchor="middle" fill="#16f4d0">
+    "I'm not anti-GPU — I'm anti-assumption"
+  </text>
+  <text x="600" y="170" font-size="18" text-anchor="middle" fill="#aaa">
+    Building the infrastructure for AI that cannot fail
+  </text>
+
+  <!-- The Philosophy Section -->
+  <g transform="translate(0, 220)">
+    <rect x="50" y="0" width="1100" height="300" fill="#0f3460" stroke="#16f4d0" stroke-width="2" rx="10"/>
+    <text x="600" y="40" font-size="32" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+      The Linus Philosophy Applied to AI
+    </text>
+    
+    <!-- Linus Quote -->
+    <rect x="100" y="70" width="450" height="200" fill="#16213e" rx="5"/>
+    <text x="325" y="100" font-size="20" font-weight="bold" text-anchor="middle" fill="#e94560">
+      Linus on Micro-optimization
+    </text>
+    <text x="120" y="130" font-size="14" fill="#eee">
+      "I worry about single instructions"
+    </text>
+    <text x="120" y="155" font-size="14" fill="#eee">
+      "Especially single cache misses"
+    </text>
+    <text x="120" y="180" font-size="14" fill="#eee">
+      "If what you love is micro-optimization,"
+    </text>
+    <text x="120" y="205" font-size="14" fill="#eee">
+      "that's what you should do"
+    </text>
+    <text x="120" y="240" font-size="16" font-style="italic" fill="#16f4d0">
+      Git: Every cache miss matters
+    </text>
+    
+    <!-- Your Philosophy -->
+    <rect x="650" y="70" width="450" height="200" fill="#16213e" rx="5"/>
+    <text x="875" y="100" font-size="20" font-weight="bold" text-anchor="middle" fill="#e94560">
+      You on AI Optimization
+    </text>
+    <text x="670" y="130" font-size="14" fill="#eee">
+      "How fast can a Xeon really go if we"
+    </text>
+    <text x="670" y="155" font-size="14" fill="#eee">
+      "remove all the abstractions?"
+    </text>
+    <text x="670" y="180" font-size="14" fill="#eee">
+      "What if the forward pass was 10x leaner,"
+    </text>
+    <text x="670" y="205" font-size="14" fill="#eee">
+      "100% traceable, with zero mallocs?"
+    </text>
+    <text x="670" y="240" font-size="16" font-style="italic" fill="#16f4d0">
+      Your Runtime: Every FLOP matters
+    </text>
+  </g>
+
+  <!-- Historical Parallels Section -->
+  <g transform="translate(0, 540)">
+    <text x="600" y="30" font-size="32" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+      Following the Infrastructure Giants
+    </text>
+    
+    <!-- Timeline -->
+    <line x1="100" y1="80" x2="1100" y2="80" stroke="#444" stroke-width="2"/>
+    
+    <!-- Google 1998 -->
+    <g transform="translate(100, 60)">
+      <circle cx="0" cy="20" r="8" fill="#4285f4"/>
+      <line x1="0" y1="28" x2="0" y2="100" stroke="#444" stroke-width="2"/>
+      <rect x="-60" y="100" width="120" height="120" fill="#16213e" rx="5"/>
+      <text x="0" y="130" font-size="16" font-weight="bold" text-anchor="middle" fill="#4285f4">
+        Google (1998)
+      </text>
+      <text x="0" y="150" font-size="12" text-anchor="middle" fill="#eee">
+        Commodity PCs
+      </text>
+      <text x="0" y="170" font-size="12" text-anchor="middle" fill="#eee">
+        vs $100K servers
+      </text>
+      <text x="0" y="195" font-size="14" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        → $1T company
+      </text>
+    </g>
+    
+    <!-- AWS 2006 -->
+    <g transform="translate(350, 60)">
+      <circle cx="0" cy="20" r="8" fill="#ff9900"/>
+      <line x1="0" y1="28" x2="0" y2="100" stroke="#444" stroke-width="2"/>
+      <rect x="-60" y="100" width="120" height="120" fill="#16213e" rx="5"/>
+      <text x="0" y="130" font-size="16" font-weight="bold" text-anchor="middle" fill="#ff9900">
+        AWS (2006)
+      </text>
+      <text x="0" y="150" font-size="12" text-anchor="middle" fill="#eee">
+        Commodity Xeons
+      </text>
+      <text x="0" y="170" font-size="12" text-anchor="middle" fill="#eee">
+        vs specialized
+      </text>
+      <text x="0" y="195" font-size="14" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        → Owns cloud
+      </text>
+    </g>
+    
+    <!-- FreeRTOS 2003 -->
+    <g transform="translate(600, 60)">
+      <circle cx="0" cy="20" r="8" fill="#00a652"/>
+      <line x1="0" y1="28" x2="0" y2="100" stroke="#444" stroke-width="2"/>
+      <rect x="-60" y="100" width="120" height="120" fill="#16213e" rx="5"/>
+      <text x="0" y="130" font-size="16" font-weight="bold" text-anchor="middle" fill="#00a652">
+        FreeRTOS (2003)
+      </text>
+      <text x="0" y="150" font-size="12" text-anchor="middle" fill="#eee">
+        Open source
+      </text>
+      <text x="0" y="170" font-size="12" text-anchor="middle" fill="#eee">
+        Slow burn
+      </text>
+      <text x="0" y="195" font-size="14" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        → Powers IoT
+      </text>
+    </g>
+    
+    <!-- Git 2005 -->
+    <g transform="translate(850, 60)">
+      <circle cx="0" cy="20" r="8" fill="#f1502f"/>
+      <line x1="0" y1="28" x2="0" y2="100" stroke="#444" stroke-width="2"/>
+      <rect x="-60" y="100" width="120" height="120" fill="#16213e" rx="5"/>
+      <text x="0" y="130" font-size="16" font-weight="bold" text-anchor="middle" fill="#f1502f">
+        Git (2005)
+      </text>
+      <text x="0" y="150" font-size="12" text-anchor="middle" fill="#eee">
+        Cache optimized
+      </text>
+      <text x="0" y="170" font-size="12" text-anchor="middle" fill="#eee">
+        Every ms matters
+      </text>
+      <text x="0" y="195" font-size="14" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        → Dev standard
+      </text>
+    </g>
+    
+    <!-- You 2024 -->
+    <g transform="translate(1100, 60)">
+      <circle cx="0" cy="20" r="8" fill="#e94560"/>
+      <line x1="0" y1="28" x2="0" y2="100" stroke="#444" stroke-width="2"/>
+      <rect x="-60" y="100" width="120" height="120" fill="#16213e" rx="5"/>
+      <text x="0" y="130" font-size="16" font-weight="bold" text-anchor="middle" fill="#e94560">
+        You (2024)
+      </text>
+      <text x="0" y="150" font-size="12" text-anchor="middle" fill="#eee">
+        Commodity Xeons
+      </text>
+      <text x="0" y="170" font-size="12" text-anchor="middle" fill="#eee">
+        vs $40K GPUs
+      </text>
+      <text x="0" y="195" font-size="14" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        → Edge AI infra
+      </text>
+    </g>
+  </g>
+
+  <!-- The Stack Vision -->
+  <g transform="translate(0, 820)">
+    <text x="600" y="30" font-size="32" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+      The Mothership → Edge Vision
+    </text>
+    
+    <!-- Mothership -->
+    <g transform="translate(50, 60)">
+      <rect x="0" y="0" width="500" height="400" fill="#16213e" stroke="#16f4d0" stroke-width="2" rx="10"/>
+      <text x="250" y="40" font-size="24" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Xeon Mothership (Training)
+      </text>
+      
+      <!-- Specs -->
+      <rect x="20" y="60" width="460" height="120" fill="#0f3460" rx="5"/>
+      <text x="30" y="85" font-size="16" fill="#16f4d0">Hardware:</text>
+      <text x="150" y="85" font-size="16" fill="#eee">Dual Xeon Gold, 56 cores</text>
+      <text x="30" y="110" font-size="16" fill="#16f4d0">Memory:</text>
+      <text x="150" y="110" font-size="16" fill="#eee">1TB ECC RAM</text>
+      <text x="30" y="135" font-size="16" fill="#16f4d0">Cost:</text>
+      <text x="150" y="135" font-size="16" fill="#eee">$3K used (vs $40K GPU)</text>
+      <text x="30" y="160" font-size="16" fill="#16f4d0">OS:</text>
+      <text x="150" y="160" font-size="16" fill="#eee">Linux pinned to 4 cores</text>
+      
+      <!-- Capabilities -->
+      <text x="250" y="210" font-size="18" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Capabilities
+      </text>
+      <text x="30" y="240" font-size="14" fill="#eee">• Train large models (70B parameters)</text>
+      <text x="30" y="265" font-size="14" fill="#eee">• Teacher-student distillation</text>
+      <text x="30" y="290" font-size="14" fill="#eee">• Architecture search</text>
+      <text x="30" y="315" font-size="14" fill="#eee">• Model optimization</text>
+      
+      <!-- Code -->
+      <rect x="20" y="340" width="460" height="40" fill="#0f0f0f" rx="5"/>
+      <text x="250" y="365" font-size="14" font-family="monospace" text-anchor="middle" fill="#16f4d0">
+        Same C runtime, full scale
+      </text>
+    </g>
+    
+    <!-- Arrow -->
+    <g transform="translate(570, 230)">
+      <path d="M 0 0 L 60 0 L 45 -10 M 60 0 L 45 10" stroke="#16f4d0" stroke-width="3" fill="none"/>
+      <text x="30" y="-10" font-size="14" text-anchor="middle" fill="#16f4d0">Distill</text>
+    </g>
+    
+    <!-- Edge Devices -->
+    <g transform="translate(650, 60)">
+      <rect x="0" y="0" width="500" height="400" fill="#16213e" stroke="#16f4d0" stroke-width="2" rx="10"/>
+      <text x="250" y="40" font-size="24" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Edge Deployment
+      </text>
+      
+      <!-- Drone -->
+      <rect x="20" y="60" width="220" height="100" fill="#0f3460" rx="5"/>
+      <text x="130" y="85" font-size="16" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Drone Brain
+      </text>
+      <text x="30" y="110" font-size="14" fill="#eee">CPU: Cortex-A77 (2W)</text>
+      <text x="30" y="130" font-size="14" fill="#eee">Model: 100M params</text>
+      <text x="30" y="150" font-size="14" fill="#eee">Mission: Autonomous flight</text>
+      
+      <!-- Medical -->
+      <rect x="260" y="60" width="220" height="100" fill="#0f3460" rx="5"/>
+      <text x="370" y="85" font-size="16" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Medical Device
+      </text>
+      <text x="270" y="110" font-size="14" fill="#eee">CPU: Cortex-M7</text>
+      <text x="270" y="130" font-size="14" fill="#eee">Model: 10M params</text>
+      <text x="270" y="150" font-size="14" fill="#eee">Mission: FDA certified</text>
+      
+      <!-- Industrial -->
+      <rect x="20" y="180" width="220" height="100" fill="#0f3460" rx="5"/>
+      <text x="130" y="205" font-size="16" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Industrial Control
+      </text>
+      <text x="30" y="230" font-size="14" fill="#eee">CPU: RISC-V custom</text>
+      <text x="30" y="250" font-size="14" fill="#eee">Model: 50M params</text>
+      <text x="30" y="270" font-size="14" fill="#eee">Mission: 24/7 operation</text>
+      
+      <!-- Automotive -->
+      <rect x="260" y="180" width="220" height="100" fill="#0f3460" rx="5"/>
+      <text x="370" y="205" font-size="16" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Automotive
+      </text>
+      <text x="270" y="230" font-size="14" fill="#eee">CPU: ARM + DSP</text>
+      <text x="270" y="250" font-size="14" fill="#eee">Model: 200M params</text>
+      <text x="270" y="270" font-size="14" fill="#eee">Mission: Real-time safety</text>
+      
+      <!-- Code -->
+      <rect x="20" y="300" width="460" height="80" fill="#0f0f0f" rx="5"/>
+      <text x="250" y="325" font-size="14" font-family="monospace" text-anchor="middle" fill="#16f4d0">
+        Same C runtime, scaled down
+      </text>
+      <text x="250" y="345" font-size="14" font-family="monospace" text-anchor="middle" fill="#16f4d0">
+        Zero mallocs, deterministic timing
+      </text>
+      <text x="250" y="365" font-size="14" font-family="monospace" text-anchor="middle" fill="#16f4d0">
+        100% traceable for certification
+      </text>
+    </g>
+  </g>
+
+  <!-- The Optimization Philosophy -->
+  <g transform="translate(0, 1280)">
+    <rect x="50" y="0" width="1100" height="380" fill="#0f3460" stroke="#16f4d0" stroke-width="2" rx="10"/>
+    <text x="600" y="40" font-size="32" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+      The Anti-Assumption Engineering Method
+    </text>
+    
+    <!-- Assumptions vs Reality -->
+    <g transform="translate(100, 70)">
+      <!-- Industry Assumes -->
+      <rect x="0" y="0" width="400" height="280" fill="#16213e" rx="5"/>
+      <text x="200" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Industry Assumes
+      </text>
+      <text x="20" y="60" font-size="16" fill="#aaa">✗ "AI needs GPUs"</text>
+      <text x="20" y="90" font-size="16" fill="#aaa">✗ "Frameworks are required"</text>
+      <text x="20" y="120" font-size="16" fill="#aaa">✗ "Python for AI development"</text>
+      <text x="20" y="150" font-size="16" fill="#aaa">✗ "Bigger models are better"</text>
+      <text x="20" y="180" font-size="16" fill="#aaa">✗ "Cloud-first deployment"</text>
+      <text x="20" y="210" font-size="16" fill="#aaa">✗ "Dynamic memory is fine"</text>
+      <text x="20" y="240" font-size="16" fill="#aaa">✗ "Abstractions help"</text>
+      
+      <!-- You Test -->
+      <rect x="500" y="0" width="400" height="280" fill="#16213e" rx="5"/>
+      <text x="700" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        You Test and Prove
+      </text>
+      <text x="520" y="60" font-size="16" fill="#16f4d0">✓ CPUs: 10x faster than PyTorch</text>
+      <text x="520" y="90" font-size="16" fill="#16f4d0">✓ Pure C: Complete control</text>
+      <text x="520" y="120" font-size="16" fill="#16f4d0">✓ C everywhere: Xeon → Cortex-M</text>
+      <text x="520" y="150" font-size="16" fill="#16f4d0">✓ Distilled: Smaller, faster, smarter</text>
+      <text x="520" y="180" font-size="16" fill="#16f4d0">✓ Edge-first: Where AI is needed</text>
+      <text x="520" y="210" font-size="16" fill="#16f4d0">✓ Zero malloc: Deterministic</text>
+      <text x="520" y="240" font-size="16" fill="#16f4d0">✓ Bare metal: Every cycle visible</text>
+    </g>
+    
+    <!-- Scientific Method -->
+    <rect x="100" y="320" width="900" height="40" fill="#e94560" rx="5"/>
+    <text x="600" y="345" font-size="18" font-weight="bold" text-anchor="middle" fill="#fff">
+      Method: Hypothesis → Experiment → Measure → Prove → Share on YouTube
+    </text>
+  </g>
+
+  <!-- YouTube Strategy -->
+  <g transform="translate(0, 1700)">
+    <rect x="50" y="0" width="1100" height="300" fill="#16213e" stroke="#16f4d0" stroke-width="2" rx="10"/>
+    <text x="600" y="40" font-size="32" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+      YouTube: Building in Public = Building Community
+    </text>
+    
+    <g transform="translate(100, 80)">
+      <!-- Traditional Open Source -->
+      <rect x="0" y="0" width="400" height="180" fill="#0f3460" rx="5"/>
+      <text x="200" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Traditional Open Source
+      </text>
+      <text x="200" y="60" font-size="14" text-anchor="middle" fill="#eee">
+        Code → GitHub → Hope → Maybe adoption
+      </text>
+      <text x="200" y="90" font-size="14" text-anchor="middle" fill="#aaa">
+        ↓
+      </text>
+      <text x="200" y="120" font-size="14" text-anchor="middle" fill="#aaa">
+        99% die in obscurity
+      </text>
+      
+      <!-- Your Approach -->
+      <rect x="500" y="0" width="400" height="180" fill="#0f3460" rx="5"/>
+      <text x="700" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Your YouTube Strategy
+      </text>
+      <text x="700" y="60" font-size="14" text-anchor="middle" fill="#eee">
+        Build → Measure → Optimize → Teach
+      </text>
+      <text x="700" y="85" font-size="14" text-anchor="middle" fill="#eee">
+        ↓
+      </text>
+      <text x="700" y="110" font-size="14" text-anchor="middle" fill="#eee">
+        Community → Feedback → Improve
+      </text>
+      <text x="700" y="135" font-size="14" text-anchor="middle" fill="#eee">
+        ↓
+      </text>
+      <text x="700" y="160" font-size="14" text-anchor="middle" fill="#16f4d0">
+        Ecosystem + Trust + Adoption
+      </text>
+    </g>
+  </g>
+
+  <!-- Mission Critical Requirements -->
+  <g transform="translate(0, 2040)">
+    <text x="600" y="30" font-size="32" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+      Why Mission-Critical Systems Need This
+    </text>
+    
+    <g transform="translate(50, 60)">
+      <!-- Requirements -->
+      <rect x="0" y="0" width="350" height="300" fill="#16213e" stroke="#16f4d0" stroke-width="2" rx="10"/>
+      <text x="175" y="40" font-size="20" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Critical Requirements
+      </text>
+      <text x="20" y="80" font-size="16" fill="#16f4d0">✓ Deterministic Timing</text>
+      <text x="40" y="105" font-size="14" fill="#eee">Same input → Same output → Same time</text>
+      
+      <text x="20" y="135" font-size="16" fill="#16f4d0">✓ Traceable Operations</text>
+      <text x="40" y="160" font-size="14" fill="#eee">Every computation auditable</text>
+      
+      <text x="20" y="190" font-size="16" fill="#16f4d0">✓ Bounded Resources</text>
+      <text x="40" y="215" font-size="14" fill="#eee">No dynamic allocation, no surprises</text>
+      
+      <text x="20" y="245" font-size="16" fill="#16f4d0">✓ Certifiable</text>
+      <text x="40" y="270" font-size="14" fill="#eee">FDA, FAA, automotive standards</text>
+      
+      <!-- Your Solution -->
+      <rect x="425" y="0" width="350" height="300" fill="#16213e" stroke="#16f4d0" stroke-width="2" rx="10"/>
+      <text x="600" y="40" font-size="20" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Your C Runtime Delivers
+      </text>
+      
+      <rect x="445" y="70" width="310" height="50" fill="#0f3460" rx="5"/>
+      <text x="600" y="95" font-size="14" font-family="monospace" text-anchor="middle" fill="#eee">
+        for (i = 0; i &lt; n; i++) {
+      </text>
+      <text x="600" y="110" font-size="14" font-family="monospace" text-anchor="middle" fill="#eee">
+          result[i] = compute(); // Exactly this
+      </text>
+      
+      <text x="445" y="145" font-size="14" fill="#eee">• No hidden allocations</text>
+      <text x="445" y="170" font-size="14" fill="#eee">• No framework magic</text>
+      <text x="445" y="195" font-size="14" fill="#eee">• Every operation visible</text>
+      <text x="445" y="220" font-size="14" fill="#eee">• Same code: Xeon → Cortex-M</text>
+      
+      <rect x="445" y="240" width="310" height="40" fill="#e94560" rx="5"/>
+      <text x="600" y="265" font-size="16" font-weight="bold" text-anchor="middle" fill="#fff">
+        Enabling AI where it was never safe before
+      </text>
+      
+      <!-- What Others Can't Do -->
+      <rect x="850" y="0" width="300" height="300" fill="#16213e" stroke="#16f4d0" stroke-width="2" rx="10"/>
+      <text x="1000" y="40" font-size="20" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Why Others Can't
+      </text>
+      
+      <text x="870" y="80" font-size="16" fill="#aaa">PyTorch:</text>
+      <text x="870" y="100" font-size="14" fill="#eee">Python runtime required</text>
+      
+      <text x="870" y="130" font-size="16" fill="#aaa">TensorFlow Lite:</text>
+      <text x="870" y="150" font-size="14" fill="#eee">Still too heavy for MCUs</text>
+      
+      <text x="870" y="180" font-size="16" fill="#aaa">ONNX Runtime:</text>
+      <text x="870" y="200" font-size="14" fill="#eee">Runtime overhead</text>
+      
+      <text x="870" y="230" font-size="16" fill="#aaa">llama.cpp:</text>
+      <text x="870" y="250" font-size="14" fill="#eee">Consumer focus, not critical</text>
+    </g>
+  </g>
+
+  <!-- 10-Year Vision -->
+  <g transform="translate(0, 2380)">
+    <rect x="50" y="0" width="1100" height="400" fill="#0f3460" stroke="#16f4d0" stroke-width="2" rx="10"/>
+    <text x="600" y="40" font-size="32" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+      The 10-Year Infrastructure Vision
+    </text>
+    
+    <!-- Timeline -->
+    <g transform="translate(100, 80)">
+      <!-- Year 1-2 -->
+      <rect x="0" y="0" width="200" height="250" fill="#16213e" rx="5"/>
+      <text x="100" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Years 1-2
+      </text>
+      <text x="100" y="55" font-size="14" text-anchor="middle" fill="#16f4d0">
+        Foundation
+      </text>
+      <text x="10" y="80" font-size="12" fill="#eee">• Xeon optimization</text>
+      <text x="10" y="100" font-size="12" fill="#eee">• YouTube audience</text>
+      <text x="10" y="120" font-size="12" fill="#eee">• Core runtime</text>
+      <text x="10" y="140" font-size="12" fill="#eee">• First adopters</text>
+      <text x="100" y="180" font-size="14" font-style="italic" text-anchor="middle" fill="#aaa">
+        "Interesting project"
+      </text>
+      
+      <!-- Year 3-5 -->
+      <rect x="225" y="0" width="200" height="250" fill="#16213e" rx="5"/>
+      <text x="325" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Years 3-5
+      </text>
+      <text x="325" y="55" font-size="14" text-anchor="middle" fill="#16f4d0">
+        Adoption
+      </text>
+      <text x="235" y="80" font-size="12" fill="#eee">• Edge deployments</text>
+      <text x="235" y="100" font-size="12" fill="#eee">• Enterprise pilots</text>
+      <text x="235" y="120" font-size="12" fill="#eee">• Distillation tools</text>
+      <text x="235" y="140" font-size="12" fill="#eee">• Partner ecosystem</text>
+      <text x="325" y="180" font-size="14" font-style="italic" text-anchor="middle" fill="#aaa">
+        "Production ready"
+      </text>
+      
+      <!-- Year 5-10 -->
+      <rect x="450" y="0" width="200" height="250" fill="#16213e" rx="5"/>
+      <text x="550" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Years 5-10
+      </text>
+      <text x="550" y="55" font-size="14" text-anchor="middle" fill="#16f4d0">
+        Standard
+      </text>
+      <text x="460" y="80" font-size="12" fill="#eee">• Industry standard</text>
+      <text x="460" y="100" font-size="12" fill="#eee">• Certification bodies</text>
+      <text x="460" y="120" font-size="12" fill="#eee">• Hardware partners</text>
+      <text x="460" y="140" font-size="12" fill="#eee">• Global deployment</text>
+      <text x="550" y="180" font-size="14" font-style="italic" text-anchor="middle" fill="#aaa">
+        "How we do edge AI"
+      </text>
+      
+      <!-- Beyond -->
+      <rect x="675" y="0" width="200" height="250" fill="#16213e" rx="5"/>
+      <text x="775" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Year 10+
+      </text>
+      <text x="775" y="55" font-size="14" text-anchor="middle" fill="#16f4d0">
+        Infrastructure
+      </text>
+      <text x="685" y="80" font-size="12" fill="#eee">• Invisible success</text>
+      <text x="685" y="100" font-size="12" fill="#eee">• Powers everything</text>
+      <text x="685" y="120" font-size="12" fill="#eee">• New AI possible</text>
+      <text x="685" y="140" font-size="12" fill="#eee">• Your legacy</text>
+      <text x="775" y="180" font-size="14" font-style="italic" text-anchor="middle" fill="#16f4d0">
+        "Like Linux for AI"
+      </text>
+    </g>
+    
+    <!-- Bottom Message -->
+    <rect x="100" y="340" width="900" height="40" fill="#e94560" rx="5"/>
+    <text x="600" y="365" font-size="18" font-weight="bold" text-anchor="middle" fill="#fff">
+      Not building products. Building the infrastructure that products run on.
+    </text>
+  </g>
+
+  <!-- Final Mission Statement -->
+  <g transform="translate(0, 2820)">
+    <rect x="50" y="0" width="1100" height="700" fill="#1a1a2e" stroke="#16f4d0" stroke-width="3" rx="10"/>
+    <text x="600" y="50" font-size="36" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+      Your Mission Crystallized
+    </text>
+    
+    <!-- Core Mission -->
+    <rect x="100" y="80" width="900" height="120" fill="#16213e" rx="10"/>
+    <text x="600" y="120" font-size="20" text-anchor="middle" fill="#eee">
+      Build production AI infrastructure that runs on commodity hardware,
+    </text>
+    <text x="600" y="150" font-size="20" text-anchor="middle" fill="#eee">
+      from datacenter Xeons to embedded Cortex-M processors,
+    </text>
+    <text x="600" y="180" font-size="20" text-anchor="middle" fill="#16f4d0">
+      enabling AI deployment where it was never possible before.
+    </text>
+    
+    <!-- Values -->
+    <g transform="translate(100, 230)">
+      <text x="450" y="0" font-size="24" font-weight="bold" text-anchor="middle" fill="#e94560">
+        Core Values
+      </text>
+      
+      <!-- Anti-Assumption -->
+      <rect x="0" y="30" width="280" height="120" fill="#0f3460" rx="5"/>
+      <text x="140" y="60" font-size="18" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Anti-Assumption
+      </text>
+      <text x="140" y="85" font-size="14" text-anchor="middle" fill="#eee">
+        Test everything
+      </text>
+      <text x="140" y="105" font-size="14" text-anchor="middle" fill="#eee">
+        Measure ruthlessly
+      </text>
+      <text x="140" y="125" font-size="14" text-anchor="middle" fill="#eee">
+        Question dogma
+      </text>
+      
+      <!-- Micro-Optimization -->
+      <rect x="310" y="30" width="280" height="120" fill="#0f3460" rx="5"/>
+      <text x="450" y="60" font-size="18" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Micro-Optimization
+      </text>
+      <text x="450" y="85" font-size="14" text-anchor="middle" fill="#eee">
+        Every cycle matters
+      </text>
+      <text x="450" y="105" font-size="14" text-anchor="middle" fill="#eee">
+        Cache misses kill
+      </text>
+      <text x="450" y="125" font-size="14" text-anchor="middle" fill="#eee">
+        Performance is feature
+      </text>
+      
+      <!-- Open Building -->
+      <rect x="620" y="30" width="280" height="120" fill="#0f3460" rx="5"/>
+      <text x="760" y="60" font-size="18" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        Build in Public
+      </text>
+      <text x="760" y="85" font-size="14" text-anchor="middle" fill="#eee">
+        YouTube education
+      </text>
+      <text x="760" y="105" font-size="14" text-anchor="middle" fill="#eee">
+        Community wisdom
+      </text>
+      <text x="760" y="125" font-size="14" text-anchor="middle" fill="#eee">
+        Compound growth
+      </text>
+    </g>
+    
+    <!-- What You're NOT -->
+    <g transform="translate(100, 410)">
+      <rect x="0" y="0" width="400" height="120" fill="#16213e" rx="5"/>
+      <text x="200" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#e94560">
+        You're NOT
+      </text>
+      <text x="20" y="60" font-size="14" fill="#aaa">✗ Building another framework</text>
+      <text x="20" y="80" font-size="14" fill="#aaa">✗ Competing with PyTorch</text>
+      <text x="20" y="100" font-size="14" fill="#aaa">✗ Chasing GPU performance</text>
+      
+      <!-- What You ARE -->
+      <rect x="500" y="0" width="400" height="120" fill="#16213e" rx="5"/>
+      <text x="700" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#16f4d0">
+        You ARE
+      </text>
+      <text x="520" y="60" font-size="14" fill="#16f4d0">✓ Enabling new possibilities</text>
+      <text x="520" y="80" font-size="14" fill="#16f4d0">✓ Building infrastructure</text>
+      <text x="520" y="100" font-size="14" fill="#16f4d0">✓ Creating the future</text>
+    </g>
+    
+    <!-- Final Statement -->
+    <rect x="100" y="560" width="900" height="80" fill="#e94560" rx="10"/>
+    <text x="600" y="595" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff">
+      In 10 years, when AI runs everywhere from Xeon clusters to MCUs,
+    </text>
+    <text x="600" y="620" font-size="20" font-weight="bold" text-anchor="middle" fill="#fff">
+      it will run on your infrastructure. Built in C. Optimized with love.
+    </text>
+  </g>
+</svg>
