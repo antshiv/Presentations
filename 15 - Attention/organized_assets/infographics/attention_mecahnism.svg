@@ -1,0 +1,153 @@
+  <svg viewBox="0 0 1800 1200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker id="arrow-active" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L10,5 L0,10 z" />
+                </marker>
+                <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L10,5 L0,10 z" />
+                </marker>
+            </defs>
+
+            <!-- Title and Subtitle -->
+            <text x="900" y="60" text-anchor="middle" class="title">The Attention Mechanism: An HPC Deep Dive</text>
+            <text x="900" y="95" text-anchor="middle" class="subtitle">From Conceptual Breakthrough to Low-Level Optimization</text>
+            <rect x="750" y="115" width="300" height="35" rx="5" ry="5" fill="#3b82f6">
+                <text x="900" y="138" class="hpc-tag">The DNA of an LLM</text>
+            </rect>
+
+            <!-- Global Dimensions Key -->
+            <g transform="translate(1500, 150)">
+                <text x="0" y="0" class="text-small">T = Tokens in Sequence</text>
+                <text x="0" y="20" class="text-small">D = Embedding Dimension</text>
+                <text x="0" y="40" class="text-small">H = Head Dimension</text>
+            </g>
+
+            <!-- Part 1: The Why (RNN vs. Attention) -->
+            <g transform="translate(100, 200)">
+                <text x="400" y="0" class="section-header">Why Attention?</text>
+                <text x="400" y="30" class="section-subtext">The breakthrough that enabled parallel processing of sequences.</text>
+                
+                <!-- RNN Diagram -->
+                <rect x="0" y="70" width="200" height="150" rx="10" ry="10" class="box-input highlight-on-hover" />
+                <text x="100" y="120" class="text-label">Traditional RNN</text>
+                <text x="100" y="150" class="text-small">Processes tokens one by one.</text>
+                <text x="100" y="170" class="text-small">Bottleneck: O(T) complexity.</text>
+                <path d="M200,145 L300,145" class="connector" />
+                <rect x="300" y="130" width="100" height="30" rx="5" ry="5" class="box-proc" />
+                <text x="350" y="150" class="text-small">Token 1</text>
+                <path d="M400,145 L500,145" class="connector" />
+                <rect x="500" y="130" width="100" height="30" rx="5" ry="5" class="box-proc" />
+                <text x="550" y="150" class="text-small">Token 2</text>
+                <path d="M600,145 L700,145" class="connector" />
+                <rect x="700" y="130" width="100" height="30" rx="5" ry="5" class="box-proc" />
+                <text x="750" y="150" class="text-small">Token 3</text>
+                
+                <!-- Attention Diagram -->
+                <rect x="0" y="270" width="200" height="150" rx="10" ry="10" class="box-output highlight-on-hover" />
+                <text x="100" y="320" class="text-label" fill="#111">Self-Attention</text>
+                <text x="100" y="350" class="text-small" fill="#111">Processes tokens in parallel.</text>
+                <text x="100" y="370" class="text-small" fill="#111">Scales better: O(1) for compute.</text>
+                <path d="M200,345 L300,345" class="connector-active animate-flow-path" style="animation-delay: 5.5s;" />
+                <rect x="300" y="330" width="400" height="30" rx="5" ry="5" class="box-proc" />
+                <text x="500" y="350" class="text-small">Token 1 | Token 2 | Token 3</text>
+            </g>
+
+            <!-- Part 2: The How (QKV & Pipeline) -->
+            <g transform="translate(900, 250)">
+                <text x="400" y="0" class="section-header">The Attention Pipeline</text>
+                <text x="400" y="30" class="section-subtext">How we compute a new vector for each token.</text>
+                
+                <!-- Input Embeddings -->
+                <rect x="0" y="70" width="300" height="60" rx="8" ry="8" class="box-input" />
+                <text x="150" y="95" class="text-label">Input Embeddings (X)</text>
+                <text x="150" y="115" class="text-dim">Shape: [T x D]</text>
+                
+                <!-- QKV Generation -->
+                <path d="M150,130 L150,200" class="connector" />
+                <rect x="0" y="200" width="300" height="60" rx="8" ry="8" class="box-proc highlight-on-hover" />
+                <text x="150" y="225" class="text-label">Generate Q, K, V</text>
+                <text x="150" y="245" class="text-small">From X via linear layers</text>
+                <path d="M150,260 L150,320" class="connector" />
+                
+                <!-- Q, K, V Tensors -->
+                <g transform="translate(-100, 320)">
+                    <rect x="0" y="0" width="200" height="70" rx="8" ry="8" class="box-input" />
+                    <text x="100" y="25" class="text-label">Q</text>
+                    <text x="100" y="45" class="text-dim">Shape: [T x H]</text>
+                </g>
+                <g transform="translate(100, 320)">
+                    <rect x="0" y="0" width="200" height="70" rx="8" ry="8" class="box-input" />
+                    <text x="100" y="25" class="text-label">K</text>
+                    <text x="100" y="45" class="text-dim">Shape: [T x H]</text>
+                </g>
+                <g transform="translate(300, 320)">
+                    <rect x="0" y="0" width="200" height="70" rx="8" ry="8" class="box-input" />
+                    <text x="100" y="25" class="text-label">V</text>
+                    <text x="100" y="45" class="text-dim">Shape: [T x H]</text>
+                </g>
+
+                <!-- Q·Kᵀ and Softmax -->
+                <path d="M100,390 L100,450" class="connector" />
+                <path d="M300,390 L300,450" class="connector" />
+                <path d="M100,450 L200,450" class="connector-active animate-flow-path" style="animation-delay: 7s;" />
+                <rect x="200" y="430" width="200" height="40" rx="8" ry="8" class="box-proc" />
+                <text x="300" y="455" class="text-label">Q·Kᵀ</text>
+                <path d="M400,450 L500,450" class="connector" />
+                <rect x="500" y="430" width="200" height="40" rx="8" ry="8" class="box-proc" />
+                <text x="600" y="455" class="text-label">Softmax</text>
+                
+                <!-- Attention Scores -->
+                <path d="M600,470 L600,530" class="connector" />
+                <rect x="500" y="530" width="200" height="70" rx="8" ry="8" class="box-input" />
+                <text x="600" y="555" class="text-label">Attention Scores</text>
+                <text x="600" y="575" class="text-dim">Shape: [T x T]</text>
+                
+                <!-- Scores · V -->
+                <path d="M600,600 L600,660" class="connector" />
+                <path d="M400,390 L400,660" class="connector" />
+                <path d="M600,660 L500,660 L500,660" class="connector-active animate-flow-path" style="animation-delay: 8s;" />
+                <rect x="200" y="640" width="300" height="40" rx="8" ry="8" class="box-proc" />
+                <text x="350" y="665" class="text-label">Scores · V</text>
+                <path d="M350,680 L350,740" class="connector" />
+                
+                <!-- Attention Output -->
+                <rect x="200" y="740" width="300" height="70" rx="8" ry="8" class="box-output" />
+                <text x="350" y="765" class="text-label" fill="#111">Attention Output (Z)</text>
+                <text x="350" y="785" class="text-dim" fill="#111">Shape: [T x D]</text>
+            </g>
+
+            <!-- Part 3: The HPC Magic -->
+            <g transform="translate(100, 850)">
+                <text x="400" y="0" class="section-header">Your HPC Advantage</text>
+                <text x="400" y="30" class="section-subtext">Optimizing the core pipeline for a CPU's memory hierarchy.</text>
+
+                <g transform="translate(0, 70)">
+                    <rect x="0" y="0" width="200" height="150" rx="8" ry="8" class="box-input" />
+                    <text x="100" y="30" class="text-label">Traditional Layout</text>
+                    <text x="100" y="50" class="text-small">Token-Major</text>
+                    <text x="100" y="80" class="text-dim">Memory: [T x D]</text>
+                    <text x="100" y="100" class="text-small">Good for linear access</text>
+                    <text x="100" y="120" class="text-small">Bad for head-level cache</text>
+                </g>
+                <g transform="translate(250, 70)">
+                    <rect x="0" y="0" width="200" height="150" rx="8" ry="8" class="box-output" />
+                    <text x="100" y="30" class="text-label" fill="#111">Your Layout</text>
+                    <text x="100" y="50" class="text-small" fill="#111">Head-Major</text>
+                    <text x="100" y="80" class="text-dim" fill="#111">Memory: [H x T x H]</text>
+                    <text x="100" y="100" class="text-small" fill="#111">Good for head-parallel compute</text>
+                    <text x="100" y="120" class="text-small" fill="#111">Enables zero-copy projection</text>
+                </g>
+                
+                <g transform="translate(500, 70)">
+                    <rect x="0" y="0" width="400" height="150" rx="8" ry="8" class="callout-box" />
+                    <text x="200" y="30" class="callout-title">The AVX-512 Engine</text>
+                    <text x="200" y="60" class="callout-text">Your micro-kernels use AVX-512 to process 16 floats</text>
+                    <text x="200" y="80" class="callout-text">per instruction, enabling massive parallelization.</text>
+                    <text x="200" y="110" class="callout-code">`_mm512_fmadd_ps(a, b, c)`</text>
+                    <text x="200" y="130" class="callout-text">The heart of your high-performance GEMM kernels.</text>
+                </g>
+            </g>
+        </svg>

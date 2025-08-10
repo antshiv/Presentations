@@ -1,594 +1,445 @@
-<svg viewBox="0 0 1800 3200" xmlns="http://www.w3.org/2000/svg">
-  <!-- Title -->
-  <text x="900" y="50" font-size="38" font-weight="bold" text-anchor="middle" fill="#1a237e">
-    The Emergent Intelligence of Attention
-  </text>
-  <text x="900" y="85" font-size="22" text-anchor="middle" fill="#3949ab">
-    How QKV Projections Create Understanding Through Learned Relationships
-  </text>
-
-  <!-- Section 1: What QKV Actually Does -->
-  <g transform="translate(50, 130)">
-    <rect x="0" y="0" width="1700" height="400" fill="#e8eaf6" stroke="#3f51b5" stroke-width="3" rx="12"/>
-    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1a237e">
-      THE GENIUS OF QKV: CREATING THREE PERSPECTIVES
-    </text>
-    
-    <!-- Original embedding -->
-    <g transform="translate(100, 80)">
-      <rect x="0" y="0" width="300" height="280" fill="#c5cae9" stroke="#3f51b5" stroke-width="2" rx="8"/>
-      <text x="150" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1a237e">
-        Original Token
-      </text>
-      
-      <rect x="20" y="50" width="260" height="60" fill="#9fa8da" stroke="#5c6bc0" rx="5"/>
-      <text x="150" y="85" font-size="16" text-anchor="middle" font-family="monospace">
-        "cat" → [512 dims]
-      </text>
-      
-      <text x="20" y="140" font-size="16" font-weight="bold" fill="#283593">One representation:</text>
-      <text x="20" y="165" font-size="15" fill="#333">• Semantic meaning</text>
-      <text x="20" y="185" font-size="15" fill="#333">• Syntactic role</text>
-      <text x="20" y="205" font-size="15" fill="#333">• Position info</text>
-      <text x="20" y="225" font-size="15" fill="#333">• Everything mixed!</text>
-      
-      <rect x="20" y="250" width="260" height="90" fill="#7986cb" stroke="#3f51b5" rx="5"/>
-      <text x="150" y="275" font-size="14" text-anchor="middle" fill="white">
-        Problem: How does "cat"
-      </text>
-      <text x="150" y="295" font-size="14" text-anchor="middle" fill="white">
-        know what to look for
-      </text>
-      <text x="150" y="315" font-size="14" text-anchor="middle" fill="white">
-        in other tokens?
-      </text>
-    </g>
-    
-    <!-- Arrow -->
-    <path d="M 420 210 L 480 210" stroke="#3f51b5" stroke-width="3" marker-end="url(#arrowblue)"/>
-    
-    <!-- QKV Transformation -->
-    <g transform="translate(500, 80)">
-      <rect x="0" y="0" width="1000" height="280" fill="#fff" stroke="#3f51b5" stroke-width="2" rx="8"/>
-      <text x="500" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1a237e">
-        QKV: Three Learned Transformations
-      </text>
-      
-      <!-- Query -->
-      <g transform="translate(20, 50)">
-        <rect x="0" y="0" width="300" height="200" fill="#ffebee" stroke="#c62828" stroke-width="2" rx="5"/>
-        <text x="150" y="25" font-size="18" font-weight="bold" text-anchor="middle" fill="#b71c1c">
-          Q (Query)
-        </text>
-        <text x="150" y="50" font-size="14" text-anchor="middle" font-family="monospace">
-          W_q transforms "cat" →
-        </text>
-        
-        <rect x="10" y="60" width="280" height="40" fill="#ffcdd2" stroke="#d32f2f" rx="3"/>
-        <text x="150" y="85" font-size="15" text-anchor="middle" font-weight="bold">
-          "What I'm looking for"
-        </text>
-        
-        <text x="10" y="120" font-size="14" fill="#333">Examples of learned queries:</text>
-        <text x="10" y="140" font-size="13" fill="#666">• "Find my subject"</text>
-        <text x="10" y="158" font-size="13" fill="#666">• "Find descriptors of me"</text>
-        <text x="10" y="176" font-size="13" fill="#666">• "Find related concepts"</text>
-        <text x="10" y="194" font-size="13" fill="#666">• "Find my verb"</text>
-      </g>
-      
-      <!-- Key -->
-      <g transform="translate(340, 50)">
-        <rect x="0" y="0" width="300" height="200" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2" rx="5"/>
-        <text x="150" y="25" font-size="18" font-weight="bold" text-anchor="middle" fill="#1b5e20">
-          K (Key)
-        </text>
-        <text x="150" y="50" font-size="14" text-anchor="middle" font-family="monospace">
-          W_k transforms "mat" →
-        </text>
-        
-        <rect x="10" y="60" width="280" height="40" fill="#c8e6c9" stroke="#43a047" rx="3"/>
-        <text x="150" y="85" font-size="15" text-anchor="middle" font-weight="bold">
-          "What I offer/advertise"
-        </text>
-        
-        <text x="10" y="120" font-size="14" fill="#333">Examples of learned keys:</text>
-        <text x="10" y="140" font-size="13" fill="#666">• "I am a location"</text>
-        <text x="10" y="158" font-size="13" fill="#666">• "I am an object"</text>
-        <text x="10" y="176" font-size="13" fill="#666">• "I can be possessed"</text>
-        <text x="10" y="194" font-size="13" fill="#666">• "I am soft/comfortable"</text>
-      </g>
-      
-      <!-- Value -->
-      <g transform="translate(660, 50)">
-        <rect x="0" y="0" width="300" height="200" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="5"/>
-        <text x="150" y="25" font-size="18" font-weight="bold" text-anchor="middle" fill="#e65100">
-          V (Value)
-        </text>
-        <text x="150" y="50" font-size="14" text-anchor="middle" font-family="monospace">
-          W_v transforms "mat" →
-        </text>
-        
-        <rect x="10" y="60" width="280" height="40" fill="#ffe0b2" stroke="#ff9800" rx="3"/>
-        <text x="150" y="85" font-size="15" text-anchor="middle" font-weight="bold">
-          "What I contribute"
-        </text>
-        
-        <text x="10" y="120" font-size="14" fill="#333">Actual information passed:</text>
-        <text x="10" y="140" font-size="13" fill="#666">• Semantic features</text>
-        <text x="10" y="158" font-size="13" fill="#666">• Syntactic properties</text>
-        <text x="10" y="176" font-size="13" fill="#666">• Contextual meaning</text>
-        <text x="10" y="194" font-size="13" fill="#666">• Abstract concepts</text>
-      </g>
-    </g>
-  </g>
-
-  <!-- Section 2: The Matching Process -->
-  <g transform="translate(50, 570)">
-    <rect x="0" y="0" width="1700" height="350" fill="#e8f5e9" stroke="#4caf50" stroke-width="3" rx="12"/>
-    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1b5e20">
-      THE EMERGENT MATCHING: HOW ATTENTION "LEARNS" RELATIONSHIPS
-    </text>
-    
-    <!-- Matching visualization -->
-    <g transform="translate(150, 80)">
-      <text x="0" y="0" font-size="22" font-weight="bold" fill="#2e7d32">Example: "The cat sat on the mat"</text>
-      
-      <!-- Query from "cat" -->
-      <g transform="translate(0, 30)">
-        <rect x="0" y="0" width="200" height="60" fill="#ffcdd2" stroke="#c62828" rx="5"/>
-        <text x="100" y="25" font-size="16" font-weight="bold" text-anchor="middle">Q("cat")</text>
-        <text x="100" y="45" font-size="14" text-anchor="middle">"Where did I go?"</text>
-      </g>
-      
-      <!-- Keys from all tokens -->
-      <g transform="translate(300, 30)">
-        <rect x="0" y="0" width="150" height="60" fill="#e8f5e9" stroke="#4caf50" rx="5"/>
-        <text x="75" y="25" font-size="14" text-anchor="middle">K("The")</text>
-        <text x="75" y="45" font-size="12" text-anchor="middle">"I'm a determiner"</text>
-        
-        <rect x="170" y="0" width="150" height="60" fill="#e8f5e9" stroke="#4caf50" rx="5"/>
-        <text x="245" y="25" font-size="14" text-anchor="middle">K("sat")</text>
-        <text x="245" y="45" font-size="12" text-anchor="middle">"I'm an action"</text>
-        
-        <rect x="340" y="0" width="150" height="60" fill="#a5d6a7" stroke="#4caf50" stroke-width="3" rx="5"/>
-        <text x="415" y="25" font-size="14" font-weight="bold" text-anchor="middle">K("mat")</text>
-        <text x="415" y="45" font-size="12" font-weight="bold" text-anchor="middle">"I'm a location!"</text>
-      </g>
-      
-      <!-- Attention scores -->
-      <path d="M 100 90 Q 100 130, 75 130" stroke="#999" stroke-width="1" stroke-dasharray="2,2"/>
-      <text x="50" y="145" font-size="11" fill="#666">0.05</text>
-      
-      <path d="M 100 90 Q 100 130, 245 130" stroke="#999" stroke-width="1" stroke-dasharray="2,2"/>
-      <text x="230" y="145" font-size="11" fill="#666">0.15</text>
-      
-      <path d="M 100 90 Q 100 130, 415 130" stroke="#4caf50" stroke-width="3"/>
-      <text x="400" y="145" font-size="14" font-weight="bold" fill="#2e7d32">0.80!</text>
-      
-      <!-- Result -->
-      <rect x="700" y="30" width="400" height="100" fill="#c8e6c9" stroke="#43a047" stroke-width="2" rx="5"/>
-      <text x="900" y="60" font-size="16" font-weight="bold" text-anchor="middle">
-        Emergent Learning:
-      </text>
-      <text x="900" y="85" font-size="14" text-anchor="middle">
-        Model learned "cat" queries for locations
-      </text>
-      <text x="900" y="105" font-size="14" text-anchor="middle">
-        and "mat" advertises as a location!
-      </text>
-    </g>
-    
-    <!-- Mathematical view -->
-    <g transform="translate(150, 200)">
-      <rect x="0" y="0" width="1400" height="100" fill="#f1f8e4" stroke="#689f38" rx="5"/>
-      <text x="20" y="30" font-size="18" font-weight="bold" fill="#33691e">The Beautiful Math:</text>
-      <text x="20" y="55" font-size="16" font-family="monospace">score = Q("cat") · K("mat") / √d = "How well do these match?"</text>
-      <text x="20" y="80" font-size="15" fill="#555">Through training, W_q and W_k learn transformations that make related concepts have high dot products!</text>
-    </g>
-  </g>
-
-  <!-- Section 3: Multi-Head Attention -->
-  <g transform="translate(50, 970)">
-    <rect x="0" y="0" width="1700" height="450" fill="#fff8e1" stroke="#ff9800" stroke-width="3" rx="12"/>
-    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#e65100">
-      MULTI-HEAD ATTENTION: DIFFERENT HEADS LEARN DIFFERENT RELATIONSHIPS
-    </text>
-    
-    <!-- Head specialization -->
-    <g transform="translate(100, 80)">
-      <text x="0" y="0" font-size="20" font-weight="bold" fill="#f57c00">Each head develops its own "expertise":</text>
-      
-      <!-- Head examples -->
-      <g transform="translate(0, 30)">
-        <!-- Head 0 -->
-        <rect x="0" y="0" width="380" height="150" fill="#fff3e0" stroke="#ffb300" rx="5"/>
-        <text x="190" y="25" font-size="18" font-weight="bold" text-anchor="middle" fill="#f57c00">
-          Head 0: Syntactic Dependencies
-        </text>
-        <text x="10" y="50" font-size="14">Learns to connect:</text>
-        <text x="10" y="70" font-size="13" fill="#666">• Subject → Verb</text>
-        <text x="10" y="88" font-size="13" fill="#666">• Verb → Object</text>
-        <text x="10" y="106" font-size="13" fill="#666">• Modifier → Modified</text>
-        <rect x="10" y="115" width="360" height="25" fill="#ffe0b2" stroke="#ff9800" rx="3"/>
-        <text x="190" y="133" font-size="13" text-anchor="middle">"cat" strongly attends to "sat"</text>
-        
-        <!-- Head 1 -->
-        <rect x="410" y="0" width="380" height="150" fill="#fff3e0" stroke="#ffb300" rx="5"/>
-        <text x="600" y="25" font-size="18" font-weight="bold" text-anchor="middle" fill="#f57c00">
-          Head 1: Positional/Local
-        </text>
-        <text x="420" y="50" font-size="14">Learns to connect:</text>
-        <text x="420" y="70" font-size="13" fill="#666">• Adjacent words</text>
-        <text x="420" y="88" font-size="13" fill="#666">• Phrase boundaries</text>
-        <text x="420" y="106" font-size="13" fill="#666">• Local context</text>
-        <rect x="420" y="115" width="360" height="25" fill="#ffe0b2" stroke="#ff9800" rx="3"/>
-        <text x="600" y="133" font-size="13" text-anchor="middle">"the" strongly attends to "cat"</text>
-        
-        <!-- Head 2 -->
-        <rect x="820" y="0" width="380" height="150" fill="#fff3e0" stroke="#ffb300" rx="5"/>
-        <text x="1010" y="25" font-size="18" font-weight="bold" text-anchor="middle" fill="#f57c00">
-          Head 2: Semantic Relations
-        </text>
-        <text x="830" y="50" font-size="14">Learns to connect:</text>
-        <text x="830" y="70" font-size="13" fill="#666">• Related concepts</text>
-        <text x="830" y="88" font-size="13" fill="#666">• Co-occurring terms</text>
-        <text x="830" y="106" font-size="13" fill="#666">• Topic coherence</text>
-        <rect x="830" y="115" width="360" height="25" fill="#ffe0b2" stroke="#ff9800" rx="3"/>
-        <text x="1010" y="133" font-size="13" text-anchor="middle">"cat" attends to "mat" (both objects)</text>
-        
-        <!-- Head 3 -->
-        <rect x="1230" y="0" width="380" height="150" fill="#fff3e0" stroke="#ffb300" rx="5"/>
-        <text x="1420" y="25" font-size="18" font-weight="bold" text-anchor="middle" fill="#f57c00">
-          Head 3: Long-Range Dependencies
-        </text>
-        <text x="1240" y="50" font-size="14">Learns to connect:</text>
-        <text x="1240" y="70" font-size="13" fill="#666">• Coreference ("it" → noun)</text>
-        <text x="1240" y="88" font-size="13" fill="#666">• Discourse markers</text>
-        <text x="1240" y="106" font-size="13" fill="#666">• Paragraph structure</text>
-        <rect x="1240" y="115" width="360" height="25" fill="#ffe0b2" stroke="#ff9800" rx="3"/>
-        <text x="1420" y="133" font-size="13" text-anchor="middle">"it" attends strongly to "mat"</text>
-      </g>
-      
-      <!-- Visualization of different patterns -->
-      <g transform="translate(0, 200)">
-        <rect x="0" y="0" width="1500" height="150" fill="#ffecb3" stroke="#ffa000" rx="5"/>
-        <text x="20" y="30" font-size="18" font-weight="bold" fill="#e65100">Attention Patterns Across Heads:</text>
-        
-        <!-- Mini heatmaps for each head -->
-        <g transform="translate(20, 50)">
-          <text x="0" y="-5" font-size="12" fill="#666">Head 0 (Syntax)</text>
-          <rect x="0" y="0" width="15" height="15" fill="#ffeb3b"/>
-          <rect x="16" y="0" width="15" height="15" fill="#ff5722" opacity="0.8"/>
-          <rect x="32" y="0" width="15" height="15" fill="#ffeb3b"/>
-          <rect x="0" y="16" width="15" height="15" fill="#4caf50" opacity="0.3"/>
-          <rect x="16" y="16" width="15" height="15" fill="#ffeb3b"/>
-          <rect x="32" y="16" width="15" height="15" fill="#ff5722" opacity="0.8"/>
-          <rect x="0" y="32" width="15" height="15" fill="#ffeb3b"/>
-          <rect x="16" y="32" width="15" height="15" fill="#4caf50" opacity="0.3"/>
-          <rect x="32" y="32" width="15" height="15" fill="#ffeb3b"/>
-        </g>
-        
-        <g transform="translate(200, 50)">
-          <text x="0" y="-5" font-size="12" fill="#666">Head 1 (Local)</text>
-          <rect x="0" y="0" width="15" height="15" fill="#ff5722" opacity="0.9"/>
-          <rect x="16" y="0" width="15" height="15" fill="#ff5722" opacity="0.7"/>
-          <rect x="32" y="0" width="15" height="15" fill="#4caf50" opacity="0.3"/>
-          <rect x="0" y="16" width="15" height="15" fill="#4caf50" opacity="0.3"/>
-          <rect x="16" y="16" width="15" height="15" fill="#ff5722" opacity="0.9"/>
-          <rect x="32" y="16" width="15" height="15" fill="#ff5722" opacity="0.7"/>
-          <rect x="0" y="32" width="15" height="15" fill="#4caf50" opacity="0.2"/>
-          <rect x="16" y="32" width="15" height="15" fill="#4caf50" opacity="0.3"/>
-          <rect x="32" y="32" width="15" height="15" fill="#ff5722" opacity="0.9"/>
-        </g>
-        
-        <text x="400" y="40" font-size="14" fill="#666">Different heads learn completely different attention patterns!</text>
-        <text x="400" y="60" font-size="14" fill="#666">This is emergent specialization through training.</text>
-      </g>
-    </g>
-  </g>
-
-  <!-- Section 4: Attention Across Layers -->
-  <g transform="translate(50, 1470)">
-    <rect x="0" y="0" width="1700" height="500" fill="#e3f2fd" stroke="#2196f3" stroke-width="3" rx="12"/>
-    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#0d47a1">
-      ATTENTION EVOLUTION ACROSS LAYERS: FROM SYNTAX TO SEMANTICS
-    </text>
-    
-    <g transform="translate(100, 80)">
-      <!-- Layer progression -->
-      <g transform="translate(0, 0)">
-        <!-- Early layers -->
-        <rect x="0" y="0" width="350" height="350" fill="#e1f5fe" stroke="#039be5" stroke-width="2" rx="8"/>
-        <text x="175" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#01579b">
-          Early Layers (0-3)
-        </text>
-        
-        <text x="15" y="60" font-size="16" font-weight="bold" fill="#0277bd">Focus: Local patterns</text>
-        <text x="15" y="85" font-size="14" fill="#333">• Word boundaries</text>
-        <text x="15" y="105" font-size="14" fill="#333">• Part of speech</text>
-        <text x="15" y="125" font-size="14" fill="#333">• Phrase structure</text>
-        
-        <rect x="15" y="145" width="320" height="80" fill="#b3e5fc" stroke="#0288d1" rx="5"/>
-        <text x="175" y="170" font-size="14" font-weight="bold" text-anchor="middle">
-          Example: "The quick brown fox"
-        </text>
-        <text x="25" y="195" font-size="13">"quick" → "brown" (adjacent modifiers)</text>
-        <text x="25" y="215" font-size="13">"The" → "fox" (determiner → noun)</text>
-        
-        <rect x="15" y="240" width="320" height="90" fill="#81d4fa" stroke="#039be5" rx="5"/>
-        <text x="175" y="265" font-size="14" font-weight="bold" text-anchor="middle">
-          Attention is mostly local
-        </text>
-        <text x="25" y="285" font-size="12">• Positional encoding dominant</text>
-        <text x="25" y="302" font-size="12">• Simple grammatical patterns</text>
-        <text x="25" y="319" font-size="12">• Building basic representations</text>
-      </g>
-      
-      <!-- Middle layers -->
-      <g transform="translate(400, 0)">
-        <rect x="0" y="0" width="350" height="350" fill="#c8e6c9" stroke="#43a047" stroke-width="2" rx="8"/>
-        <text x="175" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
-          Middle Layers (4-8)
-        </text>
-        
-        <text x="15" y="60" font-size="16" font-weight="bold" fill="#2e7d32">Focus: Syntactic structures</text>
-        <text x="15" y="85" font-size="14" fill="#333">• Subject-verb-object</text>
-        <text x="15" y="105" font-size="14" fill="#333">• Clause boundaries</text>
-        <text x="15" y="125" font-size="14" fill="#333">• Dependency parsing</text>
-        
-        <rect x="15" y="145" width="320" height="80" fill="#a5d6a7" stroke="#4caf50" rx="5"/>
-        <text x="175" y="170" font-size="14" font-weight="bold" text-anchor="middle">
-          Example: "The cat that sat on the mat"
-        </text>
-        <text x="25" y="195" font-size="13">"cat" → "sat" (subj → verb)</text>
-        <text x="25" y="215" font-size="13">"that" → "cat" (relative clause)</text>
-        
-        <rect x="15" y="240" width="320" height="90" fill="#81c784" stroke="#43a047" rx="5"/>
-        <text x="175" y="265" font-size="14" font-weight="bold" text-anchor="middle">
-          Attention spans phrases
-        </text>
-        <text x="25" y="285" font-size="12">• Grammatical dependencies</text>
-        <text x="25" y="302" font-size="12">• Constituent structure</text>
-        <text x="25" y="319" font-size="12">• Building compositional meaning</text>
-      </g>
-      
-      <!-- Later layers -->
-      <g transform="translate(800, 0)">
-        <rect x="0" y="0" width="350" height="350" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="8"/>
-        <text x="175" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#4a148c">
-          Later Layers (9-12)
-        </text>
-        
-        <text x="15" y="60" font-size="16" font-weight="bold" fill="#6a1b9a">Focus: Semantic concepts</text>
-        <text x="15" y="85" font-size="14" fill="#333">• Topic coherence</text>
-        <text x="15" y="105" font-size="14" fill="#333">• Abstract reasoning</text>
-        <text x="15" y="125" font-size="14" fill="#333">• Long-range context</text>
-        
-        <rect x="15" y="145" width="320" height="80" fill="#e1bee7" stroke="#8e24aa" rx="5"/>
-        <text x="175" y="170" font-size="14" font-weight="bold" text-anchor="middle">
-          Example: "It was comfortable"
-        </text>
-        <text x="25" y="195" font-size="13">"It" → "mat" (coreference, 10 tokens away)</text>
-        <text x="25" y="215" font-size="13">"comfortable" → "soft" (earlier description)</text>
-        
-        <rect x="15" y="240" width="320" height="90" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
-        <text x="175" y="265" font-size="14" font-weight="bold" text-anchor="middle">
-          Attention is task-specific
-        </text>
-        <text x="25" y="285" font-size="12">• Abstract relationships</text>
-        <text x="25" y="302" font-size="12">• Discourse structure</text>
-        <text x="25" y="319" font-size="12">• Preparing final prediction</text>
-      </g>
-      
-      <!-- Final layers -->
-      <g transform="translate(1200, 0)">
-        <rect x="0" y="0" width="350" height="350" fill="#ffebee" stroke="#c62828" stroke-width="2" rx="8"/>
-        <text x="175" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#b71c1c">
-          Final Layers (11-12)
-        </text>
-        
-        <text x="15" y="60" font-size="16" font-weight="bold" fill="#d32f2f">Focus: Task-specific output</text>
-        <text x="15" y="85" font-size="14" fill="#333">• Next token prediction</text>
-        <text x="15" y="105" font-size="14" fill="#333">• Classification features</text>
-        <text x="15" y="125" font-size="14" fill="#333">• Output formatting</text>
-        
-        <rect x="15" y="145" width="320" height="80" fill="#ffcdd2" stroke="#e53935" rx="5"/>
-        <text x="175" y="170" font-size="14" font-weight="bold" text-anchor="middle">
-          Example: Predicting next word
-        </text>
-        <text x="25" y="195" font-size="13">Aggregate all relevant context</text>
-        <text x="25" y="215" font-size="13">Focus on predictive features</text>
-        
-        <rect x="15" y="240" width="320" height="90" fill="#ef9a9a" stroke="#c62828" rx="5"/>
-        <text x="175" y="265" font-size="14" font-weight="bold" text-anchor="middle">
-          Attention is highly selective
-        </text>
-        <text x="25" y="285" font-size="12">• Task-oriented patterns</text>
-        <text x="25" y="302" font-size="12">• Output preparation</text>
-        <text x="25" y="319" font-size="12">• Maximum information extraction</text>
-      </g>
-    </g>
-<!-- Arrow showing progression -->
-   <g transform="translate(100, 440)">
-     <path d="M 0 0 L 1500 0" stroke="#666" stroke-width="2" marker-end="url(#arrowgray)"/>
-     <text x="750" y="25" font-size="16" text-anchor="middle" fill="#666">
-       Progression: Local Features → Syntax → Semantics → Task-Specific
-     </text>
-   </g>
- </g>
-
- <!-- Section 5: Emergent Properties -->
- <g transform="translate(50, 2010)">
-   <rect x="0" y="0" width="1700" height="600" fill="#fff3e0" stroke="#ff6f00" stroke-width="3" rx="12"/>
-   <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#e65100">
-     EMERGENT PROPERTIES: WHAT THE MODEL DISCOVERS ON ITS OWN
-   </text>
-   
-   <g transform="translate(100, 80)">
-     <text x="0" y="0" font-size="22" font-weight="bold" fill="#f57c00">
-       During training, attention heads spontaneously learn to:
-     </text>
-     
-     <!-- Emergent property 1 -->
-     <g transform="translate(0, 40)">
-       <rect x="0" y="0" width="750" height="200" fill="#ffe0b2" stroke="#ff9800" stroke-width="2" rx="8"/>
-       <text x="375" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#e65100">
-         1. Induction Heads (Pattern Matching)
-       </text>
-       
-       <text x="20" y="60" font-size="16" font-weight="bold">Discovery: Copying patterns from context</text>
-       <rect x="20" y="75" width="710" height="50" fill="#fff8e1" stroke="#ffa726" rx="5"/>
-       <text x="30" y="95" font-size="14" font-family="monospace">Example: "The cat sat on the mat. The dog sat on the..."</text>
-       <text x="30" y="115" font-size="14" font-family="monospace">Model learns: After "The dog sat on the" → predict "mat"</text>
-       
-       <text x="20" y="150" font-size="15">• No explicit programming for this!</text>
-       <text x="20" y="170" font-size="15">• Emerges around layer 5-6</text>
-       <text x="20" y="190" font-size="15">• Critical for in-context learning</text>
-     </g>
-     
-     <!-- Emergent property 2 -->
-     <g transform="translate(800, 40)">
-       <rect x="0" y="0" width="750" height="200" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="8"/>
-       <text x="375" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#2e7d32">
-         2. Factual Recall Circuits
-       </text>
-       
-       <text x="20" y="60" font-size="16" font-weight="bold">Discovery: Knowledge retrieval patterns</text>
-       <rect x="20" y="75" width="710" height="50" fill="#f1f8e4" stroke="#66bb6a" rx="5"/>
-       <text x="30" y="95" font-size="14" font-family="monospace">Example: "The capital of France is..."</text>
-       <text x="30" y="115" font-size="14" font-family="monospace">Specific heads learn to route "France" → "capital" → "Paris"</text>
-       
-       <text x="20" y="150" font-size="15">• Different heads for different fact types</text>
-       <text x="20" y="170" font-size="15">• Emerges in middle layers (6-9)</text>
-       <text x="20" y="190" font-size="15">• Can be surgically modified!</text>
-     </g>
-     
-     <!-- Emergent property 3 -->
-     <g transform="translate(0, 260)">
-       <rect x="0" y="0" width="750" height="200" fill="#e3f2fd" stroke="#2196f3" stroke-width="2" rx="8"/>
-       <text x="375" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1565c0">
-         3. Syntactic Agreement Trackers
-       </text>
-       
-       <text x="20" y="60" font-size="16" font-weight="bold">Discovery: Grammar enforcement</text>
-       <rect x="20" y="75" width="710" height="50" fill="#e1f5fe" stroke="#42a5f5" rx="5"/>
-       <text x="30" y="95" font-size="14" font-family="monospace">Example: "The dogs [are/is] barking"</text>
-       <text x="30" y="115" font-size="14" font-family="monospace">Heads learn: plural subject → plural verb</text>
-       
-       <text x="20" y="150" font-size="15">• Tracks number, gender, tense</text>
-       <text x="20" y="170" font-size="15">• Emerges early (layers 2-4)</text>
-       <text x="20" y="190" font-size="15">• Remarkably consistent across models</text>
-     </g>
-     
-     <!-- Emergent property 4 -->
-     <g transform="translate(800, 260)">
-       <rect x="0" y="0" width="750" height="200" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="8"/>
-       <text x="375" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#6a1b9a">
-         4. Semantic Role Labelers
-       </text>
-       
-       <text x="20" y="60" font-size="16" font-weight="bold">Discovery: Understanding "who did what to whom"</text>
-       <rect x="20" y="75" width="710" height="50" fill="#f3e5f5" stroke="#9c27b0" rx="5"/>
-       <text x="30" y="95" font-size="14" font-family="monospace">Example: "Alice gave Bob the book"</text>
-       <text x="30" y="115" font-size="14" font-family="monospace">Heads learn: Alice=giver, Bob=receiver, book=object</text>
-       
-       <text x="20" y="150" font-size="15">• No explicit semantic role labels in training!</text>
-       <text x="20" y="170" font-size="15">• Emerges in layers 7-10</text>
-       <text x="20" y="190" font-size="15">• Crucial for comprehension</text>
-     </g>
-   </g>
-   
-   <!-- The amazing conclusion -->
-   <rect x="100" y="500" width="1500" height="70" fill="#ff6f00" stroke="#e65100" stroke-width="2" rx="10"/>
-   <text x="850" y="535" font-size="22" font-weight="bold" text-anchor="middle" fill="white">
-     These patterns emerge without explicit programming - just from predicting next tokens!
-   </text>
-   <text x="850" y="560" font-size="18" text-anchor="middle" fill="white">
-     The model discovers these structures because they're useful for the task.
-   </text>
- </g>
-
- <!-- Section 6: Your Implementation Advantage -->
- <g transform="translate(50, 2650)">
-   <rect x="0" y="0" width="1700" height="400" fill="#e8eaf6" stroke="#3f51b5" stroke-width="3" rx="12"/>
-   <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1a237e">
-     WHY YOUR C IMPLEMENTATION ENABLES BETTER UNDERSTANDING
-   </text>
-   
-   <g transform="translate(100, 80)">
-     <!-- Interpretability advantage -->
-     <rect x="0" y="0" width="500" height="280" fill="#c5cae9" stroke="#5c6bc0" stroke-width="2" rx="8"/>
-     <text x="250" y="30" font-size="22" font-weight="bold" text-anchor="middle" fill="#283593">
-       Perfect Interpretability
-     </text>
-     
-     <text x="20" y="60" font-size="16" font-weight="bold">Your advantages:</text>
-     <text x="20" y="85" font-size="15">• Every attention score is accessible</text>
-     <text x="20" y="105" font-size="15">• Can trace exact computation path</text>
-     <text x="20" y="125" font-size="15">• No hidden framework magic</text>
-     
-     <rect x="20" y="145" width="460" height="120" fill="#9fa8da" stroke="#3f51b5" rx="5"/>
-     <text x="250" y="170" font-size="15" font-weight="bold" text-anchor="middle" fill="white">
-       You can literally watch:
-     </text>
-     <text x="30" y="195" font-size="14" font-family="monospace" fill="white">for (head = 0; head &lt; 8; head++) {</text>
-     <text x="30" y="215" font-size="14" font-family="monospace" fill="white">  printf("Head %d attends:", head);</text>
-     <text x="30" y="235" font-size="14" font-family="monospace" fill="white">  dump_attention_pattern(attn[head]);</text>
-     <text x="30" y="255" font-size="14" font-family="monospace" fill="white">}</text>
-   </g>
-   
-   <g transform="translate(650, 80)">
-     <!-- Performance for exploration -->
-     <rect x="0" y="0" width="500" height="280" fill="#e8f5e9" stroke="#4caf50" stroke-width="2" rx="8"/>
-     <text x="250" y="30" font-size="22" font-weight="bold" text-anchor="middle" fill="#1b5e20">
-       Fast Experimentation
-     </text>
-     
-     <text x="20" y="60" font-size="16" font-weight="bold">Speed enables discovery:</text>
-     <text x="20" y="85" font-size="15">• 10x faster = 10x more experiments</text>
-     <text x="20" y="105" font-size="15">• Can test hypotheses in real-time</text>
-     <text x="20" y="125" font-size="15">• Modify attention patterns live</text>
-     
-     <rect x="20" y="145" width="460" height="120" fill="#a5d6a7" stroke="#4caf50" rx="5"/>
-     <text x="250" y="170" font-size="15" font-weight="bold" text-anchor="middle">
-       Research possibilities:
-     </text>
-     <text x="30" y="195" font-size="14">• "What if head 3 only looked locally?"</text>
-     <text x="30" y="215" font-size="14">• "Can we force semantic heads earlier?"</text>
-     <text x="30" y="235" font-size="14">• "How minimal can attention be?"</text>
-     <text x="30" y="255" font-size="14">→ Change code, test immediately!</text>
-   </g>
-   
-   <g transform="translate(1200, 80)">
-     <!-- Control -->
-     <rect x="0" y="0" width="400" height="280" fill="#ffebee" stroke="#c62828" stroke-width="2" rx="8"/>
-     <text x="200" y="30" font-size="22" font-weight="bold" text-anchor="middle" fill="#b71c1c">
-       Surgical Control
-     </text>
-     
-     <text x="20" y="60" font-size="16" font-weight="bold">For critical systems:</text>
-     <text x="20" y="85" font-size="15">• Disable specific heads</text>
-     <text x="20" y="105" font-size="15">• Enforce attention patterns</text>
-     <text x="20" y="125" font-size="15">• Guarantee behavior</text>
-     
-     <rect x="20" y="145" width="360" height="120" fill="#ffcdd2" stroke="#d32f2f" rx="5"/>
-     <text x="200" y="170" font-size="15" font-weight="bold" text-anchor="middle">
-       Example use cases:
-     </text>
-     <text x="30" y="195" font-size="14">• Medical AI: Force attention</text>
-     <text x="30" y="212" font-size="14">  to symptoms over demographics</text>
-     <text x="30" y="235" font-size="14">• Drone AI: Guarantee attention</text>
-     <text x="30" y="252" font-size="14">  to safety constraints</text>
-   </g>
- </g>
-
- <!-- Arrow definitions -->
- <defs>
-   <marker id="arrowblue" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="#3f51b5">
-     <path d="M 0 0 L 10 5 L 0 10 Z"/>
-   </marker>
-   <marker id="arrowgray" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="#666">
-     <path d="M 0 0 L 10 5 L 0 10 Z"/>
-   </marker>
- </defs>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 26.0.3, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 1800 1438.3" style="enable-background:new 0 0 1800 1438.3;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#F4F4F4;}
+	.st1{font-family:'Arial-BoldMT';}
+	.st2{font-size:38px;}
+	.st3{font-family:'ArialMT';}
+	.st4{font-size:22px;}
+	.st5{fill:#E8EAF6;stroke:#3F51B5;stroke-width:3;}
+	.st6{fill:#1A237E;}
+	.st7{font-size:30px;}
+	.st8{fill:#C5CAE9;stroke:#3F51B5;stroke-width:2;}
+	.st9{font-size:20px;}
+	.st10{fill:#9FA8DA;stroke:#5C6BC0;}
+	.st11{font-family:'CourierNewPSMT';}
+	.st12{font-size:16px;}
+	.st13{fill:#283593;}
+	.st14{fill:#333333;}
+	.st15{font-size:15px;}
+	.st16{fill:#7986CB;stroke:#3F51B5;}
+	.st17{fill:#FFFFFF;}
+	.st18{font-size:14px;}
+	.st19{fill:none;}
+	.st20{fill:#3F51B5;}
+	.st21{fill:#FFFFFF;stroke:#3F51B5;stroke-width:2;}
+	.st22{fill:#FFEBEE;stroke:#C62828;stroke-width:2;}
+	.st23{fill:#B71C1C;}
+	.st24{font-size:18px;}
+	.st25{fill:#FFCDD2;stroke:#D32F2F;}
+	.st26{fill:#666666;}
+	.st27{font-size:13px;}
+	.st28{fill:#E8F5E9;stroke:#2E7D32;stroke-width:2;}
+	.st29{fill:#1B5E20;}
+	.st30{fill:#C8E6C9;stroke:#43A047;}
+	.st31{fill:#FFF3E0;stroke:#F57C00;stroke-width:2;}
+	.st32{fill:#E65100;}
+	.st33{fill:#FFE0B2;stroke:#FF9800;}
+	.st34{fill:#E8F5E9;stroke:#4CAF50;stroke-width:3;}
+	.st35{fill:#2E7D32;}
+	.st36{fill:#FFCDD2;stroke:#C62828;}
+	.st37{fill:#E8F5E9;stroke:#4CAF50;}
+	.st38{font-size:12px;}
+	.st39{fill:#A5D6A7;stroke:#4CAF50;stroke-width:3;}
+	.st40{fill:none;stroke:#999999;stroke-dasharray:2,2;}
+	.st41{font-size:11px;}
+	.st42{fill:none;stroke:#4CAF50;stroke-width:3;}
+	.st43{fill:#C8E6C9;stroke:#43A047;stroke-width:2;}
+	.st44{fill:#F1F8E4;stroke:#689F38;}
+	.st45{fill:#33691E;}
+	.st46{fill:#555555;}
+	.st47{fill:#FFF8E1;stroke:#FF9800;stroke-width:3;}
+	.st48{fill:#F57C00;}
+	.st49{fill:#FFF3E0;stroke:#FFB300;}
+	.st50{fill:#FFECB3;stroke:#FFA000;}
+	.st51{fill:#FFEB3B;}
+	.st52{opacity:0.8;fill:#FF5722;enable-background:new    ;}
+	.st53{opacity:0.3;fill:#4CAF50;enable-background:new    ;}
+	.st54{opacity:0.9;fill:#FF5722;enable-background:new    ;}
+	.st55{opacity:0.7;fill:#FF5722;enable-background:new    ;}
+	.st56{opacity:0.2;fill:#4CAF50;enable-background:new    ;}
+	.st57{fill:#E3F2FD;stroke:#2196F3;stroke-width:3;}
+	.st58{fill:#E1F5FE;stroke:#039BE5;stroke-width:2;}
+	.st59{fill:#B3E5FC;stroke:#0288D1;}
+	.st60{fill:#81D4FA;stroke:#039BE5;}
+	.st61{fill:#A5D6A7;stroke:#4CAF50;}
+	.st62{fill:#81C784;stroke:#43A047;}
+	.st63{fill:#F3E5F5;stroke:#7B1FA2;stroke-width:2;}
+	.st64{fill:#E1BEE7;stroke:#8E24AA;}
+	.st65{fill:#CE93D8;stroke:#7B1FA2;}
+	.st66{fill:#FFCDD2;stroke:#E53935;}
+	.st67{fill:#EF9A9A;stroke:#C62828;}
+	.st68{fill:#FFF3E0;stroke:#FF6F00;stroke-width:3;}
+	.st69{fill:#FFE0B2;stroke:#FF9800;stroke-width:2;}
+	.st70{fill:#FFF8E1;stroke:#FFA726;}
+	.st71{fill:#E8F5E9;stroke:#4CAF50;stroke-width:2;}
+	.st72{fill:#F1F8E4;stroke:#66BB6A;}
+	.st73{fill:#E3F2FD;stroke:#2196F3;stroke-width:2;}
+	.st74{fill:#E1F5FE;stroke:#42A5F5;}
+	.st75{fill:#F3E5F5;stroke:#9C27B0;}
+	.st76{fill:#FF6F00;stroke:#E65100;stroke-width:2;}
+	.st77{fill:#C5CAE9;stroke:#5C6BC0;stroke-width:2;}
+	.st78{fill:#9FA8DA;stroke:#3F51B5;}
+</style>
+<text transform="matrix(1 0 0 1 552.3501 50)" class="st0 st1 st2">The Emergent Intelligence of Attention</text>
+<text transform="matrix(1 0 0 1 527.2139 85)" class="st0 st3 st4">How QKV Projections Create Understanding Through Learned Relationships</text>
+<g transform="translate(50, 130)">
+	<path class="st5" d="M12,0h1676c6.6,0,12,5.9,12,13.3v416.2c0,7.3-5.4,13.3-12,13.3H12c-6.6,0-12-5.9-12-13.3V13.3
+		C0,5.9,5.4,0,12,0z"/>
+	<text transform="matrix(1 0 0 1 436.8921 40)" class="st6 st1 st7">THE GENIUS OF QKV: CREATING THREE PERSPECTIVES</text>
+	<g transform="translate(100, 80)">
+		<path class="st8" d="M8,0h284c4.4,0,8,3.6,8,8v264c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+		<text transform="matrix(1 0 0 1 80.7324 30)" class="st6 st1 st9">Original Token</text>
+		<path class="st10" d="M25,50h250c2.8,0,5,2.2,5,5v50c0,2.8-2.2,5-5,5H25c-2.8,0-5-2.2-5-5V55C20,52.2,22.2,50,25,50z"/>
+		<text transform="matrix(1 0 0 1 63.5859 85)" class="st11 st12">&quot;cat&quot; → [512 dims]</text>
+		<text transform="matrix(1 0 0 1 20 140)" class="st13 st1 st12">One representation:</text>
+		<text transform="matrix(1 0 0 1 20 165)" class="st14 st3 st15">• Semantic meaning</text>
+		<text transform="matrix(1 0 0 1 20 185)" class="st14 st3 st15">• Syntactic role</text>
+		<text transform="matrix(1 0 0 1 20 205)" class="st14 st3 st15">• Position info</text>
+		<text transform="matrix(1 0 0 1 20 225)" class="st14 st3 st15">• Everything mixed!</text>
+		<path class="st16" d="M25,250h250c2.8,0,5,2.2,5,5v80c0,2.8-2.2,5-5,5H25c-2.8,0-5-2.2-5-5v-80C20,252.2,22.2,250,25,250z"/>
+		<text transform="matrix(1 0 0 1 72.665 275)" class="st17 st3 st18">Problem: How does &quot;cat&quot;</text>
+		<text transform="matrix(1 0 0 1 84.2451 295)" class="st17 st3 st18">know what to look for</text>
+		<text transform="matrix(1 0 0 1 100.1899 315)" class="st17 st3 st18">in other tokens?</text>
+	</g>
+	<path class="st19" d=""/>
+	<path class="st20" d="M450,195l30,15l-30,15V195z"/>
+	<path marker-end="url(#arrowblue)" class="st20" d="M480,210"/>
+	<g transform="translate(500, 80)">
+		<path class="st21" d="M8,0h984c4.4,0,8,3.6,8,8v264c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+		<text transform="matrix(1 0 0 1 322.7344 30)" class="st6 st1 st9">QKV: Three Learned Transformations</text>
+		<g transform="translate(20, 50)">
+			<path class="st22" d="M5,0h290c2.8,0,5,2.2,5,5v190c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V5C0,2.2,2.2,0,5,0z"/>
+			<text transform="matrix(1 0 0 1 108.4937 25)" class="st23 st1 st24">Q (Query)</text>
+			<text transform="matrix(1 0 0 1 57.585 50)" class="st11 st18">W_q transforms &quot;cat&quot; →</text>
+			<path class="st25" d="M13,60h274c1.7,0,3,1.3,3,3v34c0,1.7-1.3,3-3,3H13c-1.7,0-3-1.3-3-3V63C10,61.3,11.3,60,13,60z"/>
+			<text transform="matrix(1 0 0 1 71.1108 85)" class="st1 st15">&quot;What I&apos;m looking for&quot;</text>
+			<text transform="matrix(1 0 0 1 10 120)" class="st14 st3 st18">Examples of learned queries:</text>
+			<text transform="matrix(1 0 0 1 10 140)" class="st26 st3 st27">• &quot;Find my subject&quot;</text>
+			<text transform="matrix(1 0 0 1 10 158)" class="st26 st3 st27">• &quot;Find descriptors of me&quot;</text>
+			<text transform="matrix(1 0 0 1 10 176)" class="st26 st3 st27">• &quot;Find related concepts&quot;</text>
+			<text transform="matrix(1 0 0 1 10 194)" class="st26 st3 st27">• &quot;Find my verb&quot;</text>
+		</g>
+		<g transform="translate(340, 50)">
+			<path class="st28" d="M5,0h290c2.8,0,5,2.2,5,5v190c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V5C0,2.2,2.2,0,5,0z"/>
+			<text transform="matrix(1 0 0 1 118.4956 25)" class="st29 st1 st24">K (Key)</text>
+			<text transform="matrix(1 0 0 1 57.585 50)" class="st11 st18">W_k transforms &quot;mat&quot; →</text>
+			<path class="st30" d="M13,60h274c1.7,0,3,1.3,3,3v34c0,1.7-1.3,3-3,3H13c-1.7,0-3-1.3-3-3V63C10,61.3,11.3,60,13,60z"/>
+			<text transform="matrix(1 0 0 1 66.6211 85)" class="st1 st15">&quot;What I offer/advertise&quot;</text>
+			<text transform="matrix(1 0 0 1 10 120)" class="st14 st3 st18">Examples of learned keys:</text>
+			<text transform="matrix(1 0 0 1 10 140)" class="st26 st3 st27">• &quot;I am a location&quot;</text>
+			<text transform="matrix(1 0 0 1 10 158)" class="st26 st3 st27">• &quot;I am an object&quot;</text>
+			<text transform="matrix(1 0 0 1 10 176)" class="st26 st3 st27">• &quot;I can be possessed&quot;</text>
+			<text transform="matrix(1 0 0 1 10 194)" class="st26 st3 st27">• &quot;I am soft/comfortable&quot;</text>
+		</g>
+		<g transform="translate(660, 50)">
+			<path class="st31" d="M5,0h290c2.8,0,5,2.2,5,5v190c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V5C0,2.2,2.2,0,5,0z"/>
+			<text transform="matrix(1 0 0 1 111.9873 25)" class="st32 st1 st24">V (Value)</text>
+			<text transform="matrix(1 0 0 1 57.585 50)" class="st11 st18">W_v transforms &quot;mat&quot; →</text>
+			<path class="st33" d="M13,60h274c1.7,0,3,1.3,3,3v34c0,1.7-1.3,3-3,3H13c-1.7,0-3-1.3-3-3V63C10,61.3,11.3,60,13,60z"/>
+			<text transform="matrix(1 0 0 1 81.6431 85)" class="st1 st15">&quot;What I contribute&quot;</text>
+			<text transform="matrix(1 0 0 1 10 120)" class="st14 st3 st18">Actual information passed:</text>
+			<text transform="matrix(1 0 0 1 10 140)" class="st26 st3 st27">• Semantic features</text>
+			<text transform="matrix(1 0 0 1 10 158)" class="st26 st3 st27">• Syntactic properties</text>
+			<text transform="matrix(1 0 0 1 10 176)" class="st26 st3 st27">• Contextual meaning</text>
+			<text transform="matrix(1 0 0 1 10 194)" class="st26 st3 st27">• Abstract concepts</text>
+		</g>
+	</g>
+</g>
+<g transform="translate(50, 570)">
+	<path class="st34" d="M12,30h1676c6.6,0,12,5.4,12,12v326c0,6.6-5.4,12-12,12H12c-6.6,0-12-5.4-12-12V42C0,35.4,5.4,30,12,30z"/>
+	<text transform="matrix(1 0 0 1 308.0151 70)" class="st29 st1 st7">THE EMERGENT MATCHING: HOW ATTENTION &quot;LEARNS&quot; RELATIONSHIPS</text>
+	<g transform="translate(150, 80)">
+		<text transform="matrix(1 0 0 1 0 30)" class="st35 st1 st4">Example: &quot;The cat sat on the mat&quot;</text>
+		<g transform="translate(0, 30)">
+			<path class="st36" d="M5,30h190c2.8,0,5,2.2,5,5v50c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V35C0,32.2,2.2,30,5,30z"/>
+			<text transform="matrix(1 0 0 1 69.3008 55)" class="st1 st12">Q(&quot;cat&quot;)</text>
+			<text transform="matrix(1 0 0 1 45.6133 75)" class="st3 st18">&quot;Where did I go?&quot;</text>
+		</g>
+		<g transform="translate(300, 30)">
+			<path class="st37" d="M5,30h140c2.8,0,5,2.2,5,5v50c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V35C0,32.2,2.2,30,5,30z"/>
+			<text transform="matrix(1 0 0 1 48.6372 55)" class="st3 st18">K(&quot;The&quot;)</text>
+			<text transform="matrix(1 0 0 1 27.5801 75)" class="st3 st38">&quot;I&apos;m a determiner&quot;</text>
+			<path class="st37" d="M175,30h140c2.8,0,5,2.2,5,5v50c0,2.8-2.2,5-5,5H175c-2.8,0-5-2.2-5-5V35C170,32.2,172.2,30,175,30z"/>
+			<text transform="matrix(1 0 0 1 221.3613 55)" class="st3 st18">K(&quot;sat&quot;)</text>
+			<text transform="matrix(1 0 0 1 206.9111 75)" class="st3 st38">&quot;I&apos;m an action&quot;</text>
+			<path class="st39" d="M345,30h140c2.8,0,5,2.2,5,5v50c0,2.8-2.2,5-5,5H345c-2.8,0-5-2.2-5-5V35C340,32.2,342.2,30,345,30z"/>
+			<text transform="matrix(1 0 0 1 386.1968 55)" class="st1 st18">K(&quot;mat&quot;)</text>
+			<text transform="matrix(1 0 0 1 369.2119 75)" class="st1 st38">&quot;I&apos;m a location!&quot;</text>
+		</g>
+		<path class="st40" d="M100,120c0,26.7-8.3,40-25,40"/>
+		<text transform="matrix(1 0 0 1 50 175)" class="st26 st3 st41">0.05</text>
+		<path class="st40" d="M100,120c0,26.7,48.3,40,145,40"/>
+		<text transform="matrix(1 0 0 1 230 175)" class="st26 st3 st41">0.15</text>
+		<path class="st42" d="M100,120c0,26.7,105,40,315,40"/>
+		<text transform="matrix(1 0 0 1 400 175)" class="st35 st1 st18">0.80!</text>
+		<path class="st43" d="M845,60h390c2.8,0,5,2.2,5,5v90c0,2.8-2.2,5-5,5H845c-2.8,0-5-2.2-5-5V65C840,62.2,842.2,60,845,60z"/>
+		<text transform="matrix(1 0 0 1 964.4336 90)" class="st1 st12">Emergent Learning:</text>
+		<text transform="matrix(1 0 0 1 914.7964 115)" class="st3 st18">Model learned &quot;cat&quot; queries for locations</text>
+		<text transform="matrix(1 0 0 1 932.6963 135)" class="st3 st18">and &quot;mat&quot; advertises as a location!</text>
+	</g>
+	<g transform="translate(150, 200)">
+		<path class="st44" d="M5,67h1390c2.8,0,5,2.2,5,5v90c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V72C0,69.2,2.2,67,5,67z"/>
+		<text transform="matrix(1 0 0 1 20 97)" class="st45 st1 st24">The Beautiful Math:</text>
+		<text transform="matrix(1 0 0 1 20 122)" class="st11 st12">score = Q(&quot;cat&quot;) · K(&quot;mat&quot;) / √d = &quot;How well do these match?&quot;</text>
+		<text transform="matrix(1 0 0 1 20 147)" class="st46 st3 st15">Through training, W_q and W_k learn transformations that make related concepts have high dot products!</text>
+	</g>
+</g>
+<g transform="translate(50, 970)">
+	<path class="st47" d="M12,0h1676c6.6,0,12,5.4,12,12v426c0,6.6-5.4,12-12,12H12c-6.6,0-12-5.4-12-12V12C0,5.4,5.4,0,12,0z"/>
+	<text transform="matrix(1 0 0 1 250.5786 40)" class="st32 st1 st7">MULTI-HEAD ATTENTION: DIFFERENT HEADS LEARN DIFFERENT RELATIONSHIPS</text>
+	<g transform="translate(100, 80)">
+		<text class="st48 st1 st9">Each head develops its own &quot;expertise&quot;:</text>
+		<g transform="translate(0, 30)">
+			<path class="st49" d="M5,0h370c2.8,0,5,2.2,5,5v140c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V5C0,2.2,2.2,0,5,0z"/>
+			<text transform="matrix(1 0 0 1 51.4492 25)" class="st48 st1 st24">Head 0: Syntactic Dependencies</text>
+			<text transform="matrix(1 0 0 1 10 50)" class="st3 st18">Learns to connect:</text>
+			<text transform="matrix(1 0 0 1 10 70)" class="st26 st3 st27">• Subject → Verb</text>
+			<text transform="matrix(1 0 0 1 10 88)" class="st26 st3 st27">• Verb → Object</text>
+			<text transform="matrix(1 0 0 1 10 106)" class="st26 st3 st27">• Modifier → Modified</text>
+			<path class="st33" d="M13,115h354c1.7,0,3,1.3,3,3v19c0,1.7-1.3,3-3,3H13c-1.7,0-3-1.3-3-3v-19C10,116.3,11.3,115,13,115z"/>
+			<text transform="matrix(1 0 0 1 106.7029 133)" class="st3 st27">&quot;cat&quot; strongly attends to &quot;sat&quot;</text>
+			<path class="st49" d="M415,0h370c2.8,0,5,2.2,5,5v140c0,2.8-2.2,5-5,5H415c-2.8,0-5-2.2-5-5V5C410,2.2,412.2,0,415,0z"/>
+			<text transform="matrix(1 0 0 1 495.9771 25)" class="st48 st1 st24">Head 1: Positional/Local</text>
+			<text transform="matrix(1 0 0 1 420 50)" class="st3 st18">Learns to connect:</text>
+			<text transform="matrix(1 0 0 1 420 70)" class="st26 st3 st27">• Adjacent words</text>
+			<text transform="matrix(1 0 0 1 420 88)" class="st26 st3 st27">• Phrase boundaries</text>
+			<text transform="matrix(1 0 0 1 420 106)" class="st26 st3 st27">• Local context</text>
+			<path class="st33" d="M423,115h354c1.7,0,3,1.3,3,3v19c0,1.7-1.3,3-3,3H423c-1.7,0-3-1.3-3-3v-19C420,116.3,421.3,115,423,115z"
+				/>
+			<text transform="matrix(1 0 0 1 516.3379 133)" class="st3 st27">&quot;the&quot; strongly attends to &quot;cat&quot;</text>
+			<path class="st49" d="M825,0h370c2.8,0,5,2.2,5,5v140c0,2.8-2.2,5-5,5H825c-2.8,0-5-2.2-5-5V5C820,2.2,822.2,0,825,0z"/>
+			<text transform="matrix(1 0 0 1 891.9629 25)" class="st48 st1 st24">Head 2: Semantic Relations</text>
+			<text transform="matrix(1 0 0 1 830 50)" class="st3 st18">Learns to connect:</text>
+			<text transform="matrix(1 0 0 1 830 70)" class="st26 st3 st27">• Related concepts</text>
+			<text transform="matrix(1 0 0 1 830 88)" class="st26 st3 st27">• Co-occurring terms</text>
+			<text transform="matrix(1 0 0 1 830 106)" class="st26 st3 st27">• Topic coherence</text>
+			<path class="st33" d="M833,115h354c1.7,0,3,1.3,3,3v19c0,1.7-1.3,3-3,3H833c-1.7,0-3-1.3-3-3v-19C830,116.3,831.3,115,833,115z"
+				/>
+			<text transform="matrix(1 0 0 1 907.917 133)" class="st3 st27">&quot;cat&quot; attends to &quot;mat&quot; (both objects)</text>
+			<path class="st49" d="M1235,0h370c2.8,0,5,2.2,5,5v140c0,2.8-2.2,5-5,5h-370c-2.8,0-5-2.2-5-5V5C1230,2.2,1232.2,0,1235,0z"/>
+			<text transform="matrix(1 0 0 1 1268.9731 25)" class="st48 st1 st24">Head 3: Long-Range Dependencies</text>
+			<text transform="matrix(1 0 0 1 1240 50)" class="st3 st18">Learns to connect:</text>
+			<text transform="matrix(1 0 0 1 1240 70)" class="st26 st3 st27">• Coreference (&quot;it&quot; → noun)</text>
+			<text transform="matrix(1 0 0 1 1240 88)" class="st26 st3 st27">• Discourse markers</text>
+			<text transform="matrix(1 0 0 1 1240 106)" class="st26 st3 st27">• Paragraph structure</text>
+			<path class="st33" d="M1243,115h354c1.7,0,3,1.3,3,3v19c0,1.7-1.3,3-3,3h-354c-1.7,0-3-1.3-3-3v-19
+				C1240,116.3,1241.3,115,1243,115z"/>
+			<text transform="matrix(1 0 0 1 1339.9592 133)" class="st3 st27">&quot;it&quot; attends strongly to &quot;mat&quot;</text>
+		</g>
+		<g transform="translate(0, 200)">
+			<path class="st50" d="M5,0h1490c2.8,0,5,2.2,5,5v140c0,2.8-2.2,5-5,5H5c-2.8,0-5-2.2-5-5V5C0,2.2,2.2,0,5,0z"/>
+			<text transform="matrix(1 0 0 1 20 30)" class="st32 st1 st24">Attention Patterns Across Heads:</text>
+			<g transform="translate(20, 50)">
+				<text transform="matrix(1 0 0 1 0 -5)" class="st26 st3 st38">Head 0 (Syntax)</text>
+				<rect class="st51" width="15" height="15"/>
+				<rect x="16" class="st52" width="15" height="15"/>
+				<rect x="32" class="st51" width="15" height="15"/>
+				<rect y="16" class="st53" width="15" height="15"/>
+				<rect x="16" y="16" class="st51" width="15" height="15"/>
+				<rect x="32" y="16" class="st52" width="15" height="15"/>
+				<rect y="32" class="st51" width="15" height="15"/>
+				<rect x="16" y="32" class="st53" width="15" height="15"/>
+				<rect x="32" y="32" class="st51" width="15" height="15"/>
+			</g>
+			<g transform="translate(200, 50)">
+				<text transform="matrix(1 0 0 1 0 -5)" class="st26 st3 st38">Head 1 (Local)</text>
+				<rect class="st54" width="15" height="15"/>
+				<rect x="16" class="st55" width="15" height="15"/>
+				<rect x="32" class="st53" width="15" height="15"/>
+				<rect y="16" class="st53" width="15" height="15"/>
+				<rect x="16" y="16" class="st54" width="15" height="15"/>
+				<rect x="32" y="16" class="st55" width="15" height="15"/>
+				<rect y="32" class="st56" width="15" height="15"/>
+				<rect x="16" y="32" class="st53" width="15" height="15"/>
+				<rect x="32" y="32" class="st54" width="15" height="15"/>
+			</g>
+			<text transform="matrix(1 0 0 1 400 40)" class="st26 st3 st18">Different heads learn completely different attention patterns!</text>
+			<text transform="matrix(1 0 0 1 400 60)" class="st26 st3 st18">This is emergent specialization through training.</text>
+		</g>
+	</g>
+</g>
+<g transform="translate(50, 1470)">
+	<path class="st57" d="M12,0h1676c6.6,0,12,5.4,12,12v476c0,6.6-5.4,12-12,12H12c-6.6,0-12-5.4-12-12V12C0,5.4,5.4,0,12,0z"/>
+	<text transform="matrix(1 0 0 1 307.7515 40)" class="st1 st7" style="fill:#0D47A1;">ATTENTION EVOLUTION ACROSS LAYERS: FROM SYNTAX TO SEMANTICS</text>
+	<g transform="translate(100, 80)">
+		<g transform="translate(0, 0)">
+			<path class="st58" d="M8,0h334c4.4,0,8,3.6,8,8v334c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+			<text transform="matrix(1 0 0 1 91.6211 30)" class="st1 st9" style="fill:#01579B;">Early Layers (0-3)</text>
+			<text transform="matrix(1 0 0 1 15 60)" class="st1 st12" style="fill:#0277BD;">Focus: Local patterns</text>
+			<text transform="matrix(1 0 0 1 15 85)" class="st14 st3 st18">• Word boundaries</text>
+			<text transform="matrix(1 0 0 1 15 105)" class="st14 st3 st18">• Part of speech</text>
+			<text transform="matrix(1 0 0 1 15 125)" class="st14 st3 st18">• Phrase structure</text>
+			<path class="st59" d="M20,145h310c2.8,0,5,2.2,5,5v70c0,2.8-2.2,5-5,5H20c-2.8,0-5-2.2-5-5v-70C15,147.2,17.2,145,20,145z"/>
+			<text transform="matrix(1 0 0 1 67.2349 170)" class="st1 st18">Example: &quot;The quick brown fox&quot;</text>
+			<text transform="matrix(1 0 0 1 25 195)" class="st3 st27">&quot;quick&quot; → &quot;brown&quot; (adjacent modifiers)</text>
+			<text transform="matrix(1 0 0 1 25 215)" class="st3 st27">&quot;The&quot; → &quot;fox&quot; (determiner → noun)</text>
+			<path class="st60" d="M20,240h310c2.8,0,5,2.2,5,5v80c0,2.8-2.2,5-5,5H20c-2.8,0-5-2.2-5-5v-80C15,242.2,17.2,240,20,240z"/>
+			<text transform="matrix(1 0 0 1 94.1001 265)" class="st1 st18">Attention is mostly local</text>
+			<text transform="matrix(1 0 0 1 25 285)" class="st3 st38">• Positional encoding dominant</text>
+			<text transform="matrix(1 0 0 1 25 302)" class="st3 st38">• Simple grammatical patterns</text>
+			<text transform="matrix(1 0 0 1 25 319)" class="st3 st38">• Building basic representations</text>
+		</g>
+		<g transform="translate(400, 0)">
+			<path class="st43" d="M8,0h334c4.4,0,8,3.6,8,8v334c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+			<text transform="matrix(1 0 0 1 84.4189 30)" class="st29 st1 st9">Middle Layers (4-8)</text>
+			<text transform="matrix(1 0 0 1 15 60)" class="st35 st1 st12">Focus: Syntactic structures</text>
+			<text transform="matrix(1 0 0 1 15 85)" class="st14 st3 st18">• Subject-verb-object</text>
+			<text transform="matrix(1 0 0 1 15 105)" class="st14 st3 st18">• Clause boundaries</text>
+			<text transform="matrix(1 0 0 1 15 125)" class="st14 st3 st18">• Dependency parsing</text>
+			<path class="st61" d="M20,145h310c2.8,0,5,2.2,5,5v70c0,2.8-2.2,5-5,5H20c-2.8,0-5-2.2-5-5v-70C15,147.2,17.2,145,20,145z"/>
+			<text transform="matrix(1 0 0 1 46.6143 170)" class="st1 st18">Example: &quot;The cat that sat on the mat&quot;</text>
+			<text transform="matrix(1 0 0 1 25 195)" class="st3 st27">&quot;cat&quot; → &quot;sat&quot; (subj → verb)</text>
+			<text transform="matrix(1 0 0 1 25 215)" class="st3 st27">&quot;that&quot; → &quot;cat&quot; (relative clause)</text>
+			<path class="st62" d="M20,240h310c2.8,0,5,2.2,5,5v80c0,2.8-2.2,5-5,5H20c-2.8,0-5-2.2-5-5v-80C15,242.2,17.2,240,20,240z"/>
+			<text transform="matrix(1 0 0 1 93.3174 265)" class="st1 st18">Attention spans phrases</text>
+			<text transform="matrix(1 0 0 1 25 285)" class="st3 st38">• Grammatical dependencies</text>
+			<text transform="matrix(1 0 0 1 25 302)" class="st3 st38">• Constituent structure</text>
+			<text transform="matrix(1 0 0 1 25 319)" class="st3 st38">• Building compositional meaning</text>
+		</g>
+		<g transform="translate(800, 0)">
+			<path class="st63" d="M8,0h334c4.4,0,8,3.6,8,8v334c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+			<text transform="matrix(1 0 0 1 86.0693 30)" class="st1 st9" style="fill:#4A148C;">Later Layers (9-12)</text>
+			<text transform="matrix(1 0 0 1 15 60)" class="st1 st12" style="fill:#6A1B9A;">Focus: Semantic concepts</text>
+			<text transform="matrix(1 0 0 1 15 85)" class="st14 st3 st18">• Topic coherence</text>
+			<text transform="matrix(1 0 0 1 15 105)" class="st14 st3 st18">• Abstract reasoning</text>
+			<text transform="matrix(1 0 0 1 15 125)" class="st14 st3 st18">• Long-range context</text>
+			<path class="st64" d="M20,145h310c2.8,0,5,2.2,5,5v70c0,2.8-2.2,5-5,5H20c-2.8,0-5-2.2-5-5v-70C15,147.2,17.2,145,20,145z"/>
+			<text transform="matrix(1 0 0 1 73.835 170)" class="st1 st18">Example: &quot;It was comfortable&quot;</text>
+			<text transform="matrix(1 0 0 1 25 195)" class="st3 st27">&quot;It&quot; → &quot;mat&quot; (coreference, 10 tokens away)</text>
+			<text transform="matrix(1 0 0 1 25 215)" class="st3 st27">&quot;comfortable&quot; → &quot;soft&quot; (earlier description)</text>
+			<path class="st65" d="M20,240h310c2.8,0,5,2.2,5,5v80c0,2.8-2.2,5-5,5H20c-2.8,0-5-2.2-5-5v-80C15,242.2,17.2,240,20,240z"/>
+			<text transform="matrix(1 0 0 1 92.1484 265)" class="st1 st18">Attention is task-specific</text>
+			<text transform="matrix(1 0 0 1 25 285)" class="st3 st38">• Abstract relationships</text>
+			<text transform="matrix(1 0 0 1 25 302)" class="st3 st38">• Discourse structure</text>
+			<text transform="matrix(1 0 0 1 25 319)" class="st3 st38">• Preparing final prediction</text>
+		</g>
+		<g transform="translate(1200, 0)">
+			<path class="st22" d="M8,0h334c4.4,0,8,3.6,8,8v334c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+			<text transform="matrix(1 0 0 1 82.1777 30)" class="st23 st1 st9">Final Layers (11-12)</text>
+			<text transform="matrix(1 0 0 1 15 60)" class="st1 st12" style="fill:#D32F2F;">Focus: Task-specific output</text>
+			<text transform="matrix(1 0 0 1 15 85)" class="st14 st3 st18">• Next token prediction</text>
+			<text transform="matrix(1 0 0 1 15 105)" class="st14 st3 st18">• Classification features</text>
+			<text transform="matrix(1 0 0 1 15 125)" class="st14 st3 st18">• Output formatting</text>
+			<path class="st66" d="M20,145h310c2.8,0,5,2.2,5,5v70c0,2.8-2.2,5-5,5H20c-2.8,0-5-2.2-5-5v-70C15,147.2,17.2,145,20,145z"/>
+			<text transform="matrix(1 0 0 1 72.7002 170)" class="st1 st18">Example: Predicting next word</text>
+			<text transform="matrix(1 0 0 1 25 195)" class="st3 st27">Aggregate all relevant context</text>
+			<text transform="matrix(1 0 0 1 25 215)" class="st3 st27">Focus on predictive features</text>
+			<path class="st67" d="M20,240h310c2.8,0,5,2.2,5,5v80c0,2.8-2.2,5-5,5H20c-2.8,0-5-2.2-5-5v-80C15,242.2,17.2,240,20,240z"/>
+			<text transform="matrix(1 0 0 1 82.4243 265)" class="st1 st18">Attention is highly selective</text>
+			<text transform="matrix(1 0 0 1 25 285)" class="st3 st38">• Task-oriented patterns</text>
+			<text transform="matrix(1 0 0 1 25 302)" class="st3 st38">• Output preparation</text>
+			<text transform="matrix(1 0 0 1 25 319)" class="st3 st38">• Maximum information extraction</text>
+		</g>
+	</g>
+	<g transform="translate(100, 440)">
+		<path class="st19" d=""/>
+		<path class="st26" d="M1480-10l20,10l-20,10V-10z"/>
+		<path marker-end="url(#arrowgray)" class="st26" d="M1500,0"/>
+		<text transform="matrix(1 0 0 1 503.8281 25)" class="st26 st3 st12">Progression: Local Features → Syntax → Semantics → Task-Specific</text>
+	</g>
+</g>
+<g transform="translate(50, 2010)">
+	<path class="st68" d="M12,0h1676c6.6,0,12,5.4,12,12v576c0,6.6-5.4,12-12,12H12c-6.6,0-12-5.4-12-12V12C0,5.4,5.4,0,12,0z"/>
+	<text transform="matrix(1 0 0 1 331.3647 40)" class="st32 st1 st7">EMERGENT PROPERTIES: WHAT THE MODEL DISCOVERS ON ITS OWN</text>
+	<g transform="translate(100, 80)">
+		<text class="st48 st1 st4">During training, attention heads spontaneously learn to:</text>
+		<g transform="translate(0, 40)">
+			<path class="st69" d="M8,0h734c4.4,0,8,3.6,8,8v184c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+			<text transform="matrix(1 0 0 1 195.542 30)" class="st32 st1 st9">1. Induction Heads (Pattern Matching)</text>
+			<text transform="matrix(1 0 0 1 20 60)" class="st1 st12">Discovery: Copying patterns from context</text>
+			<path class="st70" d="M25,75h700c2.8,0,5,2.2,5,5v40c0,2.8-2.2,5-5,5H25c-2.8,0-5-2.2-5-5V80C20,77.2,22.2,75,25,75z"/>
+			<text transform="matrix(1 0 0 1 30 95)" class="st11 st18">Example: &quot;The cat sat on the mat. The dog sat on the...&quot;</text>
+			<text transform="matrix(1 0 0 1 30 115)" class="st11 st18">Model learns: After &quot;The dog sat on the&quot; → predict &quot;mat&quot;</text>
+			<text transform="matrix(1 0 0 1 20 150)" class="st3 st15">• No explicit programming for this!</text>
+			<text transform="matrix(1 0 0 1 20 170)" class="st3 st15">• Emerges around layer 5-6</text>
+			<text transform="matrix(1 0 0 1 20 190)" class="st3 st15">• Critical for in-context learning</text>
+		</g>
+		<g transform="translate(800, 40)">
+			<path class="st71" d="M8,0h734c4.4,0,8,3.6,8,8v184c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+			<text transform="matrix(1 0 0 1 256.6211 30)" class="st35 st1 st9">2. Factual Recall Circuits</text>
+			<text transform="matrix(1 0 0 1 20 60)" class="st1 st12">Discovery: Knowledge retrieval patterns</text>
+			<path class="st72" d="M25,75h700c2.8,0,5,2.2,5,5v40c0,2.8-2.2,5-5,5H25c-2.8,0-5-2.2-5-5V80C20,77.2,22.2,75,25,75z"/>
+			<text transform="matrix(1 0 0 1 30 95)" class="st11 st18">Example: &quot;The capital of France is...&quot;</text>
+			<text transform="matrix(1 0 0 1 30 115)" class="st11 st18">Specific heads learn to route &quot;France&quot; → &quot;capital&quot; → &quot;Paris&quot;</text>
+			<text transform="matrix(1 0 0 1 20 150)" class="st3 st15">• Different heads for different fact types</text>
+			<text transform="matrix(1 0 0 1 20 170)" class="st3 st15">• Emerges in middle layers (6-9)</text>
+			<text transform="matrix(1 0 0 1 20 190)" class="st3 st15">• Can be surgically modified!</text>
+		</g>
+		<g transform="translate(0, 260)">
+			<path class="st73" d="M8,0h734c4.4,0,8,3.6,8,8v184c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+			<text transform="matrix(1 0 0 1 220.8496 30)" class="st1 st9" style="fill:#1565C0;">3. Syntactic Agreement Trackers</text>
+			<text transform="matrix(1 0 0 1 20 60)" class="st1 st12">Discovery: Grammar enforcement</text>
+			<path class="st74" d="M25,75h700c2.8,0,5,2.2,5,5v40c0,2.8-2.2,5-5,5H25c-2.8,0-5-2.2-5-5V80C20,77.2,22.2,75,25,75z"/>
+			<text transform="matrix(1 0 0 1 30 95)" class="st11 st18">Example: &quot;The dogs [are/is] barking&quot;</text>
+			<text transform="matrix(1 0 0 1 30 115)" class="st11 st18">Heads learn: plural subject → plural verb</text>
+			<text transform="matrix(1 0 0 1 20 150)" class="st3 st15">• Tracks number, gender, tense</text>
+			<text transform="matrix(1 0 0 1 20 170)" class="st3 st15">• Emerges early (layers 2-4)</text>
+			<text transform="matrix(1 0 0 1 20 190)" class="st3 st15">• Remarkably consistent across models</text>
+		</g>
+		<g transform="translate(800, 260)">
+			<path class="st63" d="M8,0h734c4.4,0,8,3.6,8,8v184c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+			<text transform="matrix(1 0 0 1 251.0596 30)" class="st1 st9" style="fill:#6A1B9A;">4. Semantic Role Labelers</text>
+			<text transform="matrix(1 0 0 1 20 60)" class="st1 st12">Discovery: Understanding &quot;who did what to whom&quot;</text>
+			<path class="st75" d="M25,75h700c2.8,0,5,2.2,5,5v40c0,2.8-2.2,5-5,5H25c-2.8,0-5-2.2-5-5V80C20,77.2,22.2,75,25,75z"/>
+			<text transform="matrix(1 0 0 1 30 95)" class="st11 st18">Example: &quot;Alice gave Bob the book&quot;</text>
+			<text transform="matrix(1 0 0 1 30 115)" class="st11 st18">Heads learn: Alice=giver, Bob=receiver, book=object</text>
+			<text transform="matrix(1 0 0 1 20 150)" class="st3 st15">• No explicit semantic role labels in training!</text>
+			<text transform="matrix(1 0 0 1 20 170)" class="st3 st15">• Emerges in layers 7-10</text>
+			<text transform="matrix(1 0 0 1 20 190)" class="st3 st15">• Crucial for comprehension</text>
+		</g>
+	</g>
+	<path class="st76" d="M110,500h1480c5.5,0,10,4.5,10,10v50c0,5.5-4.5,10-10,10H110c-5.5,0-10-4.5-10-10v-50
+		C100,504.5,104.5,500,110,500z"/>
+	<text transform="matrix(1 0 0 1 391.5986 535)" class="st17 st1 st4">These patterns emerge without explicit programming - just from predicting next tokens!</text>
+	<text transform="matrix(1 0 0 1 558.6382 560)" class="st17 st3 st24">The model discovers these structures because they&apos;re useful for the task.</text>
+</g>
+<g transform="translate(50, 2650)">
+	<path class="st5" d="M12,0h1676c6.6,0,12,5.4,12,12v376c0,6.6-5.4,12-12,12H12c-6.6,0-12-5.4-12-12V12C0,5.4,5.4,0,12,0z"/>
+	<text transform="matrix(1 0 0 1 341.377 40)" class="st6 st1 st7">WHY YOUR C IMPLEMENTATION ENABLES BETTER UNDERSTANDING</text>
+	<g transform="translate(100, 80)">
+		<path class="st77" d="M8,0h484c4.4,0,8,3.6,8,8v264c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+		<text transform="matrix(1 0 0 1 133.2432 30)" class="st13 st1 st4">Perfect Interpretability</text>
+		<text transform="matrix(1 0 0 1 20 60)" class="st1 st12">Your advantages:</text>
+		<text transform="matrix(1 0 0 1 20 85)" class="st3 st15">• Every attention score is accessible</text>
+		<text transform="matrix(1 0 0 1 20 105)" class="st3 st15">• Can trace exact computation path</text>
+		<text transform="matrix(1 0 0 1 20 125)" class="st3 st15">• No hidden framework magic</text>
+		<path class="st78" d="M25,145h450c2.8,0,5,2.2,5,5v110c0,2.8-2.2,5-5,5H25c-2.8,0-5-2.2-5-5V150C20,147.2,22.2,145,25,145z"/>
+		<text transform="matrix(1 0 0 1 167.1997 170)" class="st17 st1 st15">You can literally watch:</text>
+		<text transform="matrix(1 0 0 1 30 195)" class="st17 st11 st18">for (head = 0; head &lt; 8; head++) {</text>
+		<text transform="matrix(1 0 0 1 30 215)" class="st17 st11 st18">printf(&quot;Head %d attends:&quot;, head);</text>
+		<text transform="matrix(1 0 0 1 30 235)" class="st17 st11 st18">dump_attention_pattern(attn[head]);</text>
+		<text transform="matrix(1 0 0 1 30 255)" class="st17 st11 st18">}</text>
+	</g>
+	<g transform="translate(650, 80)">
+		<path class="st71" d="M8,0h484c4.4,0,8,3.6,8,8v264c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+		<text transform="matrix(1 0 0 1 138.1416 30)" class="st29 st1 st4">Fast Experimentation</text>
+		<text transform="matrix(1 0 0 1 20 60)" class="st1 st12">Speed enables discovery:</text>
+		<text transform="matrix(1 0 0 1 20 85)" class="st3 st15">• 10x faster = 10x more experiments</text>
+		<text transform="matrix(1 0 0 1 20 105)" class="st3 st15">• Can test hypotheses in real-time</text>
+		<text transform="matrix(1 0 0 1 20 125)" class="st3 st15">• Modify attention patterns live</text>
+		<path class="st61" d="M25,145h450c2.8,0,5,2.2,5,5v110c0,2.8-2.2,5-5,5H25c-2.8,0-5-2.2-5-5V150C20,147.2,22.2,145,25,145z"/>
+		<text transform="matrix(1 0 0 1 168.302 170)" class="st1 st15">Research possibilities:</text>
+		<text transform="matrix(1 0 0 1 30 195)" class="st3 st18">• &quot;What if head 3 only looked locally?&quot;</text>
+		<text transform="matrix(1 0 0 1 30 215)" class="st3 st18">• &quot;Can we force semantic heads earlier?&quot;</text>
+		<text transform="matrix(1 0 0 1 30 235)" class="st3 st18">• &quot;How minimal can attention be?&quot;</text>
+		<text transform="matrix(1 0 0 1 30 255)" class="st3 st18">→ Change code, test immediately!</text>
+	</g>
+	<g transform="translate(1200, 80)">
+		<path class="st22" d="M8,0h384c4.4,0,8,3.6,8,8v264c0,4.4-3.6,8-8,8H8c-4.4,0-8-3.6-8-8V8C0,3.6,3.6,0,8,0z"/>
+		<text transform="matrix(1 0 0 1 114.4385 30)" class="st23 st1 st4">Surgical Control</text>
+		<text transform="matrix(1 0 0 1 20 60)" class="st1 st12">For critical systems:</text>
+		<text transform="matrix(1 0 0 1 20 85)" class="st3 st15">• Disable specific heads</text>
+		<text transform="matrix(1 0 0 1 20 105)" class="st3 st15">• Enforce attention patterns</text>
+		<text transform="matrix(1 0 0 1 20 125)" class="st3 st15">• Guarantee behavior</text>
+		<path class="st25" d="M25,145h350c2.8,0,5,2.2,5,5v110c0,2.8-2.2,5-5,5H25c-2.8,0-5-2.2-5-5V150C20,147.2,22.2,145,25,145z"/>
+		<text transform="matrix(1 0 0 1 128.7061 170)" class="st1 st15">Example use cases:</text>
+		<text transform="matrix(1 0 0 1 30 195)" class="st3 st18">• Medical AI: Force attention</text>
+		<text transform="matrix(1 0 0 1 30 212)" class="st3 st18">to symptoms over demographics</text>
+		<text transform="matrix(1 0 0 1 30 235)" class="st3 st18">• Drone AI: Guarantee attention</text>
+		<text transform="matrix(1 0 0 1 30 252)" class="st3 st18">to safety constraints</text>
+	</g>
+</g>
 </svg>
