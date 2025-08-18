@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLP Layer Inference</title>
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: #1a1a1a; color: #f0f0f0; margin: 0; padding: 20px; }
+        .container { max-width: 1600px; margin: auto; }
+        h1, h2 { text-align: center; color: #ff6f00; font-weight: 300; }
+        h1 { font-size: 3em; margin-bottom: 10px; }
+        h2 { font-size: 1.5em; margin-top: 0; margin-bottom: 40px; color: #ccc; }
+        svg { background-color: #222; border-radius: 15px; border: 1px solid #444; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>The Transformer MLP Layer</h1>
+        <h2>From High-Level Math to High-Performance C Code</h2>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200">
+            <defs>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#ff6f00;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#ffcc80;stop-opacity:1" />
+                </linearGradient>
+                <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#999" />
+                </marker>
+            </defs>
+
+            <!-- Main Title -->
+            <text x="800" y="50" font-size="36" fill="#f0f0f0" text-anchor="middle">MLP Layer: Token-Parallel Inference with GEMM & GELU</text>
+
+            <!-- Section 1: Overall Architecture -->
+            <rect x="50" y="100" width="1500" height="250" rx="10" fill="#2a2a2a" stroke="#444"/>
+            <text x="800" y="130" font-size="24" fill="#ff6f00" text-anchor="middle">1. MLP Architecture: The Feed-Forward Network</text>
+
+            <g id="mlp-flow">
+                <!-- Input -->
+                <rect x="100" y="180" width="150" height="100" fill="#4a90e2" rx="5"/>
+                <text x="175" y="220" font-size="16" fill="white" text-anchor="middle">Input</text>
+                <text x="175" y="240" font-size="14" fill="white" text-anchor="middle">[T, C]</text>
+
+                <path d="M 255 230 L 345 230" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- FC1 -->
+                <rect x="350" y="180" width="200" height="100" fill="#81c784" rx="5"/>
+                <text x="450" y="210" font-size="16" fill="white" text-anchor="middle">FC1 (GEMM)</text>
+                <text x="450" y="235" font-size="14" fill="white" text-anchor="middle">Weights: [C, 4C]</text>
+                <text x="450" y="255" font-size="14" fill="white" text-anchor="middle">Output: [T, 4C]</text>
+
+                <path d="M 555 230 L 645 230" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- GELU -->
+                <rect x="650" y="180" width="150" height="100" fill="#ffd54f" rx="5"/>
+                <text x="725" y="220" font-size="16" fill="#333" text-anchor="middle">GELU</text>
+                <text x="725" y="240" font-size="14" fill="#333" text-anchor="middle">Activation</text>
+
+                <path d="M 805 230 L 895 230" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- FC2 -->
+                <rect x="900" y="180" width="200" height="100" fill="#e57373" rx="5"/>
+                <text x="1000" y="210" font-size="16" fill="white" text-anchor="middle">FC2 (GEMM)</text>
+                <text x="1000" y="235" font-size="14" fill="white" text-anchor="middle">Weights: [4C, C]</text>
+                <text x="1000" y="255" font-size="14" fill="white" text-anchor="middle">Output: [T, C]</text>
+
+                <path d="M 1105 230 L 1195 230" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+
+                <!-- Output -->
+                <rect x="1200" y="180" width="150" height="100" fill="#ba68c8" rx="5"/>
+                <text x="1275" y="220" font-size="16" fill="white" text-anchor="middle">Output</text>
+                <text x="1275" y="240" font-size="14" fill="white" text-anchor="middle">[T, C]</text>
+            </g>
+
+            <!-- Section 2: Token Parallelism -->
+            <rect x="50" y="380" width="730" height="350" rx="10" fill="#2a2a2a" stroke="#444"/>
+            <text x="415" y="410" font-size="24" fill="#ff6f00" text-anchor="middle">2. Token-Parallel Execution</text>
+            
+            <text x="100" y="450" font-size="16" fill="#ccc">Input Tensor [T, C]</text>
+            <rect x="100" y="460" width="80" height="200" fill="#4a90e2" rx="5"/>
+            
+            <path d="M 185 480 L 245 480" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+            <path d="M 185 560 L 245 560" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+            <path d="M 185 640 L 245 640" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <text x="250" y="470" font-size="16" fill="#ccc">Core 0</text>
+            <rect x="250" y="475" width="150" height="30" fill="#81c784" rx="3"/>
+            <text x="325" y="495" font-size="12" fill="white" text-anchor="middle">MLP(Tokens 0..N/k)</text>
+
+            <text x="250" y="550" font-size="16" fill="#ccc">Core 1</text>
+            <rect x="250" y="555" width="150" height="30" fill="#81c784" rx="3"/>
+            <text x="325" y="575" font-size="12" fill="white" text-anchor="middle">MLP(Tokens N/k..2N/k)</text>
+
+            <text x="250" y="630" font-size="16" fill="#ccc">Core k-1</text>
+            <rect x="250" y="635" width="150" height="30" fill="#81c784" rx="3"/>
+            <text x="325" y="655" font-size="12" fill="white" text-anchor="middle">MLP(Tokens ...N)</text>
+
+            <path d="M 405 490 L 465 490" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+            <path d="M 405 570 L 465 570" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+            <path d="M 405 650 L 465 650" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+
+            <text x="470" y="450" font-size="16" fill="#ccc">Output Tensor [T, C]</text>
+            <rect x="470" y="460" width="80" height="200" fill="#ba68c8" rx="5"/>
+
+            <foreignObject x="570" y="460" width="200" height="200">
+                <pre style="color: #d0d0d0; background: #1e1e1e; border-radius: 5px; padding: 10px; font-size: 10px; line-height: 1.4;">
+#pragma omp parallel for
+for (int t = 0; t < M->context_window; t++) {
+    // Each thread gets a chunk of tokens
+    // and processes them independently.
+    
+    // 1. FC1 GEMM
+    gemm_kernel(...);
+
+    // 2. GELU Activation
+    gelu_activation(...);
+
+    // 3. FC2 GEMM
+    gemm_kernel(...);
+}
+                </pre>
+            </foreignObject>
+
+            <!-- Section 3: GEMM Kernel -->
+            <rect x="800" y="380" width="750" height="350" rx="10" fill="#2a2a2a" stroke="#444"/>
+            <text x="1175" y="410" font-size="24" fill="#ff6f00" text-anchor="middle">3. GEMM Kernel in Action (FC1)</text>
+
+            <text x="850" y="450" font-size="16" fill="#ccc">Input Token [1, C]</text>
+            <rect x="850" y="460" width="150" height="30" fill="#4a90e2" rx="3"/>
+
+            <text x="1020" y="550" font-size="30" fill="#ccc" text-anchor="middle">X</text>
+
+            <text x="1100" y="450" font-size="16" fill="#ccc">FC1 Weights [4C, C]</text>
+            <rect x="1100" y="460" width="80" height="150" fill="#81c784" rx="3"/>
+
+            <path d="M 1200 535 L 1290 535" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>
+            <text x="1245" y="525" font-size="12" fill="#ccc" text-anchor="middle">gemm_avx512_parallel</text>
+
+            <text x="1300" y="450" font-size="16" fill="#ccc">Output [1, 4C]</text>
+            <rect x="1300" y="460" width="250" height="30" fill="#ffd54f" rx="3"/>
+
+            <foreignObject x="850" y="620" width="650" height="100">
+                <pre style="color: #d0d0d0; background: #1e1e1e; border-radius: 5px; padding: 10px; font-size: 10px; line-height: 1.4;">
+void gemm_avx512_parallel(const float *A, const float *B, const float *bias, float *C, int M, int N, int K) {
+#pragma omp parallel for
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            __m512 sum_vec = _mm512_setzero_ps();
+            for (int k = 0; k <= K - 16; k += 16) {
+                __m512 a_vec = _mm512_loadu_ps(&A[i * K + k]);
+                __m512 b_vec = _mm512_loadu_ps(&B[j * K + k]);
+                sum_vec = _mm512_fmadd_ps(a_vec, b_vec, sum_vec); // Fused Multiply-Add
+            }
+            // ... reduction and remainder ...
+            C[i * N + j] = sum + bias[j];
+        }
+    }
+}
+                </pre>
+            </foreignObject>
+
+            <!-- Section 4: GELU Activation -->
+            <rect x="50" y="760" width="1500" height="400" rx="10" fill="#2a2a2a" stroke="#444"/>
+            <text x="800" y="790" font-size="24" fill="#ff6f00" text-anchor="middle">4. GELU Activation Function</text>
+
+            <g id="gelu-plot" transform="translate(100, 820)">
+                <text x="250" y="20" font-size="18" fill="#ccc" text-anchor="middle">GELU(x) Curve</text>
+                <!-- Axes -->
+                <path d="M 50 250 L 450 250" stroke="#888" stroke-width="1"/> <!-- x-axis -->
+                <path d="M 250 50 L 250 300" stroke="#888" stroke-width="1"/> <!-- y-axis -->
+                <!-- Curve -->
+                <path d="M 50 250 
+                         C 150 250, 150 50, 250 150 
+                         S 350 250, 450 250" 
+                      stroke="#ffd54f" stroke-width="3" fill="none"
+                      transform="translate(0, 20) scale(1, 0.8)"/>
+                <text x="455" y="255" fill="#888">x</text>
+                <text x="240" y="45" fill="#888">y</text>
+            </g>
+
+            <foreignObject x="600" y="850" width="400" height="100">
+                <div style="color: #d0d0d0; font-size: 14px; padding: 10px;">
+                    <p>The Gaussian Error Linear Unit (GELU) is a smooth, non-linear activation function used in modern transformers.</p>
+                    <p style="font-family: monospace; background: #1e1e1e; padding: 5px; border-radius: 3px; text-align: center; margin-top: 10px;">
+                        GELU(x) ≈ 0.5x * (1 + tanh(sqrt(2/π) * (x + 0.044715x³)))
+                    </p>
+                </div>
+            </foreignObject>
+
+            <foreignObject x="1050" y="850" width="400" height="250">
+                <pre style="color: #d0d0d0; background: #1e1e1e; border-radius: 5px; padding: 10px; font-size: 10px; line-height: 1.4;">
+// Hypothetical AVX-512 GELU implementation
+void gelu_avx512(float* data, int size) {
+    const __m512 c0 = _mm512_set1_ps(0.044715f);
+    const __m512 c1 = _mm512_set1_ps(sqrtf(2.0f / M_PI));
+    const __m512 c2 = _mm512_set1_ps(0.5f);
+    const __m512 one = _mm512_set1_ps(1.0f);
+
+    for (int i = 0; i <= size - 16; i += 16) {
+        __m512 x = _mm512_load_ps(data + i);
+        
+        // x_cubed = x * x * x
+        __m512 x_cubed = _mm512_mul_ps(_mm512_mul_ps(x, x), x);
+        
+        // inner = c1 * (x + c0 * x_cubed)
+        __m512 inner = _mm512_mul_ps(c1, _mm512_fmadd_ps(c0, x_cubed, x));
+        
+        // tanh_approx can be a polynomial approximation
+        __m512 tanh_val = tanh_avx512_approx(inner);
+        
+        // result = 0.5 * x * (1 + tanh_val)
+        __m512 result = _mm512_mul_ps(
+            _mm512_mul_ps(c2, x),
+            _mm512_add_ps(one, tanh_val)
+        );
+        
+        _mm512_store_ps(data + i, result);
+    }
+    // ... handle remainder
+}
+                </pre>
+            </foreignObject>
+
+        </svg>
+    </div>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<svg viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0e27;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a1f3a;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00ff88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00ccff;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="dataFlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#ffd93d;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6bcf7f;stop-opacity:1" />
+    </linearGradient>
+
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="none" stroke="#ffffff" stroke-width="0.1" opacity="0.1"/>
+    </pattern>
+  </defs>
+
+  <!-- Main background -->
+  <rect width="1920" height="1080" fill="url(#bgGradient)"/>
+  <rect width="1920" height="1080" fill="url(#grid)"/>
+
+  <!-- Title Section -->
+  <text x="960" y="60" font-family="Arial, sans-serif" font-size="42" font-weight="bold" text-anchor="middle" fill="white">
+    CPU LLM #7: MLP with GELU Activation - Token Parallel Processing
+  </text>
+  <text x="960" y="95" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#00ff88">
+    ANTSHIV ROBOTICS - High-Performance Embedded AI
+  </text>
+
+  <!-- MLP Architecture Flow -->
+  <g transform="translate(100, 150)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+      MLP Forward Pass Architecture
+    </text>
+    
+    <!-- Input Block -->
+    <g transform="translate(0, 40)">
+      <rect x="0" y="0" width="200" height="100" rx="10" fill="#2a3f5f" stroke="#00ff88" stroke-width="2"/>
+      <text x="100" y="35" font-family="monospace" font-size="16" text-anchor="middle" fill="white">Input</text>
+      <text x="100" y="60" font-family="monospace" font-size="14" text-anchor="middle" fill="#aaa">[T × D]</text>
+      <text x="100" y="80" font-family="monospace" font-size="12" text-anchor="middle" fill="#888">T tokens, D dims</text>
+    </g>
+
+    <!-- FC1 Layer -->
+    <g transform="translate(280, 40)">
+      <rect x="0" y="0" width="200" height="100" rx="10" fill="#3a4f7f" stroke="#00ff88" stroke-width="2"/>
+      <text x="100" y="25" font-family="monospace" font-size="16" text-anchor="middle" fill="white">FC1 (Expand)</text>
+      <text x="100" y="50" font-family="monospace" font-size="14" text-anchor="middle" fill="#ffd93d">GEMM: [T×D] × [D×4D]</text>
+      <text x="100" y="70" font-family="monospace" font-size="14" text-anchor="middle" fill="#aaa">Output: [T × 4D]</text>
+      <text x="100" y="90" font-family="monospace" font-size="12" text-anchor="middle" fill="#888">+ bias[4D]</text>
+    </g>
+
+    <!-- GELU Activation -->
+    <g transform="translate(560, 40)">
+      <rect x="0" y="0" width="200" height="100" rx="10" fill="#4a5f9f" stroke="#00ff88" stroke-width="2"/>
+      <text x="100" y="25" font-family="monospace" font-size="16" text-anchor="middle" fill="white">GELU Activation</text>
+      <text x="100" y="50" font-family="monospace" font-size="12" text-anchor="middle" fill="#6bcf7f">x * 0.5 * (1 + tanh(</text>
+      <text x="100" y="70" font-family="monospace" font-size="12" text-anchor="middle" fill="#6bcf7f">√(2/π) * (x + 0.044715x³)</text>
+      <text x="100" y="90" font-family="monospace" font-size="12" text-anchor="middle" fill="#aaa">))</text>
+    </g>
+
+    <!-- FC2 Layer -->
+    <g transform="translate(840, 40)">
+      <rect x="0" y="0" width="200" height="100" rx="10" fill="#3a4f7f" stroke="#00ff88" stroke-width="2"/>
+      <text x="100" y="25" font-family="monospace" font-size="16" text-anchor="middle" fill="white">FC2 (Project)</text>
+      <text x="100" y="50" font-family="monospace" font-size="14" text-anchor="middle" fill="#ffd93d">GEMM: [T×4D] × [4D×D]</text>
+      <text x="100" y="70" font-family="monospace" font-size="14" text-anchor="middle" fill="#aaa">Output: [T × D]</text>
+      <text x="100" y="90" font-family="monospace" font-size="12" text-anchor="middle" fill="#888">+ bias[D]</text>
+    </g>
+
+    <!-- Output Block -->
+    <g transform="translate(1120, 40)">
+      <rect x="0" y="0" width="200" height="100" rx="10" fill="#2a3f5f" stroke="#00ff88" stroke-width="2"/>
+      <text x="100" y="35" font-family="monospace" font-size="16" text-anchor="middle" fill="white">Output</text>
+      <text x="100" y="60" font-family="monospace" font-size="14" text-anchor="middle" fill="#aaa">[T × D]</text>
+      <text x="100" y="80" font-family="monospace" font-size="12" text-anchor="middle" fill="#888">Ready for residual</text>
+    </g>
+
+    <!-- Arrows -->
+    <path d="M 200 90 L 280 90" stroke="url(#dataFlow)" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M 480 90 L 560 90" stroke="url(#dataFlow)" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M 760 90 L 840 90" stroke="url(#dataFlow)" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+    <path d="M 1040 90 L 1120 90" stroke="url(#dataFlow)" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+  </g>
+
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="url(#dataFlow)"/>
+    </marker>
+  </defs>
+
+  <!-- Token Parallelization Section -->
+  <g transform="translate(100, 350)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+      Token-Parallel Execution Strategy
+    </text>
+    
+    <!-- Core Distribution Visualization -->
+    <g transform="translate(0, 40)">
+      <!-- Context Window -->
+      <rect x="0" y="0" width="800" height="60" rx="5" fill="#1a2332" stroke="#00ff88" stroke-width="2"/>
+      <text x="400" y="-10" font-family="monospace" font-size="14" text-anchor="middle" fill="#00ff88">
+        Context Window (T = 128 tokens)
+      </text>
+      
+      <!-- Token blocks for each core -->
+      <g id="core0">
+        <rect x="5" y="5" width="195" height="50" fill="#ff6b6b" opacity="0.7" rx="3"/>
+        <text x="102" y="35" font-family="monospace" font-size="14" text-anchor="middle" fill="white">Core 0: T[0:32]</text>
+      </g>
+      
+      <g id="core1">
+        <rect x="205" y="5" width="195" height="50" fill="#ffd93d" opacity="0.7" rx="3"/>
+        <text x="302" y="35" font-family="monospace" font-size="14" text-anchor="middle" fill="black">Core 1: T[32:64]</text>
+      </g>
+      
+      <g id="core2">
+        <rect x="405" y="5" width="195" height="50" fill="#6bcf7f" opacity="0.7" rx="3"/>
+        <text x="502" y="35" font-family="monospace" font-size="14" text-anchor="middle" fill="black">Core 2: T[64:96]</text>
+      </g>
+      
+      <g id="core3">
+        <rect x="605" y="5" width="190" height="50" fill="#00ccff" opacity="0.7" rx="3"/>
+        <text x="700" y="35" font-family="monospace" font-size="14" text-anchor="middle" fill="white">Core 3: T[96:128]</text>
+      </g>
+    </g>
+
+    <!-- Parallel Execution Details -->
+    <g transform="translate(850, 40)">
+      <rect x="0" y="0" width="400" height="120" rx="10" fill="#1a2332" stroke="#00ff88" stroke-width="1"/>
+      <text x="200" y="25" font-family="monospace" font-size="16" text-anchor="middle" fill="#00ff88">Parallel Configuration</text>
+      <text x="20" y="50" font-family="monospace" font-size="13" fill="white">• num_cores = 4 (reserved from 8 logical)</text>
+      <text x="20" y="70" font-family="monospace" font-size="13" fill="white">• tokens_per_core = 32</text>
+      <text x="20" y="90" font-family="monospace" font-size="13" fill="white">• Each core: independent GEMM slice</text>
+      <text x="20" y="110" font-family="monospace" font-size="13" fill="white">• Zero thread synchronization needed</text>
+    </g>
+  </g>
+
+  <!-- GEMM Kernel Details -->
+  <g transform="translate(100, 550)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+      Optimized GEMM Kernel (gemm_blocked_serial)
+    </text>
+    
+    <!-- Blocking Visualization -->
+    <g transform="translate(0, 40)">
+      <rect x="0" y="0" width="500" height="200" rx="10" fill="#1a2332" stroke="#00ff88" stroke-width="2"/>
+      
+      <text x="250" y="25" font-family="monospace" font-size="16" text-anchor="middle" fill="#00ff88">Cache-Blocked GEMM</text>
+      
+      <!-- Matrix A -->
+      <g transform="translate(20, 40)">
+        <rect x="0" y="0" width="80" height="120" fill="#ff6b6b" opacity="0.3"/>
+        <rect x="0" y="0" width="80" height="30" fill="#ff6b6b" opacity="0.8"/>
+        <text x="40" y="75" font-family="monospace" font-size="12" text-anchor="middle" fill="white">A</text>
+        <text x="40" y="95" font-family="monospace" font-size="10" text-anchor="middle" fill="white">[M×K]</text>
+      </g>
+      
+      <!-- Matrix B -->
+      <g transform="translate(120, 40)">
+        <rect x="0" y="0" width="120" height="80" fill="#ffd93d" opacity="0.3"/>
+        <rect x="0" y="0" width="30" height="80" fill="#ffd93d" opacity="0.8"/>
+        <text x="60" y="45" font-family="monospace" font-size="12" text-anchor="middle" fill="black">B</text>
+        <text x="60" y="65" font-family="monospace" font-size="10" text-anchor="middle" fill="black">[K×N]</text>
+      </g>
+      
+      <!-- Matrix C -->
+      <g transform="translate(280, 40)">
+        <rect x="0" y="0" width="120" height="120" fill="#6bcf7f" opacity="0.3"/>
+        <rect x="0" y="0" width="30" height="30" fill="#6bcf7f" opacity="0.8"/>
+        <text x="60" y="65" font-family="monospace" font-size="12" text-anchor="middle" fill="black">C</text>
+        <text x="60" y="85" font-family="monospace" font-size="10" text-anchor="middle" fill="black">[M×N]</text>
+      </g>
+      
+      <text x="20" y="185" font-family="monospace" font-size="12" fill="#aaa">Block Size: 64×64 (L1 cache optimal)</text>
+    </g>
+
+    <!-- AVX-512 Vectorization -->
+    <g transform="translate(550, 40)">
+      <rect x="0" y="0" width="700" height="200" rx="10" fill="#1a2332" stroke="#00ff88" stroke-width="2"/>
+      
+      <text x="350" y="25" font-family="monospace" font-size="16" text-anchor="middle" fill="#00ff88">AVX-512 Vectorization</text>
+      
+      <!-- Code snippet -->
+      <text x="20" y="50" font-family="monospace" font-size="11" fill="#6bcf7f">// Inner loop with 16-wide SIMD</text>
+      <text x="20" y="70" font-family="monospace" font-size="11" fill="white">for (k = kk; k &lt;= k_end - 16; k += 16) {</text>
+      <text x="40" y="90" font-family="monospace" font-size="11" fill="#ffd93d">__m512 a_vec = _mm512_loadu_ps(&amp;A[i * K + k]);</text>
+      <text x="40" y="110" font-family="monospace" font-size="11" fill="#ffd93d">__m512 b_vec = _mm512_loadu_ps(&amp;B[j * K + k]);</text>
+      <text x="40" y="130" font-family="monospace" font-size="11" fill="#ff6b6b">sum_vec = _mm512_fmadd_ps(a_vec, b_vec, sum_vec);</text>
+      <text x="20" y="150" font-family="monospace" font-size="11" fill="white">}</text>
+      <text x="20" y="170" font-family="monospace" font-size="11" fill="#6bcf7f">// FMA: 3 FLOPs per instruction, 16 elements = 48 FLOPs/cycle</text>
+      <text x="20" y="190" font-family="monospace" font-size="11" fill="#00ccff">// Achieving ~100-400 GFLOPS on modern Xeon</text>
+    </g>
+  </g>
+
+  <!-- Performance Metrics -->
+  <g transform="translate(100, 800)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+      Performance Characteristics
+    </text>
+    
+    <!-- Metric Cards -->
+    <g transform="translate(0, 40)">
+      <!-- Memory Layout -->
+      <g>
+        <rect x="0" y="0" width="280" height="180" rx="10" fill="#2a3f5f" stroke="#00ff88" stroke-width="2"/>
+        <text x="140" y="30" font-family="monospace" font-size="16" text-anchor="middle" fill="#00ff88">Memory Layout</text>
+        <text x="20" y="60" font-family="monospace" font-size="12" fill="white">• Single contiguous arena</text>
+        <text x="20" y="85" font-family="monospace" font-size="12" fill="white">• 64-byte cache aligned</text>
+        <text x="20" y="110" font-family="monospace" font-size="12" fill="white">• Zero fragmentation</text>
+        <text x="20" y="135" font-family="monospace" font-size="12" fill="white">• 2MB huge pages</text>
+        <text x="20" y="160" font-family="monospace" font-size="12" fill="#ffd93d">Layer stride: predictable</text>
+      </g>
+
+      <!-- Compute Efficiency -->
+      <g transform="translate(300, 0)">
+        <rect x="0" y="0" width="280" height="180" rx="10" fill="#2a3f5f" stroke="#00ff88" stroke-width="2"/>
+        <text x="140" y="30" font-family="monospace" font-size="16" text-anchor="middle" fill="#00ff88">Compute Efficiency</text>
+        <text x="20" y="60" font-family="monospace" font-size="12" fill="white">FC1 FLOPs: 2×T×D×4D</text>
+        <text x="20" y="85" font-family="monospace" font-size="12" fill="white">FC2 FLOPs: 2×T×4D×D</text>
+        <text x="20" y="110" font-family="monospace" font-size="12" fill="white">GELU FLOPs: ~10×T×4D</text>
+        <text x="20" y="135" font-family="monospace" font-size="12" fill="#6bcf7f">Total: ~16×T×D²</text>
+        <text x="20" y="160" font-family="monospace" font-size="12" fill="#ffd93d">~40% of transformer compute</text>
+      </g>
+
+      <!-- Parallelization -->
+      <g transform="translate(600, 0)">
+        <rect x="0" y="0" width="280" height="180" rx="10" fill="#2a3f5f" stroke="#00ff88" stroke-width="2"/>
+        <text x="140" y="30" font-family="monospace" font-size="16" text-anchor="middle" fill="#00ff88">Parallelization</text>
+        <text x="20" y="60" font-family="monospace" font-size="12" fill="white">• Token-level parallel</text>
+        <text x="20" y="85" font-family="monospace" font-size="12" fill="white">• No sync overhead</text>
+        <text x="20" y="110" font-family="monospace" font-size="12" fill="white">• Perfect scaling</text>
+        <text x="20" y="135" font-family="monospace" font-size="12" fill="white">• Cache-friendly chunks</text>
+        <text x="20" y="160" font-family="monospace" font-size="12" fill="#ffd93d">OpenMP: collapse(3)</text>
+      </g>
+
+      <!-- Optimizations -->
+      <g transform="translate(900, 0)">
+        <rect x="0" y="0" width="280" height="180" rx="10" fill="#2a3f5f" stroke="#00ff88" stroke-width="2"/>
+        <text x="140" y="30" font-family="monospace" font-size="16" text-anchor="middle" fill="#00ff88">Key Optimizations</text>
+        <text x="20" y="60" font-family="monospace" font-size="12" fill="white">• AVX-512 FMA operations</text>
+        <text x="20" y="85" font-family="monospace" font-size="12" fill="white">• 64×64 cache blocking</text>
+        <text x="20" y="110" font-family="monospace" font-size="12" fill="white">• Fast GELU approximation</text>
+        <text x="20" y="135" font-family="monospace" font-size="12" fill="white">• In-place activation</text>
+        <text x="20" y="160" font-family="monospace" font-size="12" fill="#ffd93d">Target: 100+ GFLOPS</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <text x="960" y="1040" font-family="monospace" font-size="14" text-anchor="middle" fill="#888">
+    ANTSHIV ROBOTICS | CPU LLM Series | High-Performance Embedded AI
+  </text>
+  <text x="960" y="1060" font-family="monospace" font-size="12" text-anchor="middle" fill="#666">
+    github.com/antshiv | Optimizing Transformer Inference on Modern CPUs
+  </text>
+</svg>

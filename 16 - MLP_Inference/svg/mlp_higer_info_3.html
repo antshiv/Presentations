@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infographic Section: MLP Expansion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        .mono {
+            font-family: 'Fira Code', monospace;
+        }
+        .slide-container {
+            background-color: #1e293b;
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            margin: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155;
+        }
+        .slide-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+        }
+        .slide-subtitle {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #94a3b8;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            border-bottom: 2px solid #a78bfa; /* Purple accent */
+            padding-bottom: 1rem;
+            display: inline-block;
+        }
+        .analogy-box {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            padding: 1.5rem;
+        }
+        .mlp-color { color: #c4b5fd; } /* Purple for MLP/GELU */
+    </style>
+</head>
+<body class="p-4">
+
+    <main class="max-w-4xl mx-auto">
+        <section class="slide-container">
+            <h2 class="slide-title">The MLP's "Deliberation Room"</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">Why Go to a Higher Dimension and Back?</h3>
+            </div>
+            <div class="grid md:grid-cols-3 gap-6 text-center items-start">
+                <!-- Step 1: Input -->
+                <div class="analogy-box p-6">
+                    <p class="text-3xl"> tangled_yarn </p>
+                    <h4 class="font-bold text-lg mt-2">1. Input: Tangled Features</h4>
+                    <p class="text-sm text-slate-400 mono">[B, T, C]</p>
+                    <p class="text-sm text-slate-300 mt-3">In the original dimension, concepts are mixed. It's hard to separate "river bank" from "financial bank" with a simple rule.</p>
+                </div>
+
+                <!-- Step 2: Expansion -->
+                <div class="analogy-box p-6 border-2 border-purple-400 shadow-lg shadow-purple-900/50">
+                    <p class="text-3xl"> brain_gears </p>
+                    <h4 class="font-bold text-lg mt-2 mlp-color">2. Expansion: Deliberation</h4>
+                    <p class="text-sm text-slate-400 mono">[B, T, 4C]</p>
+                    <p class="text-sm text-slate-300 mt-3">By expanding to a higher dimension, the MLP creates space to "un-tangle" the features. Here, it can learn complex, non-linear relationships. "River bank" and "financial bank" are mapped to very different locations in this new, larger space.</p>
+                </div>
+
+                <!-- Step 3: Contraction -->
+                <div class="analogy-box p-6">
+                    <p class="text-3xl"> organized_files </p>
+                    <h4 class="font-bold text-lg mt-2">3. Contraction: Verdict</h4>
+                    <p class="text-sm text-slate-400 mono">[B, T, C]</p>
+                    <p class="text-sm text-slate-300 mt-3">The model projects this newly clarified understanding back to the original dimension. The output is a refined representation where the meaning is now clearer.</p>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-slate-700 text-center">
+                <h4 class="font-semibold text-slate-200 mb-2">The Technical Implication: Linear Separability</h4>
+                <p class="text-slate-300 max-w-2xl mx-auto">This process is analogous to the "kernel trick" in SVMs. Patterns that are not separable by a line in 2D may become separable by a plane in 3D. The MLP's expansion serves a similar purpose: it projects features into a space where complex patterns become easier to isolate and process. The higher dimension is where the "hard thinking" happens.</p>
+            </div>
+        </section>
+    </main>
+
+</body>
+</html>
+

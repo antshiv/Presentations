@@ -1,0 +1,347 @@
+<svg viewBox="0 0 1400 1200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark background -->
+  <rect width="1400" height="1200" fill="#0d1117"/>
+  
+  <!-- Main Title -->
+  <text x="700" y="45" font-family="Arial, sans-serif" font-size="40" font-weight="bold" text-anchor="middle" fill="#ffa657">
+    The MLP Ablation Study: What If We Changed Everything?
+  </text>
+  <text x="700" y="75" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#8b949e">
+    Understanding why every design choice matters through systematic removal
+  </text>
+  
+  <!-- Section 1: Why High Dimension Works -->
+  <g transform="translate(50, 110)">
+    <rect x="0" y="0" width="640" height="320" fill="#161b22" stroke="#30363d" stroke-width="2" rx="10"/>
+    <text x="320" y="35" font-family="Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" fill="#39d353">
+      Why High Dimension Works: The Lottery Ticket Principle
+    </text>
+    
+    <!-- Initialization visualization -->
+    <g transform="translate(30, 60)">
+      <text x="0" y="20" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#58a6ff">
+        At Initialization (Random):
+      </text>
+      
+      <!-- Random detectors -->
+      <g transform="translate(0, 30)">
+        <rect x="0" y="0" width="15" height="40" fill="#666666" opacity="0.7"/>
+        <rect x="20" y="0" width="15" height="40" fill="#666666" opacity="0.7"/>
+        <rect x="40" y="0" width="15" height="40" fill="#666666" opacity="0.7"/>
+        <rect x="60" y="0" width="15" height="40" fill="#666666" opacity="0.7"/>
+        <rect x="80" y="0" width="15" height="40" fill="#666666" opacity="0.7"/>
+        <text x="0" y="55" font-family="monospace" font-size="10" fill="#8b949e">3072 random detectors</text>
+        <text x="0" y="70" font-family="monospace" font-size="10" fill="#8b949e">(all nonsense)</text>
+      </g>
+    </g>
+    
+    <!-- After training -->
+    <g transform="translate(350, 60)">
+      <text x="0" y="20" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#39d353">
+        After Training (Specialized):
+      </text>
+      
+      <!-- Specialized detectors -->
+      <g transform="translate(0, 30)">
+        <rect x="0" y="0" width="15" height="40" fill="#ff0000" opacity="0.8"/>
+        <rect x="20" y="0" width="15" height="40" fill="#00ff00" opacity="0.8"/>
+        <rect x="40" y="0" width="15" height="40" fill="#0000ff" opacity="0.8"/>
+        <rect x="60" y="0" width="15" height="40" fill="#ffff00" opacity="0.8"/>
+        <rect x="80" y="0" width="15" height="40" fill="#ff00ff" opacity="0.8"/>
+        <text x="0" y="55" font-family="monospace" font-size="10" fill="#39d353">Specialized detectors:</text>
+        <text x="0" y="70" font-family="monospace" font-size="9" fill="#8b949e">#42: questions</text>
+        <text x="0" y="83" font-family="monospace" font-size="9" fill="#8b949e">#156: technical</text>
+        <text x="0" y="96" font-family="monospace" font-size="9" fill="#8b949e">#847: past tense</text>
+      </g>
+    </g>
+    
+    <!-- Gradient descent discovery process -->
+    <g transform="translate(30, 180)">
+      <rect x="0" y="0" width="580" height="110" fill="#0d1117" stroke="#ffa657" stroke-width="1" rx="5"/>
+      <text x="290" y="20" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#ffa657">
+        How Gradient Descent Discovers Features:
+      </text>
+      
+      <text x="15" y="40" font-family="monospace" font-size="11" fill="#f0f6fc">
+        1. Random detector #847 accidentally correlates with "financial context"
+      </text>
+      <text x="15" y="56" font-family="monospace" font-size="11" fill="#f0f6fc">
+        2. Loss improves when #847 fires → gradient reinforces it
+      </text>
+      <text x="15" y="72" font-family="monospace" font-size="11" fill="#f0f6fc">
+        3. After 1000 steps: #847 becomes financial_detector
+      </text>
+      <text x="15" y="88" font-family="monospace" font-size="11" fill="#39d353">
+        Key: With 3072 random starts, some WILL correlate with useful patterns!
+      </text>
+    </g>
+  </g>
+  
+  <!-- Section 2: Architecture Comparison Grid -->
+  <g transform="translate(710, 110)">
+    <rect x="0" y="0" width="640" height="320" fill="#161b22" stroke="#30363d" stroke-width="2" rx="10"/>
+    <text x="320" y="35" font-family="Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" fill="#f85149">
+      Architecture Ablations: What Breaks?
+    </text>
+    
+    <!-- Full Architecture -->
+    <g transform="translate(20, 60)">
+      <rect x="0" y="0" width="180" height="100" fill="#1f2937" stroke="#39d353" stroke-width="2" rx="5"/>
+      <text x="90" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#39d353">
+        ✅ Full MLP (Baseline)
+      </text>
+      <text x="10" y="38" font-family="monospace" font-size="10" fill="#f0f6fc">768 → 3072 → 768</text>
+      <text x="10" y="52" font-family="monospace" font-size="10" fill="#f0f6fc">W₁, GELU, W₂</text>
+      <text x="10" y="70" font-family="monospace" font-size="10" fill="#39d353">Perplexity: 20</text>
+      <text x="10" y="84" font-family="monospace" font-size="10" fill="#39d353">GLUE: 89.5%</text>
+    </g>
+    
+    <!-- No MLP -->
+    <g transform="translate(210, 60)">
+      <rect x="0" y="0" width="180" height="100" fill="#1f2937" stroke="#ff0000" stroke-width="2" rx="5"/>
+      <text x="90" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#ff0000">
+        ❌ No MLP
+      </text>
+      <text x="10" y="38" font-family="monospace" font-size="10" fill="#f0f6fc">Attention only</text>
+      <text x="10" y="52" font-family="monospace" font-size="10" fill="#8b949e">No position-wise</text>
+      <text x="10" y="70" font-family="monospace" font-size="10" fill="#ff0000">Perplexity: 500+</text>
+      <text x="10" y="84" font-family="monospace" font-size="10" fill="#ff0000">GLUE: ~50% (random)</text>
+    </g>
+    
+    <!-- Just GELU -->
+    <g transform="translate(400, 60)">
+      <rect x="0" y="0" width="210" height="100" fill="#1f2937" stroke="#ff6600" stroke-width="2" rx="5"/>
+      <text x="105" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#ff6600">
+        ⚠️ Just GELU (no linear)
+      </text>
+      <text x="10" y="38" font-family="monospace" font-size="10" fill="#f0f6fc">x → GELU(x) → x</text>
+      <text x="10" y="52" font-family="monospace" font-size="10" fill="#8b949e">Element-wise only</text>
+      <text x="10" y="70" font-family="monospace" font-size="10" fill="#ff6600">No feature mixing!</text>
+      <text x="10" y="84" font-family="monospace" font-size="10" fill="#ff6600">Useless activation</text>
+    </g>
+    
+    <!-- Single Layer -->
+    <g transform="translate(20, 170)">
+      <rect x="0" y="0" width="180" height="100" fill="#1f2937" stroke="#ffaa00" stroke-width="2" rx="5"/>
+      <text x="90" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#ffaa00">
+        ⚠️ Single Layer
+      </text>
+      <text x="10" y="38" font-family="monospace" font-size="10" fill="#f0f6fc">768 → 3072 only</text>
+      <text x="10" y="52" font-family="monospace" font-size="10" fill="#8b949e">W₁ + GELU (no W₂)</text>
+      <text x="10" y="70" font-family="monospace" font-size="10" fill="#ffaa00">Wrong output dim!</text>
+      <text x="10" y="84" font-family="monospace" font-size="10" fill="#ffaa00">Can't add residual</text>
+    </g>
+    
+    <!-- No Expansion -->
+    <g transform="translate(210, 170)">
+      <rect x="0" y="0" width="180" height="100" fill="#1f2937" stroke="#ff9900" stroke-width="2" rx="5"/>
+      <text x="90" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#ff9900">
+        ⚠️ No Expansion
+      </text>
+      <text x="10" y="38" font-family="monospace" font-size="10" fill="#f0f6fc">768 → 768 → 768</text>
+      <text x="10" y="52" font-family="monospace" font-size="10" fill="#8b949e">1x (not 4x)</text>
+      <text x="10" y="70" font-family="monospace" font-size="10" fill="#ff9900">Perplexity: 31</text>
+      <text x="10" y="84" font-family="monospace" font-size="10" fill="#ff9900">GLUE: 83.2% (-6.3%)</text>
+    </g>
+    
+    <!-- Different Ratios -->
+    <g transform="translate(400, 170)">
+      <rect x="0" y="0" width="210" height="100" fill="#1f2937" stroke="#58a6ff" stroke-width="2" rx="5"/>
+      <text x="105" y="20" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#58a6ff">
+        📊 Expansion Ratios
+      </text>
+      <text x="10" y="38" font-family="monospace" font-size="9" fill="#f0f6fc">2x: 82% acc, 1.5x memory</text>
+      <text x="10" y="52" font-family="monospace" font-size="9" fill="#39d353">4x: 89% acc, 2.0x memory ✓</text>
+      <text x="10" y="66" font-family="monospace" font-size="9" fill="#f0f6fc">8x: 91% acc, 3.0x memory</text>
+      <text x="10" y="80" font-family="monospace" font-size="9" fill="#8b949e">16x: 91.5% acc, 5x memory</text>
+      <text x="10" y="94" font-family="monospace" font-size="9" fill="#ffa657">Diminishing returns!</text>
+    </g>
+  </g>
+  
+  <!-- Section 3: What Each Configuration Can/Can't Do -->
+  <g transform="translate(50, 450)">
+    <rect x="0" y="0" width="1300" height="280" fill="#161b22" stroke="#30363d" stroke-width="2" rx="10"/>
+    <text x="650" y="35" font-family="Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" fill="#58a6ff">
+      Capability Analysis: What Each Architecture Can Actually Do
+    </text>
+    
+    <!-- Attention Only -->
+    <g transform="translate(30, 60)">
+      <rect x="0" y="0" width="240" height="180" fill="#1f2937" stroke="#ff0000" stroke-width="1" rx="5"/>
+      <text x="120" y="25" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#ff0000">
+        Attention Only (No MLP)
+      </text>
+      
+      <text x="10" y="50" font-family="Arial, sans-serif" font-size="11" fill="#39d353">Can do:</text>
+      <text x="15" y="68" font-family="monospace" font-size="10" fill="#39d353">✓ Copy information</text>
+      <text x="15" y="82" font-family="monospace" font-size="10" fill="#39d353">✓ Weighted averaging</text>
+      <text x="15" y="96" font-family="monospace" font-size="10" fill="#39d353">✓ Basic routing</text>
+      
+      <text x="10" y="118" font-family="Arial, sans-serif" font-size="11" fill="#ff0000">Cannot do:</text>
+      <text x="15" y="136" font-family="monospace" font-size="10" fill="#ff0000">✗ Feature detection</text>
+      <text x="15" y="150" font-family="monospace" font-size="10" fill="#ff0000">✗ Abstract reasoning</text>
+      <text x="15" y="164" font-family="monospace" font-size="10" fill="#ff0000">✗ Non-linear transform</text>
+    </g>
+    
+    <!-- MLP No Expansion -->
+    <g transform="translate(290, 60)">
+      <rect x="0" y="0" width="240" height="180" fill="#1f2937" stroke="#ff9900" stroke-width="1" rx="5"/>
+      <text x="120" y="25" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#ff9900">
+        MLP Without Expansion
+      </text>
+      
+      <text x="10" y="50" font-family="Arial, sans-serif" font-size="11" fill="#39d353">Can do:</text>
+      <text x="15" y="68" font-family="monospace" font-size="10" fill="#39d353">✓ Basic patterns</text>
+      <text x="15" y="82" font-family="monospace" font-size="10" fill="#39d353">✓ Some non-linearity</text>
+      <text x="15" y="96" font-family="monospace" font-size="10" fill="#39d353">✓ Simple features</text>
+      
+      <text x="10" y="118" font-family="Arial, sans-serif" font-size="11" fill="#ff9900">Cannot do:</text>
+      <text x="15" y="136" font-family="monospace" font-size="10" fill="#ff9900">✗ XOR patterns</text>
+      <text x="15" y="150" font-family="monospace" font-size="10" fill="#ff9900">✗ Complex reasoning</text>
+      <text x="15" y="164" font-family="monospace" font-size="10" fill="#ff9900">✗ Sparse features</text>
+    </g>
+    
+    <!-- Full MLP -->
+    <g transform="translate(550, 60)">
+      <rect x="0" y="0" width="240" height="180" fill="#1f2937" stroke="#39d353" stroke-width="1" rx="5"/>
+      <text x="120" y="25" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#39d353">
+        Full MLP with 4x Expansion
+      </text>
+      
+      <text x="10" y="50" font-family="Arial, sans-serif" font-size="11" fill="#39d353">Can do:</text>
+      <text x="15" y="68" font-family="monospace" font-size="10" fill="#39d353">✓ Universal approx</text>
+      <text x="15" y="82" font-family="monospace" font-size="10" fill="#39d353">✓ Sparse features</text>
+      <text x="15" y="96" font-family="monospace" font-size="10" fill="#39d353">✓ Complex patterns</text>
+      <text x="15" y="110" font-family="monospace" font-size="10" fill="#39d353">✓ Abstract reasoning</text>
+      <text x="15" y="124" font-family="monospace" font-size="10" fill="#39d353">✓ Compositionality</text>
+      
+      <text x="10" y="146" font-family="Arial, sans-serif" font-size="11" fill="#8b949e">Trade-offs:</text>
+      <text x="15" y="164" font-family="monospace" font-size="10" fill="#8b949e">• 2x memory use</text>
+    </g>
+    
+    <!-- Example Box -->
+    <g transform="translate(810, 60)">
+      <rect x="0" y="0" width="460" height="180" fill="#0d1117" stroke="#ffa657" stroke-width="1" rx="5"/>
+      <text x="230" y="25" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#ffa657">
+        Real Example: "The bank is near the river"
+      </text>
+      
+      <text x="10" y="50" font-family="monospace" font-size="10" fill="#ff0000">Attention only:</text>
+      <text x="15" y="65" font-family="monospace" font-size="9" fill="#f0f6fc">"bank" sees "river" but can't interpret → Output: ???</text>
+      
+      <text x="10" y="88" font-family="monospace" font-size="10" fill="#ff9900">No expansion:</text>
+      <text x="15" y="103" font-family="monospace" font-size="9" fill="#f0f6fc">Limited detectors → Output: 50% riverbank, 50% financial</text>
+      
+      <text x="10" y="126" font-family="monospace" font-size="10" fill="#39d353">Full MLP:</text>
+      <text x="15" y="141" font-family="monospace" font-size="9" fill="#f0f6fc">Detector #234 (water context) fires → Output: riverbank ✓</text>
+      
+      <text x="15" y="164" font-family="monospace" font-size="9" fill="#58a6ff">3072 detectors can disambiguate almost anything!</text>
+    </g>
+  </g>
+  
+  <!-- Section 4: The Mathematical Truth -->
+  <g transform="translate(50, 750)">
+    <rect x="0" y="0" width="1300" height="200" fill="#1f2937" stroke="#58a6ff" stroke-width="2" rx="10"/>
+    <text x="650" y="35" font-family="Arial, sans-serif" font-size="22" font-weight="bold" text-anchor="middle" fill="#f0f6fc">
+      The Mathematical Foundation: Why Two Layers + Expansion = Intelligence
+    </text>
+    
+    <!-- Universal Approximation -->
+    <g transform="translate(50, 60)">
+      <rect x="0" y="0" width="380" height="110" fill="#0d1117" stroke="#39d353" stroke-width="1" rx="5"/>
+      <text x="190" y="20" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#39d353">
+        Universal Approximation Theorem
+      </text>
+      <text x="10" y="40" font-family="monospace" font-size="10" fill="#f0f6fc">
+        Single layer (no hidden): Can only learn linear functions
+      </text>
+      <text x="10" y="56" font-family="monospace" font-size="10" fill="#f0f6fc">
+        Two layers + non-linearity: Can approximate ANY function
+      </text>
+      <text x="10" y="72" font-family="monospace" font-size="10" fill="#39d353">
+        Two layers + expansion: Can approximate efficiently
+      </text>
+      <text x="10" y="92" font-family="monospace" font-size="10" fill="#8b949e">
+        MLP(x) = W₂·GELU(W₁·x + b₁) + b₂  [Universal!]
+      </text>
+    </g>
+    
+    <!-- Johnson-Lindenstrauss -->
+    <g transform="translate(460, 60)">
+      <rect x="0" y="0" width="380" height="110" fill="#0d1117" stroke="#ffa657" stroke-width="1" rx="5"/>
+      <text x="190" y="20" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#ffa657">
+        Johnson-Lindenstrauss Lemma
+      </text>
+      <text x="10" y="40" font-family="monospace" font-size="10" fill="#f0f6fc">
+        "Random projections preserve distances"
+      </text>
+      <text x="10" y="56" font-family="monospace" font-size="10" fill="#f0f6fc">
+        768D → 3072D (random W₁ at init)
+      </text>
+      <text x="10" y="72" font-family="monospace" font-size="10" fill="#ffa657">
+        Concepts stay separated in high-D!
+      </text>
+      <text x="10" y="92" font-family="monospace" font-size="10" fill="#8b949e">
+        P(separation) ≈ 1 - exp(-n_dimensions)
+      </text>
+    </g>
+    
+    <!-- Cover's Theorem -->
+    <g transform="translate(870, 60)">
+      <rect x="0" y="0" width="380" height="110" fill="#0d1117" stroke="#58a6ff" stroke-width="1" rx="5"/>
+      <text x="190" y="20" font-family="Arial, sans-serif" font-size="13" font-weight="bold" text-anchor="middle" fill="#58a6ff">
+        Cover's Theorem on Separability
+      </text>
+      <text x="10" y="40" font-family="monospace" font-size="10" fill="#f0f6fc">
+        Complex patterns in low-D: Often inseparable
+      </text>
+      <text x="10" y="56" font-family="monospace" font-size="10" fill="#f0f6fc">
+        Same patterns in high-D: Linearly separable
+      </text>
+      <text x="10" y="72" font-family="monospace" font-size="10" fill="#58a6ff">
+        P(separable) = 2^n / C(2n, n) for n dimensions
+      </text>
+      <text x="10" y="92" font-family="monospace" font-size="10" fill="#8b949e">
+        768D: ~60% | 3072D: ~95% separable!
+      </text>
+    </g>
+  </g>
+  
+  <!-- Section 5: The Bottom Line -->
+  <g transform="translate(50, 970)">
+    <rect x="0" y="0" width="1300" height="180" fill="#161b22" stroke="#39d353" stroke-width="2" rx="10"/>
+    <text x="650" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#39d353">
+      The Bottom Line: Every Part is Essential
+    </text>
+    
+    <g transform="translate(100, 60)">
+      <text x="0" y="20" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#f0f6fc">
+        Remove MLP = Model dies (90% performance loss)
+      </text>
+      <text x="350" y="20" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#f0f6fc">
+        Remove expansion = Model degrades (30% loss)
+      </text>
+      <text x="700" y="20" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#f0f6fc">
+        Remove second layer = Can't project back
+      </text>
+      
+      <text x="0" y="50" font-family="monospace" font-size="12" fill="#8b949e">
+        "Copy machine, no thinking"
+      </text>
+      <text x="350" y="50" font-family="monospace" font-size="12" fill="#8b949e">
+        "Limited pattern detection"
+      </text>
+      <text x="700" y="50" font-family="monospace" font-size="12" fill="#8b949e">
+        "Wrong dimensions"
+      </text>
+    </g>
+    
+    <rect x="100" y="100" width="1100" height="50" fill="#0d1117" stroke="#ffa657" stroke-width="2" rx="5"/>
+    <text x="650" y="130" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#ffa657">
+      💡 The MLP isn't optional enhancement - it's where intelligence emerges from computation
+    </text>
+  </g>
+  
+  <!-- ANTSHIV branding -->
+  <text x="1300" y="1180" font-family="monospace" font-size="12" fill="#30363d">ANTSHIV ROBOTICS | CPU LLM Series</text>
+</svg>

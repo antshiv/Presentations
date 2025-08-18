@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V2 - MLP Layer Inference & PyTorch Parity</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Roboto:wght@300;400;700&display=swap');
+        body { font-family: 'Roboto', sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 1700px; margin: auto; }
+        h1, h2 { text-align: center; font-weight: 300; }
+        h1 { font-size: 2.8em; color: #e0e0e0; margin-bottom: 5px; }
+        h2 { font-size: 1.8em; margin-top: 0; margin-bottom: 30px; color: #ff8f00; font-weight: 400; }
+        svg { display: block; margin: auto; background-color: #1a1a1a; border-radius: 15px; border: 1px solid #333; }
+        .code { font-family: 'Roboto Mono', monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>The Transformer MLP Layer</h1>
+        <h2>PyTorch Parity & AVX-512 Optimization</h2>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1700 1800">
+            <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#888" />
+                </marker>
+                <style>
+                    .title { font-size: 28px; fill: #f5f5f5; text-anchor: middle; font-weight: 300; }
+                    .subtitle { font-size: 20px; fill: #ff8f00; text-anchor: middle; font-weight: 400; }
+                    .panel-title { font-size: 20px; fill: #ff8f00; text-anchor: middle; }
+                    .text-main { font-size: 14px; fill: #d0d0d0; }
+                    .text-dim { font-size: 12px; fill: #aaa; }
+                    .text-formula { font-family: 'Roboto Mono', monospace; font-size: 12px; fill: #81c784; }
+                    .text-code { font-family: 'Roboto Mono', monospace; font-size: 12px; fill: #b3e5fc; }
+                    .line-highlight { fill: rgba(173, 216, 230, 0.15); }
+                    .arrow-path { stroke: #888; stroke-width: 2; marker-end: url(#arrow); }
+                    .panel { fill: #242424; stroke: #444; rx: 10; }
+                    .icon { font-size: 24px; }
+                </style>
+            </defs>
+
+            <!-- 1. Main Pipeline -->
+            <rect x="25" y="25" width="1650" height="200" class="panel"/>
+            <text x="850" y="60" class="panel-title">1. MLP Data Flow</text>
+            <g id="mlp-flow">
+                <rect x="50" y="100" width="200" height="80" fill="#4a90e2" rx="5"/>
+                <text x="150" y="135" class="text-main" text-anchor="middle">Input</text>
+                <text x="150" y="155" class="text-dim" text-anchor="middle">[T, C]</text>
+                
+                <path d="M 255 140 L 345 140" class="arrow-path"/>
+                <text x="300" y="130" class="text-dim" text-anchor="middle">GEMM (W1)</text>
+
+                <rect x="350" y="100" width="250" height="80" fill="#81c784" rx="5"/>
+                <text x="475" y="125" class="text-main" text-anchor="middle">FC1 (GEMM)</text>
+                <text x="475" y="145" class="text-dim" text-anchor="middle">Weights: W1[C, 4C] (+ bias fused)</text>
+                <text x="475" y="165" class="text-dim" text-anchor="middle">Output: [T, 4C]</text>
+
+                <path d="M 605 140 L 695 140" class="arrow-path"/>
+                <text x="650" y="130" class="text-dim" text-anchor="middle">GELU (Vectorized)</text>
+
+                <rect x="700" y="100" width="200" height="80" fill="#ffd54f" rx="5"/>
+                <text x="800" y="135" class="text-main" fill="#333" text-anchor="middle">GELU Activation</text>
+                <text x="800" y="155" class="text-dim" fill="#555" text-anchor="middle">Element-wise</text>
+
+                <path d="M 905 140 L 995 140" class="arrow-path"/>
+                <text x="950" y="130" class="text-dim" text-anchor="middle">GEMM (W2)</text>
+
+                <rect x="1000" y="100" width="250" height="80" fill="#e57373" rx="5"/>
+                <text x="1125" y="125" class="text-main" text-anchor="middle">FC2 (GEMM)</text>
+                <text x="1125" y="145" class="text-dim" text-anchor="middle">Weights: W2[4C, C] (+ bias fused)</text>
+                <text x="1125" y="165" class="text-dim" text-anchor="middle">Output: [T, C]</text>
+
+                <path d="M 1255 140 L 1345 140" class="arrow-path"/>
+
+                <rect x="1350" y="100" width="200" height="80" fill="#ba68c8" rx="5"/>
+                <text x="1450" y="135" class="text-main" text-anchor="middle">Output</text>
+                <text x="1450" y="155" class="text-dim" text-anchor="middle">[T, C]</text>
+            </g>
+
+            <!-- 2. Token Parallelism & NUMA -->
+            <rect x="25" y="250" width="550" height="500" class="panel"/>
+            <text x="300" y="285" class="panel-title">2. Parallelism & NUMA</text>
+            <text x="300" y="310" class="text-dim" text-anchor="middle">Token-based data parallelism with NUMA awareness</text>
+            
+            <text x="50" y="340" class="text-main">Input Tensor [T, C]</text>
+            <rect x="50" y="350" width="50" height="350" fill="#4a90e2" rx="5"/>
+            
+            <g transform="translate(120, 350)">
+                <text x="150" y="-10" class="text-main" text-anchor="middle">Socket 0</text>
+                <rect x="0" y="0" width="300" height="160" fill="#333" rx="5"/>
+                <text x="150" y="180" class="text-main" text-anchor="middle">Socket 1</text>
+                <rect x="0" y="190" width="300" height="160" fill="#333" rx="5"/>
+
+                <path d="M 305 80 L 385 80" class="arrow-path"/>
+                <path d="M 305 270 L 385 270" class="arrow-path"/>
+
+                <!-- Cores -->
+                <text x="-25" y="25" class="icon">🧵</text><text x="20" y="25" class="text-dim">Core 0</text><rect x="70" y="10" width="220" height="25" fill="#81c784" rx="3"/><text x="180" y="27" class="text-dim" text-anchor="middle">MLP(Tokens 0-63)</text>
+                <text x="-25" y="65" class="icon">🧵</text><text x="20" y="65" class="text-dim">Core 1</text><rect x="70" y="50" width="220" height="25" fill="#81c784" rx="3"/><text x="180" y="67" class="text-dim" text-anchor="middle">MLP(Tokens 64-127)</text>
+                <text x="150" y="110" class="text-dim" text-anchor="middle">...</text>
+                <text x="-25" y="145" class="icon">🧵</text><text x="20" y="145" class="text-dim">Core 7</text><rect x="70" y="130" width="220" height="25" fill="#81c784" rx="3"/><text x="180" y="147" class="text-dim" text-anchor="middle">MLP(Tokens 448-511)</text>
+
+                <text x="-25" y="215" class="icon">🧵</text><text x="20" y="215" class="text-dim">Core 8</text><rect x="70" y="200" width="220" height="25" fill="#81c784" rx="3"/><text x="180" y="217" class="text-dim" text-anchor="middle">MLP(Tokens 512-575)</text>
+                <text x="150" y="300" class="text-dim" text-anchor="middle">...</text>
+                <text x="-25" y="335" class="icon">🧵</text><text x="20" y="335" class="text-dim">Core 15</text><rect x="70" y="320" width="220" height="25" fill="#81c784" rx="3"/><text x="180" y="337" class="text-dim" text-anchor="middle">MLP(Tokens 960-1023)</text>
+            </g>
+
+            <text x="450" y="340" class="text-main">Output Tensor [T, C]</text>
+            <rect x="450" y="350" width="50" height="350" fill="#ba68c8" rx="5"/>
+
+            <foreignObject x="50" y="580" width="450" height="150">
+                <div style="border: 1px solid #555; border-radius: 5px; padding: 10px; font-size: 12px; background: #2c2c2c;">
+                    <strong style="color: #81c784;">Token→Core Mapping Example:</strong>
+                    <ul style="margin: 5px 0 0 20px; padding: 0; color: #ccc;">
+                        <li><span style="font-weight: bold;">T = 1024</span> tokens</li>
+                        <li><span style="font-weight: bold;">Cores = 16</span></li>
+                        <li><span style="font-weight: bold;">Chunk = 64</span> tokens/core</li>
+                        <li><span style="font-weight: bold;">Tail Handling:</span> Last core handles `T % chunk` if not perfectly divisible.</li>
+                        <li><span style="font-weight: bold;">NUMA:</span> Memory for each socket allocated locally (first-touch) to prevent cross-socket traffic.</li>
+                    </ul>
+                </div>
+            </foreignObject>
+
+            <!-- 3. Micro-kernel & Cache -->
+            <rect x="600" y="250" width="1075" height="500" class="panel"/>
+            <text x="1137" y="285" class="panel-title">3. GEMM Micro-Kernel & Cache Residency</text>
+            <text x="1137" y="310" class="text-dim" text-anchor="middle">Tiling for optimal cache usage</text>
+            
+            <foreignObject x="625" y="330" width="450" height="400" class="code">
+                <pre style="font-size: 11px; line-height: 1.3; background: #1e1e1e; padding: 10px; border-radius: 5px; border: 1px solid #333;">
+<span style="color: #9e9e9e;">// Simplified GEMM kernel for one output row</span>
+void gemv_kernel(float* out, const float* in, 
+                 const float* W, const float* b, 
+                 int N, int K) {
+    <rect x="0" y="52" width="430" height="16" class="line-highlight"/>
+    __m512 acc[16]; <span style="color: #9e9e9e;">// 16 AVX-512 registers for N-tile</span>
+    for(int j=0; j&lt;16; ++j) acc[j] = _mm512_setzero_ps();
+
+    <span style="color: #9e9e9e;">// K-blocking loop (e.g., 512)</span>
+    for (int k_block = 0; k_block &lt; K; k_block += 512) {
+        <span style="color: #9e9e9e;">// N-blocking loop (e.g., 256)</span>
+        for (int j_block = 0; j_block &lt; N; j_block += 256) {
+            <span style="color: #9e9e9e;">// Inner loop over K-tile</span>
+            for (int k = k_block; k &lt; k_block + 512; ++k) {
+                <rect x="0" y="170" width="430" height="16" class="line-highlight"/>
+                __m512 in_vec = _mm512_set1_ps(in[k]);
+                <span style="color: #9e9e9e;">// Process 16 output elements at once</span>
+                for (int j = 0; j &lt; 16; ++j) {
+                    <rect x="0" y="208" width="430" height="16" class="line-highlight"/>
+                    __m512 w_vec = _mm512_load_ps(&W[(j_block+j*16)*K+k]);
+                    acc[j] = _mm512_fmadd_ps(in_vec, w_vec, acc[j]);
+                }
+            }
+        }
+    }
+    <span style="color: #9e9e9e;">// ... reduction and store ...</span>
+}
+                </pre>
+            </foreignObject>
+
+            <g id="cache-diagram" transform="translate(1100, 350)">
+                <text x="275" y="0" class="text-main" text-anchor="middle">Cache Residency</text>
+                <rect x="0" y="20" width="550" height="350" fill="#333" rx="5"/>
+                <!-- CPU Core -->
+                <rect x="20" y="40" width="150" height="310" fill="#444" rx="5"/>
+                <text x="95" y="65" class="text-main" text-anchor="middle">CPU Core</text>
+                <text x="95" y="85" class="icon">⚙️</text>
+                <rect x="30" y="100" width="130" height="80" fill="#555" rx="3"/>
+                <text x="95" y="120" class="text-dim" text-anchor="middle">L1 Cache (32KB)</text>
+                <text x="95" y="140" class="text-main" fill="#81c784" text-anchor="middle">Input Token [1, C]</text>
+                <text x="95" y="160" class="text-main" fill="#ffd54f" text-anchor="middle">GELU Output</text>
+
+                <rect x="30" y="200" width="130" height="80" fill="#555" rx="3"/>
+                <text x="95" y="220" class="text-dim" text-anchor="middle">L2 Cache (1MB)</text>
+                <text x="95" y="240" class="text-main" fill="#e57373" text-anchor="middle">Weight Tile [4C, C]</text>
+                
+                <path d="M 175 140 L 225 140" class="arrow-path"/>
+                <text x="200" y="130" class="text-dim" text-anchor="middle">Load</text>
+
+                <!-- Main Memory -->
+                <rect x="230" y="40" width="300" height="310" fill="#444" rx="5"/>
+                <text x="380" y="65" class="text-main" text-anchor="middle">DDR4 RAM</text>
+                <rect x="250" y="100" width="260" height="230" fill="#2a2a2a" rx="3"/>
+                <text x="380" y="120" class="text-dim" text-anchor="middle">Full Weight Matrix</text>
+                <text x="380" y="220" class="text-dim" text-anchor="middle">Streaming Write to Output</text>
+                <path d="M 175 240 L 225 240" class="arrow-path"/>
+                <text x="200" y="230" class="text-dim" text-anchor="middle">Prefetch</text>
+                <path d="M 175 260 -> 380 280" d="M170 160 Q 250 180, 380 280" stroke="#ba68c8" stroke-dasharray="5,5" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+            </g>
+
+            <!-- 4. GELU & PyTorch Parity -->
+            <rect x="25" y="775" width="800" height="300" class="panel"/>
+            <text x="425" y="810" class="panel-title">4. GELU Activation & PyTorch Parity</text>
+            
+            <g transform="translate(50, 840)">
+                <rect x="0" y="0" width="300" height="210" fill="#333" rx="5"/>
+                <text x="150" y="25" class="text-main" text-anchor="middle">GELU(x) - Gaussian Error LU</text>
+                <path d="M 25 180 L 275 180" stroke="#888" stroke-width="1"/>
+                <path d="M 150 50 L 150 200" stroke="#888" stroke-width="1"/>
+                <path d="M 25 180 C 75 180, 75 50, 150 120 S 225 180, 275 180" stroke="#ffd54f" stroke-width="2" fill="none" transform="translate(0, -10)"/>
+                <text x="280" y="185" class="text-dim">x</text><text x="140" y="45" class="text-dim">y</text>
+            </g>
+            <foreignObject x="360" y="850" width="450" height="210">
+                <div style="border: 1px solid #555; border-radius: 5px; padding: 15px; font-size: 13px; background: #2c2c2c;">
+                    <strong style="color: #81c784;">PyTorch Parity Checklist (FP32):</strong>
+                    <ul style="margin: 8px 0 0 20px; padding: 0; color: #ccc; list-style-type: '✅ ';">
+                        <li><strong class="text-main">GELU `tanh` approximation:</strong> Exact match.</li>
+                        <li><strong class="text-main">Bias Addition:</strong> Fused into GEMM kernel.</li>
+                        <li><strong class="text-main">Deterministic:</strong> Same inputs produce bit-for-bit identical outputs.</li>
+                        <li><strong class="text-main">Numerical Difference:</strong> `max|Δ| < 1e-6` vs PyTorch reference.</li>
+                    </ul>
+                    <p class="text-formula" style="margin-top: 15px; padding: 8px; background: #1e1e1e; border-radius: 3px;">
+                        Y = 0.5*X*(1+tanh(sqrt(2/π)*(X+0.044715*X³)))
+                    </p>
+                </div>
+            </foreignObject>
+
+            <!-- 5. Benchmarks & Validation -->
+            <rect x="850" y="775" width="825" height="300" class="panel"/>
+            <text x="1262" y="810" class="panel-title">5. Performance & Validation</text>
+
+            <g id="benchmark-chart" transform="translate(875, 840)">
+                <text x="200" y="15" class="text-main" text-anchor="middle">Performance: tokens/sec (Batch Size = 1024)</text>
+                <rect x="0" y="25" width="400" height="220" fill="#333" rx="5"/>
+                <!-- Axes -->
+                <path d="M 50 220 L 380 220" stroke="#888" stroke-width="1"/>
+                <text x="40" y="225" class="text-dim">0</text>
+                <!-- Bars -->
+                <text x="125" y="235" class="text-dim" text-anchor="middle">PyTorch (CPU)</text>
+                <rect x="90" y="120" width="70" height="100" fill="#e57373"/>
+                <text x="125" y="115" class="text-main" text-anchor="middle">150 t/s</text>
+
+                <text x="275" y="235" class="text-dim" text-anchor="middle">This C Kernel</text>
+                <rect x="240" y="50" width="70" height="170" fill="#81c784"/>
+                <text x="275" y="45" class="text-main" text-anchor="middle">450 t/s</text>
+                <text x="200" y="20" class="text-dim" text-anchor="middle" style="font-size: 10px;">Intel Xeon 8375C, 2.9GHz, 256GB RAM</text>
+            </g>
+
+            <g id="validation-path" transform="translate(1300, 840)">
+                <text x="187" y="15" class="text-main" text-anchor="middle">Validation Path</text>
+                <rect x="0" y="25" width="375" height="220" fill="#333" rx="5"/>
+                
+                <rect x="20" y="50" width="100" height="50" fill="#4a90e2" rx="3"/>
+                <text x="70" y="80" class="text-dim" text-anchor="middle">Load HF Weights</text>
+                <path d="M 125 75 L 155 75" class="arrow-path"/>
+
+                <rect x="160" y="50" width="100" height="50" fill="#4a90e2" rx="3"/>
+                <text x="210" y="80" class="text-dim" text-anchor="middle">Run Same Inputs</text>
+                <path d="M 265 75 L 295 75" class="arrow-path"/>
+
+                <rect x="300" y="50" width="55" height="50" fill="#4a90e2" rx="3"/>
+                <text x="327" y="80" class="text-dim" text-anchor="middle">Compare</text>
+
+                <text x="187" y="140" class="text-dim" text-anchor="middle">max|diff|, MSE, Cosine Sim</text>
+
+                <!-- QR Code Placeholder -->
+                <g transform="translate(137, 160)">
+                    <rect width="100" height="100" fill="white"/>
+                    <rect x="10" y="10" width="20" height="20" fill="black"/>
+                    <rect x="70" y="10" width="20" height="20" fill="black"/>
+                    <rect x="10" y="70" width="20" height="20" fill="black"/>
+                    <rect x="40" y="40" width="50" height="50" fill="#555"/>
+                    <text x="50" y="115" class="text-dim" text-anchor="middle">Scan for repo</text>
+                </g>
+            </g>
+
+        </svg>
+    </div>
+</body>
+</html>

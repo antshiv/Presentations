@@ -1,0 +1,117 @@
+<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark background -->
+  <rect width="1200" height="800" fill="#0d1117"/>
+  
+  <!-- Title -->
+  <text x="600" y="50" font-family="Arial, sans-serif" font-size="36" font-weight="bold" text-anchor="middle" fill="#58a6ff">
+    Why MLP After Attention? Division of Labor
+  </text>
+  <text x="600" y="85" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#8b949e">
+    ANTSHIV ROBOTICS - Transformer Architecture Deep Dive
+  </text>
+  
+  <!-- Attention Block -->
+  <g transform="translate(150, 150)">
+    <rect x="0" y="0" width="350" height="250" fill="#1f2937" stroke="#58a6ff" stroke-width="2" rx="10"/>
+    <text x="175" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#58a6ff">
+      ATTENTION
+    </text>
+    <text x="175" y="70" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#39d353">
+      "What should I look at?"
+    </text>
+    
+    <!-- Features -->
+    <text x="20" y="110" font-family="monospace" font-size="14" fill="#f0f6fc">• Aggregates information</text>
+    <text x="20" y="140" font-family="monospace" font-size="14" fill="#f0f6fc">• Creates context vectors</text>
+    <text x="20" y="170" font-family="monospace" font-size="14" fill="#f0f6fc">• Global token interactions</text>
+    <text x="20" y="200" font-family="monospace" font-size="14" fill="#f0f6fc">• Pattern: Q·K^T → Softmax → ·V</text>
+    
+    <!-- Visual representation -->
+    <circle cx="175" cy="230" r="3" fill="#ffa657"/>
+    <text x="190" y="235" font-family="monospace" font-size="12" fill="#8b949e">All tokens talk</text>
+  </g>
+  
+  <!-- Arrow -->
+  <g transform="translate(520, 275)">
+    <path d="M 0 0 L 80 0 L 70 -10 M 80 0 L 70 10" stroke="#39d353" stroke-width="3" fill="none"/>
+    <text x="40" y="-10" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#39d353">then</text>
+  </g>
+  
+  <!-- MLP Block -->
+  <g transform="translate(620, 150)">
+    <rect x="0" y="0" width="350" height="250" fill="#1f2937" stroke="#ffa657" stroke-width="2" rx="10"/>
+    <text x="175" y="40" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#ffa657">
+      MLP
+    </text>
+    <text x="175" y="70" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#39d353">
+      "What does this mean?"
+    </text>
+    
+    <!-- Features -->
+    <text x="20" y="110" font-family="monospace" font-size="14" fill="#f0f6fc">• Applies learned patterns</text>
+    <text x="20" y="140" font-family="monospace" font-size="14" fill="#f0f6fc">• Position-wise transform</text>
+    <text x="20" y="170" font-family="monospace" font-size="14" fill="#f0f6fc">• Local token processing</text>
+    <text x="20" y="200" font-family="monospace" font-size="14" fill="#f0f6fc">• Pattern: FC1 → GELU → FC2</text>
+    
+    <!-- Visual representation -->
+    <circle cx="175" cy="230" r="3" fill="#58a6ff"/>
+    <text x="190" y="235" font-family="monospace" font-size="12" fill="#8b949e">Each token thinks</text>
+  </g>
+  
+  <!-- Courtroom Analogy -->
+  <g transform="translate(200, 480)">
+    <rect x="0" y="0" width="800" height="250" fill="#161b22" stroke="#30363d" stroke-width="1" rx="10"/>
+    <text x="400" y="35" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#f0f6fc">
+      The Courtroom Analogy
+    </text>
+    
+    <!-- Lawyers -->
+    <g transform="translate(100, 70)">
+      <rect x="0" y="0" width="200" height="120" fill="#1f2937" stroke="#58a6ff" stroke-width="2" rx="8"/>
+      <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#58a6ff">
+        👥 Lawyers
+      </text>
+      <text x="100" y="55" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#8b949e">
+        (Attention)
+      </text>
+      <text x="100" y="85" font-family="monospace" font-size="12" text-anchor="middle" fill="#f0f6fc">
+        Present evidence
+      </text>
+      <text x="100" y="105" font-family="monospace" font-size="11" text-anchor="middle" fill="#39d353">
+        "Consider tokens 3, 7, 15"
+      </text>
+    </g>
+    
+    <!-- Arrow -->
+    <path d="M 350 130 L 430 130 L 420 120 M 430 130 L 420 140" stroke="#ffa657" stroke-width="2" fill="none"/>
+    
+    <!-- Judge -->
+    <g transform="translate(480, 70)">
+      <rect x="0" y="0" width="200" height="120" fill="#1f2937" stroke="#ffa657" stroke-width="2" rx="8"/>
+      <text x="100" y="30" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#ffa657">
+        ⚖️ Judge
+      </text>
+      <text x="100" y="55" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#8b949e">
+        (MLP)
+      </text>
+      <text x="100" y="85" font-family="monospace" font-size="12" text-anchor="middle" fill="#f0f6fc">
+        Evaluates and decides
+      </text>
+      <text x="100" y="105" font-family="monospace" font-size="11" text-anchor="middle" fill="#39d353">
+        "Next token is..."
+      </text>
+    </g>
+  </g>
+  
+  <!-- Why This Order -->
+  <g transform="translate(1000, 200)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#f0f6fc">Why This Order?</text>
+    <text x="0" y="30" font-family="monospace" font-size="12" fill="#39d353">1. Gather context</text>
+    <text x="0" y="55" font-family="monospace" font-size="12" fill="#39d353">2. Process info</text>
+    <text x="0" y="80" font-family="monospace" font-size="12" fill="#39d353">3. Make decision</text>
+    <text x="0" y="105" font-family="monospace" font-size="12" fill="#39d353">4. Preserve both</text>
+  </g>
+  
+  <!-- ANTSHIV branding -->
+  <text x="1100" y="780" font-family="monospace" font-size="12" fill="#30363d">ANTSHIV ROBOTICS | CPU LLM Series</text>
+</svg>

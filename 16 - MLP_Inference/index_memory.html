@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Layout: The Unseen Performance Multiplier</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Roboto:wght@300;400;700&display=swap');
+        body { font-family: 'Roboto', sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 1800px; margin: auto; }
+        h1, h2 { text-align: center; font-weight: 300; }
+        h1 { font-size: 2.8em; color: #e0e0e0; margin-bottom: 5px; }
+        h2 { font-size: 1.8em; margin-top: 0; margin-bottom: 30px; color: #4dd0e1; font-weight: 400; }
+        svg { display: block; margin: auto; background-color: #1a1a1a; border-radius: 15px; border: 1px solid #333; }
+        .code { font-family: 'Roboto Mono', monospace; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Memory Layout: The Unseen Performance Multiplier</h1>
+        <h2>How Data Architecture Enables High-Performance Attention</h2>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 2000">
+            <defs>
+                <marker id="arrow-mem" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#a5b4fc" />
+                </marker>
+                <style>
+                    .title { font-size: 28px; fill: #f5f5f5; text-anchor: middle; font-weight: 300; }
+                    .subtitle { font-size: 20px; fill: #4dd0e1; text-anchor: middle; font-weight: 400; }
+                    .panel-title { font-size: 22px; fill: #4dd0e1; text-anchor: middle; }
+                    .text-main { font-size: 14px; fill: #d0d0d0; }
+                    .text-dim { font-size: 12px; fill: #9e9e9e; }
+                    .text-code { font-family: 'Roboto Mono', monospace; font-size: 11px; fill: #b3e5fc; }
+                    .text-highlight { font-family: 'Roboto Mono', monospace; font-size: 12px; fill: #f48fb1; }
+                    .arrow-path { stroke: #a5b4fc; stroke-width: 2; marker-end: url(#arrow-mem); }
+                    .panel { fill: #242424; stroke: #444; rx: 10; }
+                    .mem-block { stroke-width: 1.5; }
+                </style>
+            </defs>
+
+            <!-- 1. The Single Memory Arena -->
+            <rect x="25" y="25" width="1750" height="250" class="panel"/>
+            <text x="900" y="60" class="panel-title">1. The Core Principle: A Single, Contiguous Memory Arena</text>
+            <foreignObject x="50" y="80" width="400" height="180">
+                <div style="font-size: 14px; color: #d0d0d0; padding: 10px;">
+                    <strong style="color: #4dd0e1;">Key Features:</strong>
+                    <ul style="margin: 8px 0 0 20px; padding: 0; list-style-type: '✅ ';">
+                        <li>One `huge_alloc` call for the entire model.</li>
+                        <li>2MB Huge Pages to reduce TLB misses.</li>
+                        <li>64-byte alignment (`CACHE_ALIGN`) for all tensors.</li>
+                        <li>Zero fragmentation via bump allocation.</li>
+                        <li>Debug canaries to detect memory overflows.</li>
+                    </ul>
+                </div>
+            </foreignObject>
+            <g id="memory-arena" transform="translate(450, 90)">
+                <rect x="0" y="0" width="1300" height="150" fill="#333" rx="5" class="mem-block" stroke="#555"/>
+                <text x="650" y="-10" class="text-dim" text-anchor="middle">M->memory_base</text>
+                <!-- Embeddings -->
+                <rect x="5" y="5" width="200" height="140" fill="#311b92" class="mem-block" stroke="#5e35b1"/>
+                <text x="105" y="80" class="text-main" text-anchor="middle">Embeddings</text>
+                <!-- Layer 0 -->
+                <rect x="210" y="5" width="350" height="140" fill="#004d40" class="mem-block" stroke="#00897b"/>
+                <text x="385" y="80" class="text-main" text-anchor="middle">Layer 0</text>
+                <rect x="212" y="8" width="10" height="134" fill="#f48fb1" title="Start Canary"/>
+                <rect x="548" y="8" width="10" height="134" fill="#f48fb1" title="End Canary"/>
+                <!-- Layer 1 -->
+                <rect x="565" y="5" width="350" height="140" fill="#004d40" class="mem-block" stroke="#00897b"/>
+                <text x="740" y="80" class="text-main" text-anchor="middle">Layer 1</text>
+                <rect x="567" y="8" width="10" height="134" fill="#f48fb1"/>
+                <rect x="903" y="8" width="10" height="134" fill="#f48fb1"/>
+                <!-- ... -->
+                <text x="950" y="85" font-size="30" fill="#888">...</text>
+                <!-- Final LN -->
+                <rect x="985" y="5" width="200" height="140" fill="#311b92" class="mem-block" stroke="#5e35b1"/>
+                <text x="1085" y="80" class="text-main" text-anchor="middle">Final LN</text>
+                <!-- Final Canary -->
+                <rect x="1190" y="5" width="105" height="140" fill="#f48fb1" class="mem-block" stroke="#f06292"/>
+                <text x="1242" y="80" class="text-main" text-anchor="middle">Final Canary</text>
+            </g>
+
+            <!-- 2. Token-Major vs. Head-Major -->
+            <rect x="25" y="300" width="1750" height="400" class="panel"/>
+            <text x="900" y="335" class="panel-title">2. Data Layout Transformation: The Key to Performance</text>
+            <g id="token-major" transform="translate(50, 360)">
+                <text x="400" y="20" class="subtitle" fill="#e57373" text-anchor="middle">Token-Major: The Slow Way</text>
+                <foreignObject x="0" y="40" width="800" height="320">
+                    <div style="display: flex; gap: 20px; align-items: center;">
+                        <div style="flex: 1;">
+                            <p style="font-size: 14px; color: #d0d0d0;">Head data is scattered across memory. Accessing all data for <strong style="color: #f48fb1;">Head 0</strong> requires multiple, non-contiguous memory reads, leading to cache misses.</p>
+                        </div>
+                        <div style="flex: 1; border: 1px solid #555; padding: 10px; border-radius: 5px; background: #333;">
+                            <div class="code" style="font-size: 12px; line-height: 1.5;">
+                                <div>T0: [<span style="background: #f48fb1; color: #111; padding: 2px 1px;">h0</span>, h1, h2, h3, ...]</div>
+                                <div>T1: [<span style="background: #f48fb1; color: #111; padding: 2px 1px;">h0</span>, h1, h2, h3, ...]</div>
+                                <div>T2: [<span style="background: #f48fb1; color: #111; padding: 2px 1px;">h0</span>, h1, h2, h3, ...]</div>
+                                <div style="text-align: center; color: #888;">...</div>
+                            </div>
+                        </div>
+                    </div>
+                </foreignObject>
+            </g>
+            <g id="head-major" transform="translate(900, 360)">
+                <text x="425" y="20" class="subtitle" fill="#81c784" text-anchor="middle">Head-Major: The Optimized Way</text>
+                <foreignObject x="50" y="40" width="800" height="320">
+                    <div style="display: flex; gap: 20px; align-items: center;">
+                        <div style="flex: 1;">
+                            <p style="font-size: 14px; color: #d0d0d0;">All data for a single head is contiguous. A core can process <strong style="color: #81c784;">Head 0</strong> with one sequential, cache-friendly read operation.</p>
+                        </div>
+                        <div style="flex: 1; border: 1px solid #555; padding: 10px; border-radius: 5px; background: #333;">
+                            <div class="code" style="font-size: 12px; line-height: 1.5;">
+                                <div style="background: #81c784; color: #111; padding: 2px 4px; border-radius: 3px;">Head 0: [T0, T1, T2, T3, ...]</div>
+                                <div>Head 1: [T0, T1, T2, T3, ...]</div>
+                                <div>Head 2: [T0, T1, T2, T3, ...]</div>
+                                <div style="text-align: center; color: #888;">...</div>
+                            </div>
+                        </div>
+                    </div>
+                </foreignObject>
+            </g>
+
+            <!-- 3. Data Flow & Layout Transformation -->
+            <rect x="25" y="725" width="1750" height="600" class="panel"/>
+            <text x="900" y="760" class="panel-title">3. Attention Data Flow: Switching Layouts for Peak Performance</text>
+            <g id="data-flow" transform="translate(50, 800)">
+                <!-- Input -->
+                <rect x="0" y="150" width="200" height="100" fill="#4a90e2" rx="5"/>
+                <text x="100" y="190" class="text-main" text-anchor="middle">LayerNorm Output</text>
+                <text x="100" y="210" class="text-dim" text-anchor="middle">Token-Major [T, C]</text>
+
+                <path d="M 205 200 L 295 200" class="arrow-path"/>
+                <text x="250" y="185" class="text-dim" text-anchor="middle">qkv_projection_head_major</text>
+
+                <!-- Head-Major Buffers -->
+                <g transform="translate(300, 0)">
+                    <text x="225" y="20" class="text-main" text-anchor="middle">Attention Computation (Head-Parallel)</text>
+                    <rect x="0" y="30" width="450" height="340" fill="#333" rx="5"/>
+                    <text x="225" y="55" class="text-dim" text-anchor="middle">Each core processes one head; all data is cache-local.</text>
+                    <text x="20" y="80" class="icon">⚙️ Core 0</text>
+                    <rect x="20" y="90" width="410" height="70" fill="#81c784" rx="3"/>
+                    <text x="225" y="115" class="text-main" text-anchor="middle">Q_h0, K_h0, V_h0</text>
+                    <text x="225" y="135" class="text-dim" text-anchor="middle">Head-Major [1, T, D_h]</text>
+                    
+                    <text x="20" y="180" class="icon">⚙️ Core 1</text>
+                    <rect x="20" y="190" width="410" height="70" fill="#81c784" rx="3"/>
+                    <text x="225" y="215" class="text-main" text-anchor="middle">Q_h1, K_h1, V_h1</text>
+                    <text x="225" y="235" class="text-dim" text-anchor="middle">Head-Major [1, T, D_h]</text>
+                    <text x="225" y="300" class="text-dim" text-anchor="middle">...</text>
+                </g>
+
+                <path d="M 755 200 L 845 200" class="arrow-path"/>
+                <text x="800" y="185" class="text-dim" text-anchor="middle">Concatenate</text>
+
+                <!-- Output -->
+                <rect x="850" y="150" width="200" height="100" fill="#ba68c8" rx="5"/>
+                <text x="950" y="190" class="text-main" text-anchor="middle">Attention Output</text>
+                <text x="950" y="210" class="text-dim" text-anchor="middle">Token-Major [T, C]</text>
+            </g>
+
+            <!-- 4. Code to Memory Mapping -->
+            <rect x="25" y="1350" width="1750" height="600" class="panel"/>
+            <text x="900" y="1385" class="panel-title">4. Code-to-Memory Mapping</text>
+            <g id="code-mapping" transform="translate(50, 1420)">
+                <foreignObject x="0" y="0" width="550" height="550">
+                    <pre class="code" style="font-size: 11px; line-height: 1.3; background: #1e1e1e; padding: 10px; border-radius: 5px; border: 1px solid #333;">
+<span style="color: #4dd0e1;">typedef struct</span> {
+    <span style="color: #9e9e9e;">// ... other offsets</span>
+    size_t q_weight_offset, q_bias_offset;
+    <rect x="0" y="40" width="530" height="16" class="line-highlight"/>
+    size_t q_output_offset;
+
+    size_t k_weight_offset, k_bias_offset;
+    <rect x="0" y="72" width="530" height="16" class="line-highlight"/>
+    size_t k_output_offset;
+
+    size_t v_weight_offset, v_bias_offset;
+    <rect x="0" y="104" width="530" height="16" class="line-highlight"/>
+    size_t v_output_offset;
+    
+    size_t attention_scores_offset;
+    <span style="color: #9e9e9e;">// ... MLP & other offsets</span>
+} TrulyOptimalLayer;
+
+<span style="color: #4dd0e1;">#define Q_ACCESS(q_ptr, h, t, d, ctx, head_dim)</span> \
+    q_ptr[((h) * (ctx) + (t)) * (head_dim) + (d)]
+
+<span style="color: #9e9e9e;">// This macro translates a logical (head, token, dim)</span>
+<span style="color: #9e9e9e;">// coordinate into a 1D index into the flat memory arena.</span>
+
+<span style="color: #f48fb1;">float* q_head_major_buffer = model->memory_base + 
+                             layer->q_output_offset;</span>
+
+<span style="color: #9e9e9e;">// Accessing data for head 2, token 5, dimension 10</span>
+<span style="color: #b3e5fc;">float value = Q_ACCESS(q_head_major_buffer, 2, 5, 10, 
+                         model->context_window, 
+                         model->aligned_head_dim);</span>
+                    </pre>
+                </foreignObject>
+
+                <g transform="translate(600, 20)">
+                    <text x="400" y="0" class="text-main" text-anchor="middle">Layer Memory Block</text>
+                    <rect x="0" y="20" width="800" height="500" fill="#004d40" rx="5" stroke="#00897b"/>
+                    
+                    <path d="M-10 100 L0 100" class="arrow-path" stroke-dasharray="5,5"/>
+                    <text x="-20" y="105" class="text-highlight" text-anchor="end">q_output_offset</text>
+                    <rect x="20" y="40" width="760" height="120" fill="#81c784" rx="3" opacity="0.3"/>
+                    <text x="400" y="105" class="text-main" text-anchor="middle">Q Head-Major Buffer [H, T, D_h]</text>
+
+                    <path d="M-10 240 L0 240" class="arrow-path" stroke-dasharray="5,5"/>
+                    <text x="-20" y="245" class="text-highlight" text-anchor="end">k_output_offset</text>
+                    <rect x="20" y="180" width="760" height="120" fill="#4a90e2" rx="3" opacity="0.3"/>
+                    <text x="400" y="245" class="text-main" text-anchor="middle">K Head-Major Buffer [H, T, D_h]</text>
+
+                    <path d="M-10 380 L0 380" class="arrow-path" stroke-dasharray="5,5"/>
+                    <text x="-20" y="385" class="text-highlight" text-anchor="end">v_output_offset</text>
+                    <rect x="20" y="320" width="760" height="120" fill="#e57373" rx="3" opacity="0.3"/>
+                    <text x="400" y="385" class="text-main" text-anchor="middle">V Head-Major Buffer [H, T, D_h]</text>
+
+                    <g transform="translate(50, 450)">
+                        <text x="350" y="0" class="text-main" text-anchor="middle">Q_ACCESS Macro Breakdown</text>
+                        <text x="0" y="30" class="text-code">index = </text>
+                        <text x="70" y="30" class="text-highlight">(h * ctx + t)</text>
+                        <text x="180" y="30" class="text-code"> * head_dim + </text>
+                        <text x="330" y="30" class="text-highlight">d</text>
+                        <text x="70" y="50" class="text-dim">Calculates offset to the start of the token's data block</text>
+                        <text x="330" y="50" class="text-dim">Offset within the token's block</text>
+                    </g>
+                </g>
+            </g>
+        </svg>
+    </div>
+</body>
+</html>

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Transformer Block: MLP, GELU & The Courtroom Analogy (Dark Mode)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Dark Navy/Slate background */
+            color: #e2e8f0; /* Light slate text for body */
+        }
+        .slide-container {
+            background-color: #1e293b; /* Darker slate for cards */
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155; /* Slightly lighter border */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .slide-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .slide-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f1f5f9; /* Off-white for titles */
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        .slide-subtitle {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #94a3b8; /* Lighter slate for subtitles */
+            text-align: center;
+            margin-bottom: 2.5rem;
+            border-bottom: 2px solid #818cf8; /* Brighter Indigo accent */
+            padding-bottom: 1rem;
+            display: inline-block;
+        }
+        .analogy-box {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            padding: 1.5rem;
+        }
+        .gelu-chart-container, .relu-chart-container {
+            border: 1px solid #334155;
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+        .code-block {
+            background-color: #020617; /* Even darker for code */
+            color: #94a3b8;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+        }
+        .arrow {
+            font-size: 2rem;
+            color: #64748b; /* Muted arrow color */
+        }
+        .transformer-block-element {
+            border: 2px solid #475569;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            background-color: #334155;
+            color: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        .transformer-block-element:hover {
+            background-color: #475569;
+            border-color: #818cf8;
+        }
+        .residual-path {
+            stroke: #64748b;
+            stroke-width: 2;
+            stroke-dasharray: 4 4;
+            fill: none;
+        }
+        .flow-path {
+            stroke: #818cf8;
+            stroke-width: 2.5;
+            fill: none;
+        }
+        .marker-arrow {
+            fill: #818cf8;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-10">
+
+    <header class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold text-slate-100">The Transformer's Engine Room</h1>
+        <p class="text-lg text-slate-400 mt-4 max-w-3xl mx-auto">An Infographic on the role of the MLP, GELU, and their synergy with Attention.</p>
+    </header>
+
+    <main class="max-w-7xl mx-auto">
+
+        <!-- Slide 1: Why MLP After Attention? -->
+        <section id="mlp-vs-attention" class="slide-container">
+            <h2 class="slide-title">Why MLP After Attention?</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">ATTENTION vs MLP: A Division of Labor</h3>
+            </div>
+            <div class="grid md:grid-cols-2 gap-8 items-start">
+                <!-- Column 1: Comparison Table -->
+                <div class="grid grid-cols-2 gap-6 text-sm">
+                    <div class="font-bold text-slate-200 text-center border-b-2 border-slate-600 pb-2">ATTENTION (Gather Evidence)</div>
+                    <div class="font-bold text-slate-200 text-center border-b-2 border-slate-600 pb-2">MLP (Process & Decide)</div>
+                    
+                    <div class="text-slate-300">"What should I look at?"</div>
+                    <div class="text-slate-300">"What does this mean?"</div>
+                    
+                    <div class="text-slate-300">Aggregates information</div>
+                    <div class="text-slate-300">Applies learned patterns</div>
+
+                    <div class="text-slate-300">Creates contextual representation</div>
+                    <div class="text-slate-300">Makes position-wise decisions</div>
+
+                    <div class="text-slate-300">Global token interactions</div>
+                    <div class="text-slate-300">Local token transformations</div>
+                </div>
+
+                <!-- Column 2: The Courtroom Analogy -->
+                <div class="analogy-box">
+                    <h4 class="font-semibold text-center text-slate-200 mb-4">The Courtroom Analogy</h4>
+                    <div class="flex items-center justify-center space-x-4">
+                        <div class="text-center">
+                            <svg class="w-16 h-16 mx-auto text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            <p class="font-bold mt-2 text-slate-200">ATTENTION</p>
+                            <p class="text-xs text-slate-400">Lawyers present evidence</p>
+                        </div>
+                        <div class="arrow">→</div>
+                        <div class="text-center">
+                            <svg class="w-16 h-16 mx-auto text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            <p class="font-bold mt-2 text-slate-200">MLP</p>
+                            <p class="text-xs text-slate-400">Judge evaluates & decides</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+             <div class="mt-8 pt-6 border-t border-slate-700">
+                <h4 class="font-semibold text-center text-slate-200 mb-4">Why This Order?</h4>
+                <div class="flex flex-col md:flex-row justify-around text-center text-sm space-y-4 md:space-y-0 text-slate-300">
+                    <div><strong>1. Attention first:</strong> Gather all context.</div>
+                    <div><strong>2. MLP second:</strong> Process with full information.</div>
+                    <div><strong>3. Residuals:</strong> Preserve both views.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 2: The 2-Layer MLP Design -->
+        <section id="mlp-design" class="slide-container">
+            <h2 class="slide-title">The 2-Layer MLP Design</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">Universal Approximation in Action</h3>
+            </div>
+            <div class="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-4 text-center">
+                <div class="flex flex-col items-center">
+                    <div class="font-semibold text-slate-400">Input (D=768)</div>
+                    <div class="w-24 h-24 bg-slate-600 rounded-lg flex items-center justify-center font-bold text-slate-200">COMPRESS</div>
+                </div>
+                <div class="text-indigo-400 font-mono font-bold text-sm md:mt-12">──FC1──►</div>
+                <div class="flex flex-col items-center">
+                    <div class="font-semibold text-slate-400">Hidden (4D=3072)</div>
+                    <div class="w-48 h-32 bg-indigo-900/50 border border-indigo-700 rounded-lg flex flex-col items-center justify-center font-bold text-indigo-300 relative">
+                        <span>EXPAND</span>
+                        <span class="text-xs font-normal mt-2">GELU(x) non-linearity</span>
+                    </div>
+                </div>
+                <div class="text-indigo-400 font-mono font-bold text-sm md:mt-12">──FC2──►</div>
+                 <div class="flex flex-col items-center">
+                    <div class="font-semibold text-slate-400">Output (D=768)</div>
+                    <div class="w-24 h-24 bg-slate-600 rounded-lg flex items-center justify-center font-bold text-slate-200">PROJECT</div>
+                </div>
+            </div>
+            <div class="mt-10 grid md:grid-cols-2 gap-8 text-sm">
+                <div>
+                    <h4 class="font-semibold text-slate-200 mb-2">Key Insights:</h4>
+                    <ul class="list-disc list-inside space-y-2 text-slate-300">
+                        <li><strong>Single layer</strong> = Linear transformation only.</li>
+                        <li><strong>Two layers + non-linearity</strong> = Universal function approximator.</li>
+                        <li><strong>4x expansion</strong> = More expressiveness for pattern matching.</li>
+                        <li><strong>GELU in middle</strong> = Smooth, differentiable gating.</li>
+                    </ul>
+                </div>
+                <div class="analogy-box">
+                     <h4 class="font-semibold text-slate-200 mb-2">The "Bottleneck" Design:</h4>
+                     <p class="text-slate-300">The `768 → 3072 → 768` structure creates an information bottleneck. It forces the network to learn compressed, meaningful representations in the expanded hidden layer before projecting back to the original dimension.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 3: GELU vs ReLU -->
+        <section id="gelu-vs-relu" class="slide-container">
+            <h2 class="slide-title">GELU: The Transformer's Secret Weapon</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">Why GELU (Not ReLU) for Transformers?</h3>
+            </div>
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <!-- ReLU -->
+                <div class="relu-chart-container text-center">
+                    <h4 class="font-semibold text-slate-200 mb-2">ReLU: Sharp Decision</h4>
+                    <p class="text-sm text-slate-400 mb-4">"Dead or Alive"</p>
+                    <svg viewBox="-2 -1 4 3" class="w-full h-32">
+                        <line x1="-2" y1="2" x2="0" y2="2" stroke="#64748b" stroke-width="0.1" />
+                        <line x1="0" y1="2" x2="2" y2="0" stroke="#f59e0b" stroke-width="0.1" />
+                        <line x1="-2" y1="2.05" x2="2" y2="2.05" stroke="#334155" stroke-width="0.05" />
+                        <line x1="0" y1="0" x2="0" y2="2.5" stroke="#334155" stroke-width="0.05" />
+                    </svg>
+                    <div class="code-block mt-4 text-left">if (x &lt; 0) return 0;<br>if (x &gt;= 0) return x;</div>
+                </div>
+                <!-- GELU -->
+                <div class="gelu-chart-container text-center">
+                    <h4 class="font-semibold text-slate-200 mb-2">GELU: Probabilistic Gating</h4>
+                    <p class="text-sm text-slate-400 mb-4">"Maybe Keep This"</p>
+                    <svg viewBox="-2 -1 4 3" class="w-full h-32">
+                        <path d="M -2,1.99 C -1,1.95 0,1.5 0.5,0.7 C 1,0.2 1.5,0.05 2,0" stroke="#818cf8" stroke-width="0.1" fill="none"/>
+                        <line x1="-2" y1="2.05" x2="2" y2="2.05" stroke="#334155" stroke-width="0.05" />
+                        <line x1="0" y1="0" x2="0" y2="2.5" stroke="#334155" stroke-width="0.05" />
+                    </svg>
+                    <div class="code-block mt-4 text-left">return x * P(X ≤ x);<br>// weight by probability</div>
+                </div>
+            </div>
+            <div class="mt-10">
+                 <h4 class="font-semibold text-center text-slate-200 mb-4">Why GELU Wins for LLMs:</h4>
+                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-center">
+                     <div class="p-4 bg-slate-700 rounded-lg"><strong>Smooth Gradients</strong><br>→ Better optimization</div>
+                     <div class="p-4 bg-slate-700 rounded-lg"><strong>Probabilistic</strong><br>→ Built-in regularization</div>
+                     <div class="p-4 bg-slate-700 rounded-lg"><strong>No "Dying Neurons"</strong><br>→ More stable training</div>
+                     <div class="p-4 bg-slate-700 rounded-lg"><strong>Empirically Superior</strong><br>→ Better for deep models</div>
+                 </div>
+            </div>
+        </section>
+
+        <!-- Slide 4: Complete Transformer Block -->
+        <section id="transformer-block" class="slide-container">
+            <h2 class="slide-title">One Transformer Layer: The Full Picture</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">Putting It All Together</h3>
+            </div>
+            <div class="relative max-w-sm mx-auto">
+                <div class="space-y-4 flex flex-col items-center">
+                    <div class="font-bold text-slate-400">Input</div>
+                    <div class="text-2xl text-slate-500">↓</div>
+                    <div id="ln1" class="transformer-block-element w-52">LayerNorm</div>
+                    <div class="text-2xl text-slate-500">↓</div>
+                    <div id="attn" class="transformer-block-element w-52">Multi-Head Attention</div>
+                    <div class="text-2xl text-slate-500">↓</div>
+                    <div id="ln2" class="transformer-block-element w-52">LayerNorm</div>
+                    <div class="text-2xl text-slate-500">↓</div>
+                    <div id="mlp" class="transformer-block-element w-52">MLP (FC1→GELU→FC2)</div>
+                    <div class="text-2xl text-slate-500">↓</div>
+                    <div class="font-bold text-slate-400">Output</div>
+                </div>
+                <!-- SVG for residual connections -->
+                <svg class="absolute top-0 left-0 w-full h-full" style="pointer-events: none;">
+                    <defs>
+                        <marker id="markerArrowDark" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                            <path d="M2,2 L8,3 L2,4" class="marker-arrow" />
+                        </marker>
+                    </defs>
+                    <!-- Residual 1 -->
+                    <path class="residual-path" d="M 30 100 C -40 150, -40 200, 30 250" marker-end="url(#markerArrowDark)"></path>
+                    <!-- Residual 2 -->
+                    <path class="residual-path" d="M 30 250 C -40 300, -40 350, 30 400" marker-end="url(#markerArrowDark)"></path>
+                </svg>
+            </div>
+             <div class="mt-10 text-center">
+                 <h4 class="font-semibold text-slate-200 mb-4">Why This Architecture Works:</h4>
+                 <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div class="p-4 bg-slate-700 rounded-lg"><strong>Attention:</strong> "What's relevant?"</div>
+                    <div class="p-4 bg-slate-700 rounded-lg"><strong>MLP:</strong> "What does it mean?"</div>
+                    <div class="p-4 bg-slate-700 rounded-lg"><strong>Residuals:</strong> "Don't forget the original."</div>
+                    <div class="p-4 bg-slate-700 rounded-lg"><strong>LayerNorm:</strong> "Keep things stable."</div>
+                 </div>
+                 <p class="mt-6 text-slate-400">Together, each layer refines understanding. Stack 12-96 of these layers = Deep Reasoning.</p>
+            </div>
+        </section>
+
+        <!-- Courtroom Analogy Expanded -->
+        <section id="courtroom-expanded" class="slide-container">
+            <h2 class="slide-title">The Courtroom Model of Transformers</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">A Multi-Layer Trial</h3>
+            </div>
+            <div class="space-y-8">
+                <div class="analogy-box p-6">
+                    <h4 class="font-bold text-lg text-indigo-400 mb-2">LAYER N: The First Trial</h4>
+                    <p class="text-slate-300"><strong class="text-slate-100">1. Attention = Lawyers present initial evidence.</strong><br><em>"Your honor, for the word 'bank', please consider the nearby tokens 'river', 'water', and 'fish'..."</em></p>
+                    <p class="text-slate-300 mt-2"><strong class="text-slate-100">2. MLP = The Judge processes and rules.</strong><br><em>"Given this evidence, I rule that 'bank' refers to a riverside. This is my initial verdict."</em></p>
+                </div>
+                <div class="text-center text-2xl text-slate-500">↓</div>
+                <div class="analogy-box p-6">
+                    <h4 class="font-bold text-lg text-indigo-400 mb-2">LAYER N+1: The Appeal</h4>
+                    <p class="text-slate-300"><strong class="text-slate-100">1. Attention = Lawyers present refined evidence.</strong><br><em>"Your honor, considering your previous verdict, let's now also look at the token 'money' which appeared much earlier..."</em></p>
+                    <p class="text-slate-300 mt-2"><strong class="text-slate-100">2. MLP = The Judge re-evaluates and issues a new ruling.</strong><br><em>"Ah, with this new context, I overturn my previous verdict. 'Bank' now seems to be a financial institution. This is the refined verdict."</em></p>
+                </div>
+            </div>
+            <div class="mt-8 text-center p-6 bg-indigo-900/40 rounded-lg">
+                <p class="font-semibold text-indigo-300">12 Layers = 12 Trials</p>
+                <p class="text-indigo-400">Each layer gets closer to the truth (the most probable next token) by building upon the "verdicts" of the layers before it.</p>
+            </div>
+        </section>
+
+    </main>
+
+</body>
+</html>
+

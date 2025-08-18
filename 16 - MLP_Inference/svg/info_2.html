@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer Engine Room (Why MLP Follows Attention)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Dark Navy/Slate background */
+            color: #e2e8f0; /* Light slate text for body */
+        }
+        .mono {
+            font-family: 'Fira Code', monospace;
+        }
+        .slide-container {
+            background-color: #1e293b; /* Darker slate for cards */
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155; /* Slightly lighter border */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .slide-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .slide-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f1f5f9; /* Off-white for titles */
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+        .slide-subtitle {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #94a3b8; /* Lighter slate for subtitles */
+            text-align: center;
+            margin-bottom: 2.5rem;
+            border-bottom: 2px solid #a78bfa; /* Purple accent */
+            padding-bottom: 1rem;
+            display: inline-block;
+        }
+        .analogy-box {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            padding: 1.5rem;
+        }
+        .code-block {
+            background-color: #020617; /* Even darker for code */
+            color: #94a3b8;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        .transformer-block-element {
+            border: 2px solid #475569;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            background-color: #334155;
+            color: #e2e8f0;
+        }
+        .attention-color { border-color: #60a5fa; color: #93c5fd; } /* Blue for Attention */
+        .mlp-color { border-color: #a78bfa; color: #c4b5fd; } /* Purple for MLP/GELU */
+        .system-color { border-color: #4ade80; color: #86efac; } /* Green for System/HPC */
+        .residual-path {
+            stroke: #64748b;
+            stroke-width: 2;
+            stroke-dasharray: 4 4;
+            fill: none;
+        }
+        .marker-arrow {
+            fill: #64748b;
+        }
+        .key-insight {
+            background-color: #334155;
+            border-left: 4px solid #a78bfa;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 2rem;
+            font-style: italic;
+            color: #cbd5e1;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 9999px;
+            background-color: #334155;
+            border: 1px solid #475569;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-10">
+
+    <header class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold text-slate-100 mono">Transformer Engine Room</h1>
+        <p class="text-lg text-slate-400 mt-4 max-w-3xl mx-auto">Why the MLP Follows Attention</p>
+    </header>
+
+    <main class="max-w-7xl mx-auto">
+
+        <!-- Slide 1: Why MLP After Attention? -->
+        <section class="slide-container">
+            <h2 class="slide-title">Retrieve, Then Compute</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">The Production Logic for MLP Placement</h3>
+            </div>
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <div class="analogy-box">
+                    <h4 class="font-semibold text-center text-slate-200 mb-4">The Courtroom Analogy</h4>
+                    <div class="flex items-center justify-center space-x-4">
+                        <div class="text-center">
+                            <div class="text-4xl">👥</div>
+                            <p class="font-bold mt-2 text-blue-300">ATTENTION</p>
+                            <p class="text-xs text-slate-400">Lawyers present evidence</p>
+                        </div>
+                        <div class="text-4xl text-slate-600">→</div>
+                        <div class="text-center">
+                            <div class="text-4xl">⚖️</div>
+                            <p class="font-bold mt-2 text-purple-300">MLP</p>
+                            <p class="text-xs text-slate-400">Judge evaluates & decides</p>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <ul class="space-y-4 text-slate-300">
+                        <li><strong class="text-blue-300">Retrieve then compute:</strong> Attention builds context-mixed features; the MLP then refines them independently for each token.</li>
+                        <li><strong class="text-slate-300">Stable & Deterministic:</strong> Pre-LayerNorm and residual connections ensure stable gradients and deterministic inference paths.</li>
+                        <li><strong class="text-green-300">Production Payoff:</strong> The MLP dominates decode latency and is highly parallel, making it a prime target for hand-tuning and optimization.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 2: The 2-Layer MLP Design -->
+        <section class="slide-container">
+            <h2 class="slide-title">The 2-Layer MLP</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">Restoring Expressivity with Non-Linearity</h3>
+            </div>
+            <div class="text-center space-y-2">
+                <div class="flex justify-center items-center space-x-2">
+                    <div class="badge system-color">r=4</div>
+                    <div class="badge system-color">Token-Parallel</div>
+                    <div class="badge system-color">64-B Aligned</div>
+                </div>
+                <!-- FC1 -->
+                <div class="p-4 rounded-lg bg-slate-800 inline-block">
+                    <p class="mlp-color font-bold">FC1 (GEMM)</p>
+                    <p class="mono text-sm text-slate-400">[T, C] × [C, 4C] → [T, 4C]</p>
+                </div>
+                <p class="text-2xl text-slate-500">↓</p>
+                <!-- GELU -->
+                <div class="p-4 rounded-lg bg-slate-800 inline-block">
+                    <p class="mlp-color font-bold">GELU Activation</p>
+                    <p class="mono text-sm text-slate-400">GELU(x) = x · Φ(x)</p>
+                </div>
+                <p class="text-2xl text-slate-500">↓</p>
+                <!-- FC2 -->
+                <div class="p-4 rounded-lg bg-slate-800 inline-block">
+                    <p class="mlp-color font-bold">FC2 (GEMM)</p>
+                    <p class="mono text-sm text-slate-400">[T, 4C] × [4C, C] → [T, C]</p>
+                </div>
+            </div>
+            <!-- HPC Receipt -->
+            <div class="mt-8 pt-6 border-t border-slate-700">
+                <h4 class="font-semibold text-center text-green-300 mb-4 mono">HPC Performance Receipt</h4>
+                <div class="code-block mono text-sm">
+                    <p><span class="text-green-400">FLOPs/token (fp32):</span> ≈ 8 · C² (FC1+FC2)</p>
+                    <p><span class="text-green-400">Bytes/token:</span>       ≈ 12C floats (≈ 48C bytes) + activation</p>
+                    <p><span class="text-green-400">Parallelism:</span>       Token-parallel, zero reductions, 64-B aligned</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slide 3: GELU & Full Block -->
+        <section class="grid md:grid-cols-2 gap-8">
+            <!-- GELU -->
+            <div class="slide-container">
+                <h2 class="slide-title">GELU Activation</h2>
+                <div class="analogy-box text-center p-6">
+                    <p class="text-purple-300 mono text-lg">GELU(x) = x · Φ(x)</p>
+                    <p class="text-xs text-slate-400 mt-1">(Φ = Standard Normal CDF; PyTorch uses a tanh approximation)</p>
+                    <ul class="text-left space-y-3 mt-4 text-sm text-slate-300">
+                        <li>• <strong class="text-purple-300">Smooth Gating:</strong> Leads to stabler optimization compared to the sharp cutoff of ReLU.</li>
+                        <li>• <strong class="text-green-300">Parity:</strong> Our implementation is exact with `torch.gelu` in fp32, ensuring verified results.</li>
+                        <li>• <strong class="text-slate-300">Resilience:</strong> Less brittle than ReLU at small scales; avoids the "dying neuron" problem.</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Courtroom Compressed -->
+            <div class="slide-container">
+                 <h2 class="slide-title">The Multi-Layer Trial</h2>
+                 <div class="analogy-box p-6 space-y-4">
+                    <p class="text-lg"><strong class="mono text-slate-400">Layer n:</strong> Evidence (Attention) → Ruling (MLP)</p>
+                    <p class="text-lg"><strong class="mono text-slate-400">Layer n+1:</strong> New Evidence → Revised Ruling</p>
+                 </div>
+                 <div class="mt-4 text-center text-slate-400 italic">
+                     12 layers ≈ 12 trials → converging on a final verdict.
+                 </div>
+            </div>
+        </section>
+
+        <!-- Slide 4: Complete Transformer Block -->
+        <section class="slide-container">
+            <h2 class="slide-title">The Full Transformer Block</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">Data Flow and Operations</h3>
+            </div>
+            <div class="relative max-w-md mx-auto">
+                <div class="space-y-1 flex flex-col items-center">
+                    <div class="font-bold text-slate-400 mono">Input [B, T, C]</div>
+                    <div class="text-xl text-slate-500 leading-tight mono">↓ Add & Norm</div>
+                    <div class="transformer-block-element w-60 attention-color">Multi-Head Attention</div>
+                    <div class="text-xl text-slate-500 leading-tight mono">↓ Add & Norm</div>
+                    <div class="transformer-block-element w-60 mlp-color">MLP (GEMM → GELU → GEMM)</div>
+                    <div class="text-xl text-slate-500 leading-tight mono">↓</div>
+                    <div class="font-bold text-slate-400 mono">Output [B, T, C]</div>
+                </div>
+                <!-- SVG for residual connections -->
+                <svg class="absolute top-0 left-0 w-full h-full" style="pointer-events: none;">
+                    <defs>
+                        <marker id="markerArrowDark" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                            <path d="M2,2 L8,3 L2,4" class="marker-arrow" />
+                        </marker>
+                    </defs>
+                    <!-- Residual 1 -->
+                    <path class="residual-path" d="M 20 50 C -60 100, -60 100, 20 150" marker-end="url(#markerArrowDark)"></path>
+                    <!-- Residual 2 -->
+                    <path class="residual-path" d="M 20 150 C -60 200, -60 200, 20 250" marker-end="url(#markerArrowDark)"></path>
+                </svg>
+            </div>
+        </section>
+
+    </main>
+
+</body>
+</html>
+

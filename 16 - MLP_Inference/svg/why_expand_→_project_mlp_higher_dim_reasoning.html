@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Why the MLP Expands then Projects — Higher‑Dim Reasoning</title>
+<style>
+  :root{
+    --bg:#0f1116; --ink:#e8edf5; --muted:#9fb0c6; --panel:#151b26; --border:#2b3446;
+    --attn:#3aa1ff; --mlp:#8b7dff; --act:#f5ae3e; --hpc:#2cc48a; --warn:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 20% 0%,#141c2a,#0f1116);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:1180px;margin:40px auto;padding:0 20px}
+  h1{margin:0 0 8px;font-weight:900;font-size:clamp(22px,3.2vw,36px)}
+  .sub{color:#8bc5ff;margin-bottom:18px;font-weight:700}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;margin:12px 0;position:relative}
+  h3{margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:13px}
+  .row{display:grid;gap:12px}
+  @media (min-width:980px){.row.twocol{grid-template-columns:1fr 1fr}.row.three{grid-template-columns:1fr 1fr 1fr}}
+  .tag{display:inline-block;margin:2px 6px 0 0;padding:2px 8px;border:1px solid #344058;border-radius:999px;font-size:11px;color:#b7c4d8}
+  .flow{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .box{padding:12px 14px;border-radius:12px;border:1px solid var(--border);font-weight:800}
+  .b-in{background:#2b6aa933}
+  .b-fc1{background:#6ad1a733;border-color:#2c7a5d}
+  .b-gelu{background:#f1b0552e;border-color:#936d1f}
+  .b-fc2{background:#a094ff2b;border-color:#6f61ff}
+  .dim{display:block;font-size:12px;color:var(--muted);font-weight:600}
+  .arrow{width:28px;height:2px;background:#2e3850;position:relative}
+  .arrow:after{content:"";position:absolute;right:-6px;top:-4px;border:6px solid transparent;border-left-color:#2e3850}
+  .caption{color:var(--muted);font-size:12px}
+
+  .grid{display:grid;gap:12px}
+  @media (min-width:980px){.grid{grid-template-columns:1.2fr .8fr}}
+  pre{margin:0;background:#0f141f;border:1px solid #263046;border-radius:12px;padding:10px;color:#dfe6f4;font-family:ui-monospace,Consolas,Menlo,Monaco,monospace;font-size:12px}
+
+  /* detectors */
+  .detectors{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px}
+  .dot{height:22px;border-radius:6px;background:linear-gradient(180deg,#2a3a68,#425b9a)}
+  .dot.on{background:linear-gradient(180deg,#6755ff,#9a8fff)}
+
+  /* geometry svg */
+  .geo svg{width:100%;height:160px;display:block}
+
+  .check{background:#111722;border:1px solid #2c3446;border-radius:12px;padding:10px}
+  .check li{list-style:none;display:flex;gap:8px;align-items:center;margin:6px 0;color:#c9d4e4}
+  .ok{width:9px;height:9px;border-radius:999px;background:#2cc48a}
+
+  .foot{font-size:12px;color:#94a6bf;margin-top:8px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Why the MLP Expands then Projects</h1>
+    <div class="sub">“Ask more questions in a bigger space → make a cleaner decision → return a compact verdict to the residual stream.”</div>
+
+    <!-- Pipeline overview -->
+    <section class="panel">
+      <h3>Expand → Gate → Project (per token)</h3>
+      <div class="flow">
+        <div class="box b-in">Input Features <span class="dim">x ∈ ℝᴰ</span></div>
+        <div class="arrow"></div>
+        <div class="box b-fc1">FC1 (Expand) <span class="dim">W₁ ∈ ℝ^{D×rD} → ℝʳᴰ</span><span class="tag">r = 4 (common)</span></div>
+        <div class="arrow"></div>
+        <div class="box b-gelu">GELU (Gate) <span class="dim">selects & scales detectors</span></div>
+        <div class="arrow"></div>
+        <div class="box b-fc2">FC2 (Project) <span class="dim">W₂ ∈ ℝ^{rD×D} → ℝᴰ</span></div>
+      </div>
+      <div class="caption" style="text-align:center;margin-top:8px">Formula: <strong>MLP(x) = GELU(xW₁ + b₁) · W₂ + b₂</strong>. With rD hidden units we can test many patterns in parallel, then compress the result back to D to communicate with the next block.</div>
+    </section>
+
+    <!-- Detectors + Geometry intuition -->
+    <section class="row twocol">
+      <div class="panel">
+        <h3>What happens in higher dimension? — A bank of detectors</h3>
+        <div class="grid">
+          <div>
+            <p class="caption">Each column of <strong>W₁</strong> defines a feature detector. After GELU, only a subset is strongly active → a sparse “evidence vector.”</p>
+            <pre>h_j = GELU( x · w_j  + b_j )   for j = 1..rD
+H = [h₁, h₂, …, h_{rD}]  ∈ ℝ^{rD}
+verdict = H · W₂ + b₂  ∈ ℝ^{D}</pre>
+            <div class="detectors">
+              <div class="dot on"></div><div class="dot"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div><div class="dot on"></div>
+              <div class="dot"></div><div class="dot"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+              <div class="dot on"></div><div class="dot"></div><div class="dot"></div><div class="dot on"></div><div class="dot on"></div><div class="dot"></div>
+            </div>
+          </div>
+          <div class="check">
+            <ul>
+              <li><span class="ok"></span>More questions per token (rD units) → richer pattern bank.</li>
+              <li><span class="ok"></span>GELU gates softly → probabilistic selection, stable gradients.</li>
+              <li><span class="ok"></span>With nonlinearity, different regions of x use different effective matrices.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="panel geo">
+        <h3>Geometric intuition — lift to separate, then compress</h3>
+        <svg viewBox="0 0 360 160" aria-label="geometry">
+          <!-- left: 2D, nonlinearly separable -->
+          <rect x="10" y="10" width="160" height="140" rx="10" fill="#0f141d" stroke="#2a3446"/>
+          <text x="18" y="26" font-size="12" fill="#9fb0c6">2D features (hard to separate)</text>
+          <!-- blue cluster -->
+          <circle cx="60" cy="80" r="10" fill="#3aa1ff"/>
+          <circle cx="90" cy="55" r="7" fill="#3aa1ff"/>
+          <circle cx="80" cy="100" r="6" fill="#3aa1ff"/>
+          <!-- purple cluster intertwined -->
+          <circle cx="70" cy="65" r="7" fill="#8b7dff"/>
+          <circle cx="95" cy="90" r="8" fill="#8b7dff"/>
+          <circle cx="50" cy="95" r="6" fill="#8b7dff"/>
+
+          <!-- right: lifted 3D (schematic) -->
+          <rect x="190" y="10" width="160" height="140" rx="10" fill="#0f141d" stroke="#2a3446"/>
+          <text x="198" y="26" font-size="12" fill="#9fb0c6">Lifted space (rD features)</text>
+          <circle cx="240" cy="90" r="7" fill="#3aa1ff"/>
+          <circle cx="270" cy="60" r="7" fill="#3aa1ff"/>
+          <circle cx="260" cy="110" r="7" fill="#3aa1ff"/>
+          <circle cx="300" cy="40" r="7" fill="#8b7dff"/>
+          <circle cx="310" cy="85" r="7" fill="#8b7dff"/>
+          <circle cx="300" cy="120" r="7" fill="#8b7dff"/>
+          <!-- separating plane -->
+          <path d="M210 120 L340 50" stroke="#2cc48a" stroke-width="3"/>
+          <text x="225" y="130" font-size="12" fill="#2cc48a">Linear decision is easy here</text>
+        </svg>
+        <div class="caption">Like a tiny, learnable kernel trick: expand to a space where a linear rule works, then project the verdict back to D.</div>
+      </div>
+    </section>
+
+    <!-- Why project back & HPC implications -->
+    <section class="row three">
+      <div class="panel">
+        <h3>Why project back to D?</h3>
+        <ul class="check">
+          <li><span class="ok"></span><strong>Communicate on the residual bus:</strong> all blocks expect D‑dim features.</li>
+          <li><span class="ok"></span><strong>Regularization:</strong> forces concise “verdicts”; prevents feature bloat.</li>
+          <li><span class="ok"></span><strong>Efficiency:</strong> keeps model size and attention cost stable.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Capacity vs Compute (r as a knob)</h3>
+        <div class="caption">Let r be the expansion ratio (e.g., 4).</div>
+        <pre>MACs/token  ≈ 2 · r · D²   (e.g., r=4 → 8·D²)
+FLOPs/token ≈ 4 · r · D²   (mul+add counted)  
+Params/MLP  ≈ 2 · r · D² + 5D  (biases small)</pre>
+        <div class="foot">Higher r ⇒ more detectors in parallel ⇒ better quality but superlinear compute. HPC work targets these two GEMMs.</div>
+      </div>
+      <div class="panel">
+        <h3>What gets processed at rD?</h3>
+        <ul class="check">
+          <li><span class="ok"></span>Cross‑feature interactions from attention outputs (context‑mixed channels).</li>
+          <li><span class="ok"></span>Pattern detectors: morphology, phrase templates, positional mixes.</li>
+          <li><span class="ok"></span>Gating & sparsity: many units quiet, a few strongly active per token.</li>
+        </ul>
+        <div class="caption">Exact semantics vary by model; think of rD as a large question bank the judge can consult.</div>
+      </div>
+    </section>
+
+    <!-- Analogy ribbon -->
+    <section class="panel">
+      <h3>The Judge Analogy</h3>
+      <div class="caption"><strong>Expand:</strong> ask many targeted questions about the evidence (rD detectors). <strong>GELU:</strong> weight answers by confidence. <strong>Project:</strong> compress to a D‑dimensional verdict that the next block can use.</div>
+    </section>
+
+  </div>
+</body>
+</html>

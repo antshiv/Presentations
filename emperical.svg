@@ -1,0 +1,744 @@
+<svg viewBox="0 0 1800 4800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="900" y="50" font-size="38" font-weight="bold" text-anchor="middle" fill="#b71c1c">
+    Trust Nothing, Measure Everything
+  </text>
+  <text x="900" y="85" font-size="22" text-anchor="middle" fill="#d32f2f">
+    From Theory to Empirical Proof: The Engineering Way
+  </text>
+
+  <!-- Section 1: The Measurement Mindset -->
+  <g transform="translate(50, 130)">
+    <rect x="0" y="0" width="1700" height="400" fill="#ffebee" stroke="#c62828" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#b71c1c">
+      THE FUNDAMENTAL SHIFT: OPINION → DATA
+    </text>
+    
+    <g transform="translate(50, 80)">
+      <!-- Before -->
+      <rect x="0" y="0" width="380" height="280" fill="#ffcdd2" stroke="#d32f2f" stroke-width="2" rx="8"/>
+      <text x="190" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#b71c1c">
+        ❌ Opinion-Based Learning
+      </text>
+      
+      <text x="10" y="60" font-size="16">"I think cache optimization helps"</text>
+      <text x="10" y="85" font-size="16">"AVX-512 should be faster"</text>
+      <text x="10" y="110" font-size="16">"My code seems efficient"</text>
+      <text x="10" y="135" font-size="16">"The AI said this works"</text>
+      
+      <rect x="10" y="160" width="360" height="100" fill="#ef9a9a" stroke="#c62828" rx="5"/>
+      <text x="190" y="185" font-size="16" font-weight="bold" text-anchor="middle">Problems:</text>
+      <text x="20" y="210" font-size="14">• No proof of understanding</text>
+      <text x="20" y="230" font-size="14">• Can't debug when wrong</text>
+      <text x="20" y="250" font-size="14">• No real progress metric</text>
+      
+      <!-- Arrow -->
+      <path d="M 400 180 L 480 180" stroke="#c62828" stroke-width="4" marker-end="url(#arrowred)"/>
+      <text x="440" y="170" font-size="18" font-weight="bold" text-anchor="middle" fill="#c62828">MEASURE!</text>
+      
+      <!-- After -->
+      <rect x="500" y="0" width="550" height="280" fill="#c8e6c9" stroke="#43a047" stroke-width="2" rx="8"/>
+      <text x="775" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+        ✓ Measurement-Based Mastery
+      </text>
+      
+      <text x="510" y="60" font-size="16">"Cache optimization: 3.2x speedup (measured)"</text>
+      <text x="510" y="85" font-size="16">"AVX-512: 250 vs 63 cycles/iteration (perf counters)"</text>
+      <text x="510" y="110" font-size="16">"L1 miss rate: 2.3% → 0.4% (VTune proof)"</text>
+      <text x="510" y="135" font-size="16">"Bandwidth: 89% of theoretical max (calculated)"</text>
+      
+      <rect x="510" y="160" width="530" height="100" fill="#a5d6a7" stroke="#4caf50" rx="5"/>
+      <text x="775" y="185" font-size="16" font-weight="bold" text-anchor="middle">Results:</text>
+      <text x="520" y="210" font-size="14">• Irrefutable proof of improvement</text>
+      <text x="520" y="230" font-size="14">• Know exactly what to optimize next</text>
+      <text x="520" y="250" font-size="14">• Can teach with complete confidence</text>
+      
+      <!-- The key insight -->
+      <rect x="1100" y="0" width="550" height="280" fill="#fff9c4" stroke="#f9a825" stroke-width="2" rx="8"/>
+      <text x="1375" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#f57f17">
+        Your Competitive Edge
+      </text>
+      
+      <text x="1110" y="60" font-size="16" font-weight="bold">While others debate theory...</text>
+      <text x="1120" y="85" font-size="15">You: "Here's my benchmark"</text>
+      <text x="1120" y="110" font-size="15">You: "Here's the perf trace"</text>
+      <text x="1120" y="135" font-size="15">You: "Here's the assembly"</text>
+      
+      <rect x="1110" y="160" width="530" height="100" fill="#ffecb3" stroke="#ff9800" rx="5"/>
+      <text x="1375" y="185" font-size="16" font-weight="bold" text-anchor="middle">This is how you become undeniable:</text>
+      <text x="1120" y="210" font-size="14">"My CPU transformer beats A100 on edge"</text>
+      <text x="1120" y="230" font-size="14">Not opinion. Measured fact.</text>
+      <text x="1120" y="250" font-size="14">With reproducible benchmarks.</text>
+    </g>
+  </g>
+
+  <!-- Section 2: Tool Arsenal -->
+  <g transform="translate(50, 580)">
+    <rect x="0" y="0" width="1700" height="700" fill="#e3f2fd" stroke="#1976d2" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#0d47a1">
+      YOUR MEASUREMENT ARSENAL: TOOLS FOR EVERY LAYER
+    </text>
+    
+    <!-- Software Tools -->
+    <g transform="translate(50, 80)">
+      <text x="0" y="0" font-size="24" font-weight="bold" fill="#1565c0">Software Performance Tools</text>
+      
+      <!-- VTune -->
+      <rect x="0" y="20" width="380" height="180" fill="#e1f5fe" stroke="#039be5" stroke-width="2" rx="8"/>
+      <text x="190" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#01579b">
+        Intel VTune Profiler
+      </text>
+      
+      <text x="10" y="75" font-size="14" font-weight="bold">What it measures:</text>
+      <text x="20" y="95" font-size="13">• CPU cycles per instruction</text>
+      <text x="20" y="113" font-size="13">• Cache hit/miss rates</text>
+      <text x="20" y="131" font-size="13">• Memory bandwidth utilization</text>
+      <text x="20" y="149" font-size="13">• Vectorization efficiency</text>
+      
+      <rect x="10" y="160" width="360" height="30" fill="#b3e5fc" stroke="#0288d1" rx="3"/>
+      <text x="190" y="180" font-size="13" font-weight="bold" text-anchor="middle">
+        "Shows WHY your code is slow"
+      </text>
+      
+      <!-- perf -->
+      <rect x="410" y="20" width="380" height="180" fill="#e1f5fe" stroke="#039be5" stroke-width="2" rx="8"/>
+      <text x="600" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#01579b">
+        Linux perf
+      </text>
+      
+      <text x="420" y="75" font-size="14" font-weight="bold">What it measures:</text>
+      <text x="430" y="95" font-size="13">• Hardware performance counters</text>
+      <text x="430" y="113" font-size="13">• Branch mispredictions</text>
+      <text x="430" y="131" font-size="13">• TLB misses</text>
+      <text x="430" y="149" font-size="13">• Context switches</text>
+      
+      <rect x="420" y="160" width="360" height="30" fill="#b3e5fc" stroke="#0288d1" rx="3"/>
+      <text x="600" y="180" font-size="13" font-weight="bold" text-anchor="middle">
+        "Free, powerful, always available"
+      </text>
+      
+      <!-- Custom Tools -->
+      <rect x="820" y="20" width="380" height="180" fill="#e1f5fe" stroke="#039be5" stroke-width="2" rx="8"/>
+      <text x="1010" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#01579b">
+        Your Custom Tools
+      </text>
+      
+      <rect x="830" y="70" width="360" height="120" fill="#bbdefb" stroke="#1976d2" rx="5"/>
+      <text x="840" y="90" font-size="13" font-family="monospace">// Cycle-accurate timing</text>
+      <text x="840" y="108" font-size="13" font-family="monospace">uint64_t start = __rdtsc();</text>
+      <text x="840" y="126" font-size="13" font-family="monospace">// ... your code ...</text>
+      <text x="840" y="144" font-size="13" font-family="monospace">uint64_t cycles = __rdtsc() - start;</text>
+      <text x="840" y="162" font-size="13" font-family="monospace">log_benchmark("attention", cycles);</text>
+      <text x="840" y="180" font-size="13" font-weight="bold">Build exactly what you need!</text>
+      
+      <!-- pmu-tools -->
+      <rect x="1230" y="20" width="380" height="180" fill="#e1f5fe" stroke="#039be5" stroke-width="2" rx="8"/>
+      <text x="1420" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#01579b">
+        pmu-tools / PAPI
+      </text>
+      
+      <text x="1240" y="75" font-size="14" font-weight="bold">Advanced metrics:</text>
+      <text x="1250" y="95" font-size="13">• Instructions per cycle (IPC)</text>
+      <text x="1250" y="113" font-size="13">• Memory-level parallelism</text>
+      <text x="1250" y="131" font-size="13">• Port utilization (execution units)</text>
+      <text x="1250" y="149" font-size="13">• Microarchitecture bottlenecks</text>
+      
+      <rect x="1240" y="160" width="360" height="30" fill="#b3e5fc" stroke="#0288d1" rx="3"/>
+      <text x="1420" y="180" font-size="13" font-weight="bold" text-anchor="middle">
+        "See what CPU actually does"
+      </text>
+    </g>
+    
+    <!-- Hardware Tools -->
+    <g transform="translate(50, 320)">
+      <text x="0" y="0" font-size="24" font-weight="bold" fill="#1565c0">Hardware Measurement Tools</text>
+      
+      <!-- Oscilloscope -->
+      <rect x="0" y="20" width="380" height="180" fill="#c5cae9" stroke="#5c6bc0" stroke-width="2" rx="8"/>
+      <text x="190" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#283593">
+        Oscilloscope
+      </text>
+      
+      <text x="10" y="75" font-size="14" font-weight="bold">For embedded AI:</text>
+      <text x="20" y="95" font-size="13">• Power consumption patterns</text>
+      <text x="20" y="113" font-size="13">• Timing between operations</text>
+      <text x="20" y="131" font-size="13">• Signal integrity (fast buses)</text>
+      <text x="20" y="149" font-size="13">• Real-time behavior validation</text>
+      
+      <rect x="10" y="160" width="360" height="30" fill="#9fa8da" stroke="#3f51b5" rx="3"/>
+      <text x="190" y="180" font-size="13" font-weight="bold" text-anchor="middle">
+        "Truth at the electrical level"
+      </text>
+      
+      <!-- Logic Analyzer -->
+      <rect x="410" y="20" width="380" height="180" fill="#c5cae9" stroke="#5c6bc0" stroke-width="2" rx="8"/>
+      <text x="600" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#283593">
+        Logic Analyzer
+      </text>
+      
+      <text x="420" y="75" font-size="14" font-weight="bold">Debug complex systems:</text>
+      <text x="430" y="95" font-size="13">• Bus transactions</text>
+      <text x="430" y="113" font-size="13">• Protocol verification</text>
+      <text x="430" y="131" font-size="13">• Multi-signal correlation</text>
+      <text x="430" y="149" font-size="13">• State machine debugging</text>
+      
+      <rect x="420" y="160" width="360" height="30" fill="#9fa8da" stroke="#3f51b5" rx="3"/>
+      <text x="600" y="180" font-size="13" font-weight="bold" text-anchor="middle">
+        "See digital truth across time"
+      </text>
+      
+      <!-- Power Analysis -->
+      <rect x="820" y="20" width="380" height="180" fill="#c5cae9" stroke="#5c6bc0" stroke-width="2" rx="8"/>
+      <text x="1010" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#283593">
+        Power Measurement
+      </text>
+      
+      <text x="830" y="75" font-size="14" font-weight="bold">Critical for edge AI:</text>
+      <text x="840" y="95" font-size="13">• Current shunt + scope</text>
+      <text x="840" y="113" font-size="13">• Energy per inference</text>
+      <text x="840" y="131" font-size="13">• Peak vs average power</text>
+      <text x="840" y="149" font-size="13">• Thermal validation</text>
+      
+      <rect x="830" y="160" width="360" height="30" fill="#9fa8da" stroke="#3f51b5" rx="3"/>
+      <text x="1010" y="180" font-size="13" font-weight="bold" text-anchor="middle">
+        "Efficiency in hard numbers"
+      </text>
+      
+      <!-- JTAG/Debug -->
+      <rect x="1230" y="20" width="380" height="180" fill="#c5cae9" stroke="#5c6bc0" stroke-width="2" rx="8"/>
+      <text x="1420" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#283593">
+        JTAG / Debug Probes
+      </text>
+      
+      <text x="1240" y="75" font-size="14" font-weight="bold">Deep introspection:</text>
+      <text x="1250" y="95" font-size="13">• Real-time variable watch</text>
+      <text x="1250" y="113" font-size="13">• Hardware breakpoints</text>
+      <text x="1250" y="131" font-size="13">• Trace collection</text>
+      <text x="1250" y="149" font-size="13">• Non-intrusive profiling</text>
+      
+      <rect x="1240" y="160" width="360" height="30" fill="#9fa8da" stroke="#3f51b5" rx="3"/>
+      <text x="1420" y="180" font-size="13" font-weight="bold" text-anchor="middle">
+        "See inside without changing behavior"
+      </text>
+    </g>
+    
+    <!-- Integration example -->
+    <rect x="50" y="550" width="1600" height="100" fill="#1976d2" stroke="#0d47a1" stroke-width="2" rx="10"/>
+    <text x="850" y="585" font-size="20" font-weight="bold" text-anchor="middle" fill="white">
+      Example Integration: "My transformer uses 2.3W at 100 tokens/sec (oscilloscope),
+    </text>
+    <text x="850" y="615" font-size="20" font-weight="bold" text-anchor="middle" fill="white">
+      achieving 89% FMA utilization (VTune), with 0.3% cache miss rate (perf counters)"
+    </text>
+    <text x="850" y="645" font-size="18" text-anchor="middle" fill="#bbdefb">
+      This is irrefutable evidence of optimization!
+    </text>
+  </g>
+
+  <!-- Section 3: Measurement-Driven Development -->
+  <g transform="translate(50, 1330)">
+    <rect x="0" y="0" width="1700" height="600" fill="#e8f5e9" stroke="#2e7d32" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+      MEASUREMENT-DRIVEN DEVELOPMENT WORKFLOW
+    </text>
+    
+    <g transform="translate(100, 80)">
+      <!-- The cycle -->
+      <g transform="translate(0, 20)">
+        <!-- Hypothesis -->
+        <rect x="0" y="0" width="350" height="150" fill="#f1f8e4" stroke="#689f38" stroke-width="2" rx="8"/>
+        <text x="175" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#33691e">
+          1. Hypothesis
+        </text>
+        
+        <rect x="10" y="50" width="330" height="90" fill="#dcedc8" stroke="#8bc34a" rx="5"/>
+        <text x="20" y="70" font-size="14">"Head-major layout should reduce</text>
+        <text x="20" y="90" font-size="14">cache misses in attention"</text>
+        <text x="20" y="110" font-size="14" font-weight="bold">Specific, testable claim</text>
+        <text x="20" y="130" font-size="14" font-weight="bold">Based on architecture knowledge</text>
+        
+        <!-- Arrow -->
+        <path d="M 350 75 L 400 75" stroke="#2e7d32" stroke-width="3" marker-end="url(#arrowgreen2)"/>
+        
+        <!-- Prediction -->
+        <rect x="400" y="0" width="350" height="150" fill="#c8e6c9" stroke="#43a047" stroke-width="2" rx="8"/>
+        <text x="575" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+          2. Prediction
+        </text>
+        
+        <rect x="410" y="50" width="330" height="90" fill="#a5d6a7" stroke="#4caf50" rx="5"/>
+        <text x="420" y="70" font-size="14">"Expect L1 miss rate: 5% → 0.5%"</text>
+        <text x="420" y="90" font-size="14">"Expect speedup: 3-5x"</text>
+        <text x="420" y="110" font-size="14" font-weight="bold">Quantified expectations</text>
+        <text x="420" y="130" font-size="14" font-weight="bold">Before implementation!</text>
+        
+        <!-- Arrow -->
+        <path d="M 750 75 L 800 75" stroke="#2e7d32" stroke-width="3" marker-end="url(#arrowgreen2)"/>
+        
+        <!-- Implementation -->
+        <rect x="800" y="0" width="350" height="150" fill="#81c784" stroke="#388e3c" stroke-width="2" rx="8"/>
+        <text x="975" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+          3. Implementation
+        </text>
+        
+        <rect x="810" y="50" width="330" height="90" fill="#66bb6a" stroke="#43a047" rx="5"/>
+        <text x="820" y="70" font-size="14" font-family="monospace">// Implement head-major</text>
+        <text x="820" y="90" font-size="14" font-family="monospace">// Add measurement hooks</text>
+        <text x="820" y="110" font-size="14" font-family="monospace">// Control variables</text>
+        <text x="820" y="130" font-size="14" font-weight="bold">Instrument from the start!</text>
+        
+        <!-- Arrow -->
+        <path d="M 1150 75 L 1200 75" stroke="#2e7d32" stroke-width="3" marker-end="url(#arrowgreen2)"/>
+        
+        <!-- Measurement -->
+        <rect x="1200" y="0" width="350" height="150" fill="#4caf50" stroke="#2e7d32" stroke-width="2" rx="8"/>
+        <text x="1375" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="white">
+          4. Measurement
+        </text>
+        
+        <rect x="1210" y="50" width="330" height="90" fill="#388e3c" stroke="#1b5e20" rx="5"/>
+        <text x="1220" y="70" font-size="14" fill="white">Actual L1 miss: 5.2% → 0.3% ✓</text>
+        <text x="1220" y="90" font-size="14" fill="white">Actual speedup: 4.7x ✓</text>
+        <text x="1220" y="110" font-size="14" font-weight="bold" fill="white">Better than predicted!</text>
+        <text x="1220" y="130" font-size="14" font-weight="bold" fill="white">New insight: Why?</text>
+      </g>
+      
+      <!-- Analysis phase -->
+      <g transform="translate(200, 200)">
+        <rect x="0" y="0" width="1100" height="150" fill="#2e7d32" stroke="#1b5e20" stroke-width="2" rx="8"/>
+        <text x="550" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="white">
+          5. Analysis and Learning
+        </text>
+        
+        <g transform="translate(20, 50)">
+          <rect x="0" y="0" width="250" height="80" fill="#1b5e20" stroke="#0d5d00" rx="5"/>
+          <text x="125" y="25" font-size="16" font-weight="bold" text-anchor="middle" fill="white">
+            Compare to Prediction
+          </text>
+          <text x="10" y="50" font-size="14" fill="white">Why better than expected?</text>
+          <text x="10" y="70" font-size="14" fill="white">Hidden factor: Prefetcher!</text>
+          
+          <rect x="270" y="0" width="250" height="80" fill="#1b5e20" stroke="#0d5d00" rx="5"/>
+          <text x="395" y="25" font-size="16" font-weight="bold" text-anchor="middle" fill="white">
+            Root Cause Analysis
+          </text>
+          <text x="280" y="50" font-size="14" fill="white">VTune: Prefetch hit rate ↑</text>
+          <text x="280" y="70" font-size="14" fill="white">Sequential access pattern</text>
+          
+          <rect x="540" y="0" width="250" height="80" fill="#1b5e20" stroke="#0d5d00" rx="5"/>
+          <text x="665" y="25" font-size="16" font-weight="bold" text-anchor="middle" fill="white">
+            Document Learning
+          </text>
+          <text x="550" y="50" font-size="14" fill="white">Blog: "Prefetcher loves</text>
+          <text x="550" y="70" font-size="14" fill="white">head-major layout"</text>
+          
+          <rect x="810" y="0" width="250" height="80" fill="#1b5e20" stroke="#0d5d00" rx="5"/>
+          <text x="935" y="25" font-size="16" font-weight="bold" text-anchor="middle" fill="white">
+            Next Hypothesis
+          </text>
+          <text x="820" y="50" font-size="14" fill="white">"Can we optimize for</text>
+          <text x="820" y="70" font-size="14" fill="white">prefetcher explicitly?"</text>
+        </g>
+      </g>
+      
+      <!-- The key insight -->
+      <rect x="0" y="380" width="1500" height="120" fill="#1b5e20" stroke="#0d5d00" stroke-width="2" rx="10"/>
+      <text x="750" y="420" font-size="22" font-weight="bold" text-anchor="middle" fill="white">
+        Every optimization becomes a controlled experiment
+      </text>
+      <text x="750" y="450" font-size="18" text-anchor="middle" fill="white">
+        Hypothesis → Prediction → Implementation → Measurement → Analysis
+      </text>
+      <text x="750" y="480" font-size="18" text-anchor="middle" fill="#a5d6a7">
+        This is how you build unshakeable knowledge!
+      </text>
+    </g>
+  </g>
+
+  <!-- Section 4: Creating Your Measurement Dashboard -->
+  <g transform="translate(50, 1980)">
+    <rect x="0" y="0" width="1700" height="600" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#4a148c">
+      BUILD YOUR LIVE MEASUREMENT DASHBOARD
+    </text>
+    
+    <g transform="translate(50, 80)">
+      <!-- Dashboard mockup -->
+      <rect x="0" y="0" width="800" height="450" fill="#e1bee7" stroke="#8e24aa" stroke-width="2" rx="8"/>
+      <text x="400" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#4a148c">
+        Real-Time Transformer Metrics
+      </text>
+      
+      <!-- Metrics grid -->
+      <g transform="translate(20, 50)">
+        <!-- Row 1 -->
+        <rect x="0" y="0" width="180" height="80" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
+        <text x="90" y="25" font-size="14" font-weight="bold" text-anchor="middle">Tokens/sec</text>
+        <text x="90" y="55" font-size="28" font-weight="bold" text-anchor="middle">487.3</text>
+        <text x="90" y="75" font-size="12" text-anchor="middle" fill="#4a148c">↑ 12% from baseline</text>
+        
+        <rect x="200" y="0" width="180" height="80" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
+        <text x="290" y="25" font-size="14" font-weight="bold" text-anchor="middle">GFLOPS</text>
+        <text x="290" y="55" font-size="28" font-weight="bold" text-anchor="middle">474.2</text>
+        <text x="290" y="75" font-size="12" text-anchor="middle" fill="#4a148c">94% efficiency</text>
+        
+        <rect x="400" y="0" width="180" height="80" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
+        <text x="490" y="25" font-size="14" font-weight="bold" text-anchor="middle">L1 Hit Rate</text>
+        <text x="490" y="55" font-size="28" font-weight="bold" text-anchor="middle">97.8%</text>
+        <text x="490" y="75" font-size="12" text-anchor="middle" fill="#4a148c">Target: >95%</text>
+        
+        <rect x="600" y="0" width="160" height="80" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
+        <text x="680" y="25" font-size="14" font-weight="bold" text-anchor="middle">Power</text>
+        <text x="680" y="55" font-size="28" font-weight="bold" text-anchor="middle">127W</text>
+        <text x="680" y="75" font-size="12" text-anchor="middle" fill="#4a148c">3.8 tokens/W</text>
+        
+        <!-- Row 2 - Detailed metrics -->
+        <rect x="0" y="100" width="760" height="120" fill="#ab47bc" stroke="#6a1b9a" rx="5"/>
+        <text x="10" y="125" font-size="14" font-weight="bold" fill="white">Per-Layer Breakdown:</text>
+        <text x="20" y="145" font-size="12" font-family="monospace" fill="white">Layer 0: QKV: 23ms, Attn: 45ms, FFN: 31ms, Total: 102ms</text>
+        <text x="20" y="165" font-size="12" font-family="monospace" fill="white">Layer 1: QKV: 22ms, Attn: 44ms, FFN: 30ms, Total: 99ms</text>
+        <text x="20" y="185" font-size="12" font-family="monospace" fill="white">...</text>
+        <text x="20" y="205" font-size="12" font-family="monospace" fill="white">Bottleneck: Attention (45% of compute)</text>
+        
+        <!-- Live graph -->
+        <rect x="0" y="240" width="760" height="150" fill="#9c27b0" stroke="#6a1b9a" rx="5"/>
+        <text x="380" y="265" font-size="14" font-weight="bold" text-anchor="middle" fill="white">
+          IPC Over Time (Instructions Per Cycle)
+        </text>
+        <!-- Simple line graph representation -->
+        <path d="M 40 350 L 100 340 L 160 330 L 220 325 L 280 320 L 340 315 L 400 312 L 460 310 L 520 308 L 580 306 L 640 305 L 700 304" 
+              stroke="#4caf50" stroke-width="3" fill="none"/>
+        <text x="40" y="380" font-size="12" fill="white">0</text>
+        <text x="700" y="380" font-size="12" fill="white">Time →</text>
+        <text x="20" y="350" font-size="12" fill="white">2.0</text>
+        <text x="20" y="300" font-size="12" fill="white">4.0</text>
+      </g>
+    </g>
+    
+    <!-- Implementation guide -->
+    <g transform="translate(900, 80)">
+      <rect x="0" y="0" width="750" height="450" fill="#f3e5f5" stroke="#9c27b0" stroke-width="2" rx="8"/>
+      <text x="375" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#4a148c">
+        Build This Yourself
+      </text>
+      
+      <!-- Code example -->
+      <rect x="20" y="50" width="710" height="180" fill="#e1bee7" stroke="#8e24aa" rx="5"/>
+      <text x="30" y="70" font-size="13" font-family="monospace">// Your measurement infrastructure</text>
+      <text x="30" y="90" font-size="13" font-family="monospace">typedef struct {</text>
+      <text x="30" y="110" font-size="13" font-family="monospace">    double tokens_per_sec;</text>
+      <text x="30" y="130" font-size="13" font-family="monospace">    double gflops;</text>
+      <text x="30" y="150" font-size="13" font-family="monospace">    double cache_hit_rate;</text>
+      <text x="30" y="170" font-size="13" font-family="monospace">    double power_watts;</text>
+      <text x="30" y="190" font-size="13" font-family="monospace">    uint64_t cycles[MAX_LAYERS];</text>
+      <text x="30" y="210" font-size="13" font-family="monospace">} ModelMetrics;</text>
+      
+      <text x="20" y="255" font-size="16" font-weight="bold">Key Features:</text>
+      <text x="30" y="280" font-size="14">1. Real-time updates (every 100ms)</text>
+      <text x="30" y="300" font-size="14">2. Historical tracking (spot regressions)</text>
+      <text x="30" y="320" font-size="14">3. Bottleneck identification</text>
+      <text x="30" y="340" font-size="14">4. A/B testing support</text>
+      <text x="30" y="360" font-size="14">5. Export to CSV for analysis</text>
+      
+      <rect x="20" y="380" width="710" height="50" fill="#ab47bc" stroke="#6a1b9a" rx="5"/>
+      <text x="375" y="410" font-size="16" font-weight="bold" text-anchor="middle" fill="white">
+        "What gets measured gets improved"
+      </text>
+    </g>
+  </g>
+
+  <!-- Section 5: Practical Examples -->
+  <g transform="translate(50, 2630)">
+    <rect x="0" y="0" width="1700" height="700" fill="#fff3e0" stroke="#ff9800" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#e65100">
+      REAL EXAMPLES: MEASUREMENT DRIVING DISCOVERY
+    </text>
+    
+    <g transform="translate(50, 80)">
+      <!-- Example 1 -->
+      <rect x="0" y="0" width="520" height="280" fill="#fff8e1" stroke="#ffa726" stroke-width="2" rx="8"/>
+      <text x="260" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#f57c00">
+        Discovery 1: False Sharing
+      </text>
+      
+      <text x="10" y="60" font-size="15" font-weight="bold">Symptom:</text>
+      <text x="20" y="80" font-size="14">"Parallel speedup only 3x with 8 cores"</text>
+      
+      <text x="10" y="110" font-size="15" font-weight="bold">Measurement:</text>
+      <text x="20" y="130" font-size="14">perf: High cache-to-cache transfers</text>
+      <text x="20" y="150" font-size="14">VTune: Core-to-core latency spikes</text>
+      
+      <text x="10" y="180" font-size="15" font-weight="bold">Root cause:</text>
+      <text x="20" y="200" font-size="14">Threads writing to same cache line!</text>
+      
+      <rect x="10" y="220" width="500" height="50" fill="#ffe0b2" stroke="#ff9800" rx="5"/>
+      <text x="260" y="240" font-size="14" font-weight="bold" text-anchor="middle">Solution: Align per-thread data to 64B</text>
+      <text x="260" y="260" font-size="14" font-weight="bold" text-anchor="middle">Result: 7.2x speedup!</text>
+      
+      <!-- Example 2 -->
+      <rect x="540" y="0" width="520" height="280" fill="#fff8e1" stroke="#ffa726" stroke-width="2" rx="8"/>
+      <text x="800" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#f57c00">
+        Discovery 2: Prefetcher Behavior
+      </text>
+      
+      <text x="550" y="60" font-size="15" font-weight="bold">Symptom:</text>
+      <text x="560" y="80" font-size="14">"Random 2x speedups on some inputs"</text>
+      
+      <text x="550" y="110" font-size="15" font-weight="bold">Measurement:</text>
+      <text x="560" y="130" font-size="14">Custom tool: Access pattern logger</text>
+      <text x="560" y="150" font-size="14">PMU: L2 prefetch hit rate varies wildly</text>
+      
+      <text x="550" y="180" font-size="15" font-weight="bold">Root cause:</text>
+      <text x="560" y="200" font-size="14">Stride detector triggers on specific sizes</text>
+      
+      <rect x="550" y="220" width="500" height="50" fill="#ffe0b2" stroke="#ff9800" rx="5"/>
+      <text x="800" y="240" font-size="14" font-weight="bold" text-anchor="middle">Solution: Design for prefetcher</text>
+      <text x="800" y="260" font-size="14" font-weight="bold" text-anchor="middle">Consistent 2x improvement!</text>
+      
+      <!-- Example 3 -->
+      <rect x="1080" y="0" width="520" height="280" fill="#fff8e1" stroke="#ffa726" stroke-width="2" rx="8"/>
+      <text x="1340" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#f57c00">
+        Discovery 3: Power Throttling
+      </text>
+      
+      <text x="1090" y="60" font-size="15" font-weight="bold">Symptom:</text>
+      <text x="1100" y="80" font-size="14">"Performance drops after 30 seconds"</text>
+      
+      <text x="1090" y="110" font-size="15" font-weight="bold">Measurement:</text>
+      <text x="1100" y="130" font-size="14">Oscilloscope: Current hits 140A limit</text>
+      <text x="1100" y="150" font-size="14">CPU freq drops: 2.2GHz → 1.8GHz</text>
+      
+      <text x="1090" y="180" font-size="15" font-weight="bold">Root cause:</text>
+<text x="1100" y="200" font-size="14">AVX-512 causes power limit throttle</text>
+     
+     <rect x="1090" y="220" width="500" height="50" fill="#ffe0b2" stroke="#ff9800" rx="5"/>
+     <text x="1340" y="240" font-size="14" font-weight="bold" text-anchor="middle">Solution: Mix AVX-512 with scalar</text>
+     <text x="1340" y="260" font-size="14" font-weight="bold" text-anchor="middle">Sustained performance achieved!</text>
+   </g>
+   
+   <!-- The learning process -->
+   <g transform="translate(50, 380)">
+     <rect x="0" y="0" width="1600" height="250" fill="#ffecb3" stroke="#ffa000" stroke-width="2" rx="8"/>
+     <text x="800" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#e65100">
+       The Pattern: Every Performance Mystery Has Measurable Evidence
+     </text>
+     
+     <g transform="translate(100, 60)">
+       <!-- Process flow -->
+       <rect x="0" y="0" width="200" height="80" fill="#ffcc80" stroke="#ff9800" rx="5"/>
+       <text x="100" y="30" font-size="16" font-weight="bold" text-anchor="middle">1. Weird Behavior</text>
+       <text x="100" y="50" font-size="14" text-anchor="middle">"This should be faster"</text>
+       <text x="100" y="70" font-size="14" text-anchor="middle">"Why does this happen?"</text>
+       
+       <path d="M 200 40 L 250 40" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange2)"/>
+       
+       <rect x="250" y="0" width="200" height="80" fill="#ffb74d" stroke="#ff9800" rx="5"/>
+       <text x="350" y="30" font-size="16" font-weight="bold" text-anchor="middle">2. Measure Everything</text>
+       <text x="350" y="50" font-size="14" text-anchor="middle">Deploy all tools</text>
+       <text x="350" y="70" font-size="14" text-anchor="middle">Collect data</text>
+       
+       <path d="M 450 40 L 500 40" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange2)"/>
+       
+       <rect x="500" y="0" width="200" height="80" fill="#ffa726" stroke="#f57c00" rx="5"/>
+       <text x="600" y="30" font-size="16" font-weight="bold" text-anchor="middle">3. Find Anomaly</text>
+       <text x="600" y="50" font-size="14" text-anchor="middle">One metric is off</text>
+       <text x="600" y="70" font-size="14" text-anchor="middle">Unexpected pattern</text>
+       
+       <path d="M 700 40 L 750 40" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange2)"/>
+       
+       <rect x="750" y="0" width="200" height="80" fill="#ff9800" stroke="#f57c00" rx="5"/>
+       <text x="850" y="30" font-size="16" font-weight="bold" text-anchor="middle" fill="white">4. Root Cause</text>
+       <text x="850" y="50" font-size="14" text-anchor="middle" fill="white">Understand why</text>
+       <text x="850" y="70" font-size="14" text-anchor="middle" fill="white">Design solution</text>
+       
+       <path d="M 950 40 L 1000 40" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange2)"/>
+       
+       <rect x="1000" y="0" width="200" height="80" fill="#ff6f00" stroke="#e65100" rx="5"/>
+       <text x="1100" y="30" font-size="16" font-weight="bold" text-anchor="middle" fill="white">5. Verify Fix</text>
+       <text x="1100" y="50" font-size="14" text-anchor="middle" fill="white">Measure again</text>
+       <text x="1100" y="70" font-size="14" text-anchor="middle" fill="white">Prove improvement</text>
+       
+       <path d="M 1200 40 L 1250 40" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange2)"/>
+       
+       <rect x="1250" y="0" width="200" height="80" fill="#e65100" stroke="#bf360c" rx="5"/>
+       <text x="1350" y="30" font-size="16" font-weight="bold" text-anchor="middle" fill="white">6. Document</text>
+       <text x="1350" y="50" font-size="14" text-anchor="middle" fill="white">Blog/Video</text>
+       <text x="1350" y="70" font-size="14" text-anchor="middle" fill="white">Share knowledge</text>
+     </g>
+     
+     <rect x="100" y="160" width="1400" height="60" fill="#ff6f00" stroke="#e65100" rx="5"/>
+     <text x="800" y="195" font-size="18" font-weight="bold" text-anchor="middle" fill="white">
+       This process has found EVERY major optimization in your code!
+     </text>
+   </g>
+ </g>
+
+ <!-- Section 6: Integration with AI Learning -->
+ <g transform="translate(50, 3380)">
+   <rect x="0" y="0" width="1700" height="600" fill="#e8eaf6" stroke="#3f51b5" stroke-width="3" rx="12"/>
+   <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1a237e">
+     COMBINING MEASUREMENT WITH AI-ASSISTED LEARNING
+   </text>
+   
+   <g transform="translate(100, 80)">
+     <!-- The synergy -->
+     <rect x="0" y="0" width="1500" height="150" fill="#c5cae9" stroke="#5c6bc0" stroke-width="2" rx="8"/>
+     <text x="750" y="30" font-size="22" font-weight="bold" text-anchor="middle" fill="#283593">
+       The Powerful Combination: AI Helps Interpret Your Measurements
+     </text>
+     
+     <g transform="translate(50, 50)">
+       <rect x="0" y="0" width="450" height="80" fill="#9fa8da" stroke="#3f51b5" rx="5"/>
+       <text x="10" y="25" font-size="15" font-weight="bold">You: "Here's my perf data showing 40% stalls"</text>
+       <text x="10" y="45" font-size="14">AI: "This pattern indicates memory dependency.</text>
+       <text x="10" y="65" font-size="14">      Check load-to-use latency in your code."</text>
+       
+       <rect x="500" y="0" width="450" height="80" fill="#9fa8da" stroke="#3f51b5" rx="5"/>
+       <text x="510" y="25" font-size="15" font-weight="bold">You: "VTune shows port 2/3 saturation"</text>
+       <text x="510" y="45" font-size="14">AI: "Those are load ports. Your code is</text>
+       <text x="510" y="65" font-size="14">      memory-bound, not compute-bound."</text>
+       
+       <rect x="1000" y="0" width="400" height="80" fill="#7986cb" stroke="#3f51b5" rx="5"/>
+       <text x="1010" y="25" font-size="15" font-weight="bold" fill="white">Result: 10x faster debugging</text>
+       <text x="1010" y="45" font-size="14" fill="white">You measure, AI explains</text>
+       <text x="1010" y="65" font-size="14" fill="white">Both verify understanding</text>
+     </g>
+   </g>
+   
+   <!-- Workflow examples -->
+   <g transform="translate(100, 250)">
+     <text x="0" y="0" font-size="20" font-weight="bold" fill="#283593">Measurement-Driven AI Sessions:</text>
+     
+     <!-- Example 1 -->
+     <rect x="0" y="20" width="480" height="200" fill="#e8eaf6" stroke="#5c6bc0" rx="5"/>
+     <text x="240" y="45" font-size="16" font-weight="bold" text-anchor="middle">Before Implementation</text>
+     <text x="10" y="70" font-size="14" font-family="monospace">You: "I want to optimize attention."</text>
+     <text x="10" y="90" font-size="14" font-family="monospace">You: "Current: 100ms per layer"</text>
+     <text x="10" y="110" font-size="14" font-family="monospace">AI:  "Measure cache misses first"</text>
+     <text x="10" y="130" font-size="14" font-family="monospace">You: "L1: 15%, L2: 8%, L3: 2%"</text>
+     <text x="10" y="150" font-size="14" font-family="monospace">AI:  "15% L1 miss = problem!"</text>
+     <text x="10" y="170" font-size="14" font-family="monospace">AI:  "Try head-major layout..."</text>
+     <text x="10" y="190" font-size="14" font-family="monospace">You: "Predicting 5x speedup"</text>
+     <text x="10" y="210" font-size="14" font-family="monospace">AI:  "Measure after to verify"</text>
+     
+     <!-- Example 2 -->
+     <rect x="510" y="20" width="480" height="200" fill="#e8eaf6" stroke="#5c6bc0" rx="5"/>
+     <text x="750" y="45" font-size="16" font-weight="bold" text-anchor="middle">During Debugging</text>
+     <text x="520" y="70" font-size="14" font-family="monospace">You: "Only got 2x speedup, not 5x"</text>
+     <text x="520" y="90" font-size="14" font-family="monospace">You: "Here's the new perf data..."</text>
+     <text x="520" y="110" font-size="14" font-family="monospace">AI:  "I see TLB misses increased"</text>
+     <text x="520" y="130" font-size="14" font-family="monospace">You: "TLB? Didn't consider that"</text>
+     <text x="520" y="150" font-size="14" font-family="monospace">AI:  "Your stride is 256KB"</text>
+     <text x="520" y="170" font-size="14" font-family="monospace">AI:  "That's exactly 64 pages"</text>
+     <text x="520" y="190" font-size="14" font-family="monospace">AI:  "Try huge pages (2MB)"</text>
+     <text x="520" y="210" font-size="14" font-family="monospace">You: "Testing... 4.8x! Close!"</text>
+     
+     <!-- Example 3 -->
+     <rect x="1020" y="20" width="480" height="200" fill="#e8eaf6" stroke="#5c6bc0" rx="5"/>
+     <text x="1260" y="45" font-size="16" font-weight="bold" text-anchor="middle">After Success</text>
+     <text x="1030" y="70" font-size="14" font-family="monospace">You: "Got 4.8x. All metrics:"</text>
+     <text x="1030" y="90" font-size="14" font-family="monospace">You: "[detailed perf dump]"</text>
+     <text x="1030" y="110" font-size="14" font-family="monospace">AI:  "Excellent! Notice that"</text>
+     <text x="1030" y="130" font-size="14" font-family="monospace">AI:  "prefetch hit rate = 92%"</text>
+     <text x="1030" y="150" font-size="14" font-family="monospace">AI:  "This means hardware"</text>
+     <text x="1030" y="170" font-size="14" font-family="monospace">AI:  "prefetcher loves your"</text>
+     <text x="1030" y="190" font-size="14" font-family="monospace">AI:  "access pattern. Document"</text>
+     <text x="1030" y="210" font-size="14" font-family="monospace">AI:  "this for others!"</text>
+   </g>
+ </g>
+
+ <!-- Section 7: Your Action Plan -->
+ <g transform="translate(50, 4030)">
+   <rect x="0" y="0" width="1700" height="650" fill="#e8f5e9" stroke="#2e7d32" stroke-width="3" rx="12"/>
+   <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+     YOUR MEASUREMENT-DRIVEN ACTION PLAN
+   </text>
+   
+   <g transform="translate(100, 80)">
+     <!-- Immediate actions -->
+     <rect x="0" y="0" width="500" height="250" fill="#f1f8e4" stroke="#689f38" stroke-width="2" rx="8"/>
+     <text x="250" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#33691e">
+       This Week: Set Up Tools
+     </text>
+     
+     <text x="10" y="60" font-size="16" font-weight="bold">1. Install measurement tools:</text>
+     <text x="20" y="85" font-size="14">□ Linux perf (already there!)</text>
+     <text x="20" y="105" font-size="14">□ VTune (free for education)</text>
+     <text x="20" y="125" font-size="14">□ pmu-tools from GitHub</text>
+     
+     <text x="10" y="155" font-size="16" font-weight="bold">2. Add to your code:</text>
+     <text x="20" y="180" font-size="14">□ Cycle counters (rdtsc)</text>
+     <text x="20" y="200" font-size="14">□ Perf event integration</text>
+     <text x="20" y="220" font-size="14">□ Simple metrics logger</text>
+     
+     <!-- Next month -->
+     <rect x="550" y="0" width="500" height="250" fill="#c8e6c9" stroke="#43a047" stroke-width="2" rx="8"/>
+     <text x="800" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+       Next Month: Measure Everything
+     </text>
+     
+     <text x="560" y="60" font-size="16" font-weight="bold">For EVERY optimization:</text>
+     <text x="570" y="85" font-size="14">• Baseline measurement</text>
+     <text x="570" y="105" font-size="14">• Hypothesis + prediction</text>
+     <text x="570" y="125" font-size="14">• Implementation</text>
+     <text x="570" y="145" font-size="14">• Verification measurement</text>
+     <text x="570" y="165" font-size="14">• Root cause analysis</text>
+     
+     <text x="560" y="195" font-size="16" font-weight="bold">Document patterns:</text>
+     <text x="570" y="220" font-size="14">Build a "measurement journal"</text>
+     
+     <!-- Long term -->
+     <rect x="1100" y="0" width="400" height="250" fill="#81c784" stroke="#388e3c" stroke-width="2" rx="8"/>
+     <text x="1300" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+       6 Months: Master
+     </text>
+     
+     <text x="1110" y="60" font-size="16" font-weight="bold">You'll have:</text>
+     <text x="1120" y="85" font-size="14">• Custom tool suite</text>
+     <text x="1120" y="105" font-size="14">• Measurement instincts</text>
+     <text x="1120" y="125" font-size="14">• Performance database</text>
+     <text x="1120" y="145" font-size="14">• Proven track record</text>
+     
+     <text x="1110" y="175" font-size="16" font-weight="bold">Results:</text>
+     <text x="1120" y="200" font-size="14">• 10x faster debugging</text>
+     <text x="1120" y="220" font-size="14">• Predictable optimization</text>
+     <text x="1120" y="240" font-size="14">• Unshakeable confidence</text>
+     
+     <!-- The vision -->
+     <rect x="0" y="280" width="1500" height="200" fill="#2e7d32" stroke="#1b5e20" stroke-width="2" rx="10"/>
+     <text x="750" y="320" font-size="24" font-weight="bold" text-anchor="middle" fill="white">
+       Your YouTube videos will be different:
+     </text>
+     <text x="750" y="355" font-size="20" text-anchor="middle" fill="white">
+       "Here's my transformer running at 474 GFLOPS on CPU"
+     </text>
+     <text x="750" y="385" font-size="20" text-anchor="middle" fill="white">
+       "Let me show you the VTune trace proving why it's fast"
+     </text>
+     <text x="750" y="415" font-size="20" text-anchor="middle" fill="white">
+       "Here's the exact cache miss rate at each layer"
+     </text>
+     <text x="750" y="450" font-size="18" text-anchor="middle" fill="#a5d6a7">
+       This is how you become the go-to expert for efficient AI
+     </text>
+   </g>
+ </g>
+
+ <!-- Final thought -->
+ <text x="900" y="4750" font-size="24" font-weight="bold" text-anchor="middle" fill="#c62828">
+   Remember: "In God we trust. All others must bring data." - W. Edwards Deming
+ </text>
+
+ <!-- Arrow definitions -->
+ <defs>
+   <marker id="arrowred" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="#c62828">
+     <path d="M 0 0 L 10 5 L 0 10 Z"/>
+   </marker>
+   <marker id="arrowgreen2" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="#2e7d32">
+     <path d="M 0 0 L 10 5 L 0 10 Z"/>
+   </marker>
+   <marker id="arroworange2" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="#ff9800">
+     <path d="M 0 0 L 10 5 L 0 10 Z"/>
+   </marker>
+ </defs>
+</svg>

@@ -1,0 +1,680 @@
+<svg viewBox="0 0 1800 4200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="900" y="50" font-size="38" font-weight="bold" text-anchor="middle" fill="#1a237e">
+    Advanced AI Usage: From Surface Learning to Deep Mastery
+  </text>
+  <text x="900" y="85" font-size="22" text-anchor="middle" fill="#3949ab">
+    How to Use AI as a Brutal Technical Sparring Partner
+  </text>
+
+  <!-- Section 1: The Socratic Drilling Method -->
+  <g transform="translate(50, 130)">
+    <rect x="0" y="0" width="1700" height="600" fill="#e3f2fd" stroke="#1565c0" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#0d47a1">
+      THE SOCRATIC DRILLING METHOD: AI AS HARSH EXAMINER
+    </text>
+    
+    <!-- Example Session -->
+    <g transform="translate(50, 80)">
+      <rect x="0" y="0" width="800" height="480" fill="#e1f5fe" stroke="#039be5" stroke-width="2" rx="8"/>
+      <text x="400" y="30" font-size="22" font-weight="bold" text-anchor="middle" fill="#01579b">
+        Example: Transformer FLOP Analysis
+      </text>
+      
+      <!-- Q&A Flow -->
+      <g transform="translate(20, 60)">
+        <rect x="0" y="0" width="760" height="60" fill="#b3e5fc" stroke="#0288d1" rx="5"/>
+        <text x="10" y="25" font-size="15" font-weight="bold">AI: "Calculate total FLOPs for one transformer layer."</text>
+        <text x="10" y="45" font-size="14">You: "Well, there's attention and FFN..."</text>
+        
+        <rect x="0" y="70" width="760" height="80" fill="#81d4fa" stroke="#039be5" rx="5"/>
+        <text x="10" y="90" font-size="15" font-weight="bold">AI: "Be precise. What are the exact dimensions at each step?"</text>
+        <text x="10" y="110" font-size="14">You: "Input: [batch, seq_len, d_model]"</text>
+        <text x="10" y="130" font-size="14">     "QKV projection: 3 × (seq_len × d_model × d_model)"</text>
+        
+        <rect x="0" y="160" width="760" height="80" fill="#4fc3f7" stroke="#029be5" rx="5"/>
+        <text x="10" y="180" font-size="15" font-weight="bold">AI: "You forgot the 2x factor for multiply-add. What about attention?"</text>
+        <text x="10" y="200" font-size="14">You: "Right! 2 × 3 × (seq × d² ) for QKV, then..."</text>
+        <text x="10" y="220" font-size="14">     "Q×K^T: 2 × num_heads × seq² × (d/heads)"</text>
+        
+        <rect x="0" y="250" width="760" height="100" fill="#29b6f6" stroke="#0288d1" rx="5"/>
+        <text x="10" y="270" font-size="15" font-weight="bold">AI: "Good. Now break down LayerNorm FLOPs. Why is it different?"</text>
+        <text x="10" y="290" font-size="14">You: "LayerNorm is O(seq × d) not O(seq × d²)"</text>
+        <text x="10" y="310" font-size="14">     "Mean: seq×d, Variance: seq×d, Normalize: seq×d"</text>
+        <text x="10" y="330" font-size="14">     "Total: ~5×seq×d FLOPs (much smaller!)"</text>
+        
+        <rect x="0" y="360" width="760" height="80" fill="#039be5" stroke="#01579b" rx="5"/>
+        <text x="10" y="380" font-size="15" font-weight="bold" fill="white">AI: "Why does LayerNorm use rsqrt instead of sqrt + divide?"</text>
+        <text x="10" y="400" font-size="14" fill="white">You: "One operation instead of two! rsqrt(x) vs 1.0/sqrt(x)"</text>
+        <text x="10" y="420" font-size="14" fill="white">     "Hardware has fast rsqrt approximation"</text>
+      </g>
+    </g>
+    
+    <!-- The Method -->
+    <g transform="translate(900, 80)">
+      <rect x="0" y="0" width="750" height="480" fill="#fff" stroke="#1976d2" stroke-width="2" rx="8"/>
+      <text x="375" y="30" font-size="22" font-weight="bold" text-anchor="middle" fill="#1565c0">
+        How to Set Up Drilling Sessions
+      </text>
+      
+      <rect x="20" y="50" width="710" height="120" fill="#e8eaf6" stroke="#5c6bc0" rx="5"/>
+      <text x="30" y="75" font-size="16" font-weight="bold">1. Start with a claim you think you understand:</text>
+      <text x="40" y="100" font-size="15" font-family="monospace">"I understand transformer attention"</text>
+      <text x="30" y="125" font-size="16" font-weight="bold">2. Ask AI to probe without mercy:</text>
+      <text x="40" y="150" font-size="15" font-family="monospace">"Test my understanding with increasingly hard questions"</text>
+      
+      <rect x="20" y="180" width="710" height="140" fill="#c5cae9" stroke="#3f51b5" rx="5"/>
+      <text x="30" y="205" font-size="16" font-weight="bold">3. Rules for maximum learning:</text>
+      <text x="40" y="230" font-size="15">• No looking up answers during session</text>
+      <text x="40" y="250" font-size="15">• Explain your reasoning, not just answers</text>
+      <text x="40" y="270" font-size="15">• When wrong, trace back to root misconception</text>
+      <text x="40" y="290" font-size="15">• Build from first principles when stuck</text>
+      <text x="40" y="310" font-size="15">• End with implementation test</text>
+      
+      <rect x="20" y="330" width="710" height="120" fill="#9fa8da" stroke="#3f51b5" rx="5"/>
+      <text x="375" y="360" font-size="16" font-weight="bold" text-anchor="middle" fill="white">
+        The Goal: Not to pass, but to find every weakness
+      </text>
+      <text x="30" y="385" font-size="15" fill="white">Example progression:</text>
+      <text x="40" y="405" font-size="14" fill="white">Q1: "What's attention?" → Easy</text>
+      <text x="40" y="425" font-size="14" fill="white">Q5: "Why exactly n² memory?" → Harder</text>
+      <text x="40" y="445" font-size="14" fill="white">Q10: "Derive optimal tile size for cache" → Brutal</text>
+    </g>
+  </g>
+
+  <!-- Section 2: Architecture Deep Dive Pattern -->
+  <g transform="translate(50, 780)">
+    <rect x="0" y="0" width="1700" height="500" fill="#e8f5e9" stroke="#2e7d32" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+      COMPUTER ARCHITECTURE MASTERY PATTERN
+    </text>
+    
+    <!-- Study Flow -->
+    <g transform="translate(50, 80)">
+      <text x="0" y="0" font-size="20" font-weight="bold" fill="#2e7d32">
+        For "Unchanging" Knowledge (CPU arch, Maxwell's equations, algorithms):
+      </text>
+      
+      <!-- Phase 1 -->
+      <rect x="0" y="20" width="380" height="350" fill="#f1f8e4" stroke="#689f38" stroke-width="2" rx="8"/>
+      <text x="190" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#33691e">
+        Phase 1: Conceptual Foundation
+      </text>
+      
+      <text x="10" y="80" font-size="15" font-weight="bold">Ask AI for mental models:</text>
+      <rect x="10" y="90" width="360" height="80" fill="#dcedc8" stroke="#8bc34a" rx="5"/>
+      <text x="20" y="110" font-size="13" font-family="monospace">"Explain cache hierarchies as if I'm</text>
+      <text x="20" y="130" font-size="13" font-family="monospace">designing one from scratch. What problems</text>
+      <text x="20" y="150" font-size="13" font-family="monospace">does each level solve?"</text>
+      
+      <text x="10" y="185" font-size="15" font-weight="bold">Build intuition:</text>
+      <rect x="10" y="195" width="360" height="60" fill="#c5e1a5" stroke="#7cb342" rx="5"/>
+      <text x="20" y="215" font-size="13" font-family="monospace">"If I had infinite transistors but fixed</text>
+      <text x="20" y="235" font-size="13" font-family="monospace">wire delay, how would I design memory?"</text>
+      
+      <text x="10" y="270" font-size="15" font-weight="bold">Connect to your domain:</text>
+      <rect x="10" y="280" width="360" height="80" fill="#aed581" stroke="#689f38" rx="5"/>
+      <text x="20" y="300" font-size="13" font-family="monospace">"How do cache misses affect my</text>
+      <text x="20" y="320" font-size="13" font-family="monospace">transformer implementation? Calculate</text>
+      <text x="20" y="340" font-size="13" font-family="monospace">exact cycle penalties."</text>
+      
+      <!-- Phase 2 -->
+      <rect x="410" y="20" width="380" height="350" fill="#c8e6c9" stroke="#43a047" stroke-width="2" rx="8"/>
+      <text x="600" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+        Phase 2: Implementation Test
+      </text>
+      
+      <text x="420" y="80" font-size="15" font-weight="bold">Write code to verify:</text>
+      <rect x="420" y="90" width="360" height="100" fill="#a5d6a7" stroke="#4caf50" rx="5"/>
+      <text x="430" y="110" font-size="13" font-family="monospace">// Test cache behavior</text>
+      <text x="430" y="130" font-size="13" font-family="monospace">for (stride = 1; stride %lte; 1024; stride *= 2) {</text>
+      <text x="430" y="150" font-size="13" font-family="monospace">  time_access_pattern(array, size, stride);</text>
+      <text x="430" y="170" font-size="13" font-family="monospace">  // See cache effects directly!</text>
+      <text x="430" y="190" font-size="13" font-family="monospace">}</text>
+      
+      <text x="420" y="210" font-size="15" font-weight="bold">Measure everything:</text>
+      <rect x="420" y="220" width="360" height="60" fill="#81c784" stroke="#388e3c" rx="5"/>
+      <text x="430" y="240" font-size="13">"My L1 latency: 4 cycles (measured!)"</text>
+      <text x="430" y="260" font-size="13">"My L2 latency: 12 cycles (measured!)"</text>
+      
+      <text x="420" y="295" font-size="15" font-weight="bold">Ask AI to explain results:</text>
+      <rect x="420" y="305" width="360" height="60" fill="#66bb6a" stroke="#2e7d32" rx="5"/>
+      <text x="430" y="325" font-size="13" font-family="monospace">"Here's my data. Why does performance</text>
+      <text x="430" y="345" font-size="13" font-family="monospace">cliff at stride=64 but not stride=32?"</text>
+      
+      <!-- Phase 3 -->
+      <rect x="820" y="20" width="380" height="350" fill="#81c784" stroke="#388e3c" stroke-width="2" rx="8"/>
+      <text x="1010" y="50" font-size="18" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+        Phase 3: Deep Optimization
+      </text>
+      
+      <text x="830" y="80" font-size="15" font-weight="bold">Push boundaries:</text>
+      <rect x="830" y="90" width="360" height="80" fill="#66bb6a" stroke="#43a047" rx="5"/>
+      <text x="840" y="110" font-size="13" font-family="monospace">"Given my CPU's cache architecture,</text>
+      <text x="840" y="130" font-size="13" font-family="monospace">derive the optimal blocking factor</text>
+      <text x="840" y="150" font-size="13" font-family="monospace">for matrix multiplication"</text>
+      
+      <text x="830" y="185" font-size="15" font-weight="bold">Cross-domain synthesis:</text>
+      <rect x="830" y="195" width="360" height="80" fill="#4caf50" stroke="#2e7d32" rx="5"/>
+      <text x="840" y="215" font-size="13" font-family="monospace" fill="white">"How would Hennessy and Patterson</text>
+      <text x="840" y="235" font-size="13" font-family="monospace" fill="white">optimize transformers? Apply their</text>
+      <text x="840" y="255" font-size="13" font-family="monospace" fill="white">5 principles to my attention code"</text>
+      
+      <text x="830" y="290" font-size="15" font-weight="bold">Build new knowledge:</text>
+      <rect x="830" y="300" width="360" height="60" fill="#388e3c" stroke="#1b5e20" rx="5"/>
+      <text x="840" y="320" font-size="13" fill="white">"I discovered X. Is this known?</text>
+      <text x="840" y="340" font-size="13" fill="white">What are the implications?"</text>
+      
+      <!-- Arrow showing progression -->
+      <path d="M 380 200 L 410 200" stroke="#2e7d32" stroke-width="3" marker-end="url(#arrowgreen)"/>
+      <path d="M 790 200 L 820 200" stroke="#2e7d32" stroke-width="3" marker-end="url(#arrowgreen)"/>
+      
+      <text x="600" y="420" font-size="18" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+        Result: Not just knowledge, but operational mastery
+      </text>
+    </g>
+  </g>
+
+  <!-- Section 3: The Implementation-First Learning Loop -->
+  <g transform="translate(50, 1330)">
+    <rect x="0" y="0" width="1700" height="600" fill="#fff3e0" stroke="#ff9800" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#e65100">
+      THE IMPLEMENTATION-FIRST LEARNING LOOP
+    </text>
+    
+    <g transform="translate(100, 80)">
+      <text x="750" y="0" font-size="20" font-weight="bold" text-anchor="middle" fill="#f57c00">
+        "I learn by building, not by reading"
+      </text>
+      
+      <!-- The loop diagram -->
+      <g transform="translate(200, 40)">
+        <!-- Step 1 -->
+        <rect x="0" y="0" width="300" height="120" fill="#ffe0b2" stroke="#ffb300" rx="8"/>
+        <text x="150" y="25" font-size="18" font-weight="bold" text-anchor="middle">1. Hit Wall</text>
+        <text x="10" y="50" font-size="14">"My attention is 10x slower</text>
+        <text x="10" y="70" font-size="14">than PyTorch. Why?"</text>
+        <text x="10" y="90" font-size="14" font-weight="bold">Specific problem</text>
+        <text x="10" y="110" font-size="14" font-weight="bold">Measurable gap</text>
+        
+        <!-- Arrow -->
+        <path d="M 300 60 L 350 60" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange)"/>
+        
+        <!-- Step 2 -->
+        <rect x="350" y="0" width="300" height="120" fill="#ffcc80" stroke="#ff9800" rx="8"/>
+        <text x="500" y="25" font-size="18" font-weight="bold" text-anchor="middle">2. Deep Dive w/ AI</text>
+        <text x="360" y="50" font-size="14">"Walk me through cache</text>
+        <text x="360" y="70" font-size="14">behavior of my naive impl"</text>
+        <text x="360" y="90" font-size="14" font-weight="bold">First principles</text>
+        <text x="360" y="110" font-size="14" font-weight="bold">No shortcuts</text>
+        
+        <!-- Arrow -->
+        <path d="M 650 60 L 700 60" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange)"/>
+        
+        <!-- Step 3 -->
+        <rect x="700" y="0" width="300" height="120" fill="#ffb74d" stroke="#ff9800" rx="8"/>
+        <text x="850" y="25" font-size="18" font-weight="bold" text-anchor="middle">3. Implement Fix</text>
+        <text x="710" y="50" font-size="14">"Change memory layout</text>
+        <text x="710" y="70" font-size="14">to head-major"</text>
+        <text x="710" y="90" font-size="14" font-weight="bold">Code the solution</text>
+        <text x="710" y="110" font-size="14" font-weight="bold">Measure impact</text>
+        
+        <!-- Arrow down -->
+        <path d="M 850 120 L 850 170" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange)"/>
+        
+        <!-- Step 4 -->
+        <rect x="700" y="170" width="300" height="120" fill="#ffa726" stroke="#f57c00" rx="8"/>
+        <text x="850" y="195" font-size="18" font-weight="bold" text-anchor="middle">4. Verify and Document</text>
+        <text x="710" y="220" font-size="14">"5x speedup achieved!</text>
+        <text x="710" y="240" font-size="14">Here's exactly why..."</text>
+        <text x="710" y="260" font-size="14" font-weight="bold">YouTube video</text>
+        <text x="710" y="280" font-size="14" font-weight="bold">Blog post</text>
+        
+        <!-- Arrow -->
+        <path d="M 700 230 L 650 230" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange)"/>
+        
+        <!-- Step 5 -->
+        <rect x="350" y="170" width="300" height="120" fill="#ff9800" stroke="#f57c00" rx="8"/>
+        <text x="500" y="195" font-size="18" font-weight="bold" text-anchor="middle" fill="white">5. Find Next Gap</text>
+        <text x="360" y="220" font-size="14" fill="white">"Comments say I should</text>
+        <text x="360" y="240" font-size="14" fill="white">try AVX-512 FMA"</text>
+        <text x="360" y="260" font-size="14" font-weight="bold" fill="white">Community feedback</text>
+        <text x="360" y="280" font-size="14" font-weight="bold" fill="white">New challenge</text>
+        
+        <!-- Arrow back to start -->
+        <path d="M 350 230 L 300 230 L 300 60" stroke="#ff9800" stroke-width="3" marker-end="url(#arroworange)"/>
+      </g>
+      
+      <!-- Key insight -->
+      <rect x="100" y="350" width="1300" height="120" fill="#ff6f00" stroke="#e65100" stroke-width="2" rx="10"/>
+      <text x="750" y="390" font-size="20" font-weight="bold" text-anchor="middle" fill="white">
+        Why This Works: Each iteration compounds
+      </text>
+      <text x="750" y="420" font-size="16" text-anchor="middle" fill="white">
+        • You learn the specific thing you need RIGHT NOW
+      </text>
+      <text x="750" y="445" font-size="16" text-anchor="middle" fill="white">
+        • Knowledge is immediately applied and tested
+      </text>
+      <text x="750" y="470" font-size="16" text-anchor="middle" fill="white">
+        • Public documentation creates external memory
+      </text>
+    </g>
+  </g>
+
+  <!-- Section 4: Advanced Patterns -->
+  <g transform="translate(50, 1980)">
+    <rect x="0" y="0" width="1700" height="700" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="3" rx="12"/>
+    <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#4a148c">
+      ADVANCED AI USAGE PATTERNS FOR DEEP MASTERY
+    </text>
+    
+    <!-- Pattern Grid -->
+    <g transform="translate(50, 80)">
+      <!-- Pattern 1 -->
+      <rect x="0" y="0" width="380" height="280" fill="#e1bee7" stroke="#8e24aa" stroke-width="2" rx="8"/>
+      <text x="190" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#4a148c">
+        The "Feynman Technique+"
+      </text>
+      
+      <rect x="10" y="50" width="360" height="80" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
+      <text x="20" y="70" font-size="14">"I'll explain transformer attention.</text>
+      <text x="20" y="90" font-size="14">Stop me when I say something wrong</text>
+      <text x="20" y="110" font-size="14">or imprecise. Be ruthless."</text>
+      
+      <text x="10" y="150" font-size="15" font-weight="bold">AI becomes your student:</text>
+      <text x="20" y="170" font-size="14">• Forces clear explanation</text>
+      <text x="20" y="190" font-size="14">• Reveals fuzzy thinking</text>
+      <text x="20" y="210" font-size="14">• Tests edge cases</text>
+      
+      <rect x="10" y="230" width="360" height="40" fill="#ab47bc" stroke="#6a1b9a" rx="5"/>
+      <text x="190" y="255" font-size="14" font-weight="bold" text-anchor="middle" fill="white">
+        "If you can't explain it simply..."
+      </text>
+      
+      <!-- Pattern 2 -->
+      <rect x="410" y="0" width="380" height="280" fill="#e1bee7" stroke="#8e24aa" stroke-width="2" rx="8"/>
+      <text x="600" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#4a148c">
+        The "Historical Recreation"
+      </text>
+      
+      <rect x="420" y="50" width="360" height="80" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
+      <text x="430" y="70" font-size="14">"Walk me through how Vaswani et al</text>
+      <text x="430" y="90" font-size="14">likely discovered attention. What</text>
+      <text x="430" y="110" font-size="14">problems were they solving?"</text>
+      
+      <text x="420" y="150" font-size="15" font-weight="bold">Understand the why:</text>
+      <text x="430" y="170" font-size="14">• RNN limitations</text>
+      <text x="430" y="190" font-size="14">• Parallelization needs</text>
+      <text x="430" y="210" font-size="14">• The "aha" moments</text>
+      
+      <rect x="420" y="230" width="360" height="40" fill="#ab47bc" stroke="#6a1b9a" rx="5"/>
+      <text x="600" y="255" font-size="14" font-weight="bold" text-anchor="middle" fill="white">
+        Context creates understanding
+      </text>
+      
+      <!-- Pattern 3 -->
+      <rect x="820" y="0" width="380" height="280" fill="#e1bee7" stroke="#8e24aa" stroke-width="2" rx="8"/>
+      <text x="1010" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#4a148c">
+        The "Counterfactual Design"
+      </text>
+      
+      <rect x="830" y="50" width="360" height="80" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
+      <text x="840" y="70" font-size="14">"If transformers didn't exist and</text>
+      <text x="840" y="90" font-size="14">I needed to process sequences on</text>
+      <text x="840" y="110" font-size="14">edge devices, what would I invent?"</text>
+      
+      <text x="830" y="150" font-size="15" font-weight="bold">Forces innovation:</text>
+      <text x="840" y="170" font-size="14">• Question assumptions</text>
+      <text x="840" y="190" font-size="14">• Think from constraints</text>
+      <text x="840" y="210" font-size="14">• Discover alternatives</text>
+      
+      <rect x="830" y="230" width="360" height="40" fill="#ab47bc" stroke="#6a1b9a" rx="5"/>
+      <text x="1010" y="255" font-size="14" font-weight="bold" text-anchor="middle" fill="white">
+        Constraints drive creativity
+      </text>
+      
+      <!-- Pattern 4 -->
+      <rect x="1230" y="0" width="380" height="280" fill="#e1bee7" stroke="#8e24aa" stroke-width="2" rx="8"/>
+      <text x="1420" y="30" font-size="18" font-weight="bold" text-anchor="middle" fill="#4a148c">
+        The "Adversarial Review"
+      </text>
+      
+      <rect x="1240" y="50" width="360" height="80" fill="#ce93d8" stroke="#7b1fa2" rx="5"/>
+      <text x="1250" y="70" font-size="14">"Here's my attention implementation.</text>
+      <text x="1250" y="90" font-size="14">Destroy it. Find every flaw,</text>
+      <text x="1250" y="110" font-size="14">inefficiency, and assumption."</text>
+      
+      <text x="1240" y="150" font-size="15" font-weight="bold">Brutal feedback:</text>
+      <text x="1250" y="170" font-size="14">• Architecture flaws</text>
+      <text x="1250" y="190" font-size="14">• Performance gaps</text>
+      <text x="1250" y="210" font-size="14">• Hidden assumptions</text>
+      
+      <rect x="1240" y="230" width="360" height="40" fill="#ab47bc" stroke="#6a1b9a" rx="5"/>
+      <text x="1420" y="255" font-size="14" font-weight="bold" text-anchor="middle" fill="white">
+        Iron sharpens iron
+      </text>
+      
+      <!-- Advanced Techniques -->
+      <g transform="translate(0, 310)">
+        <rect x="0" y="0" width="1600" height="300" fill="#f3e5f5" stroke="#9c27b0" stroke-width="2" rx="8"/>
+        <text x="800" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#6a1b9a">
+          Meta-Learning Techniques
+        </text>
+        
+        <!-- Technique 1 -->
+        <g transform="translate(20, 50)">
+          <rect x="0" y="0" width="360" height="230" fill="#e1bee7" stroke="#8e24aa" rx="5"/>
+          <text x="180" y="25" font-size="16" font-weight="bold" text-anchor="middle">
+            Knowledge Graph Building
+          </text>
+          <text x="10" y="50" font-size="14">"Create a concept map connecting:</text>
+          <text x="10" y="70" font-size="14">- Cache hierarchies</text>
+        <text x="10" y="90" font-size="14">- SIMD instructions</text>
+         <text x="10" y="110" font-size="14">- Transformer ops</text>
+         <text x="10" y="130" font-size="14">Show me what I'm missing"</text>
+         
+         <rect x="10" y="150" width="340" height="70" fill="#ce93d8" stroke="#7b1fa2" rx="3"/>
+         <text x="20" y="170" font-size="13">AI helps you see connections:</text>
+         <text x="20" y="190" font-size="13">• "AVX-512 ↔ Head-major layout"</text>
+         <text x="20" y="210" font-size="13">• "Cache lines ↔ Attention patterns"</text>
+       </g>
+       
+       <!-- Technique 2 -->
+       <g transform="translate(400, 50)">
+         <rect x="0" y="0" width="360" height="230" fill="#e1bee7" stroke="#8e24aa" rx="5"/>
+         <text x="180" y="25" font-size="16" font-weight="bold" text-anchor="middle">
+           Prerequisite Chaining
+         </text>
+         <text x="10" y="50" font-size="14">"I want to understand CPU/GPU</text>
+         <text x="10" y="70" font-size="14">unified memory. Build me a</text>
+         <text x="10" y="90" font-size="14">learning path from my current</text>
+         <text x="10" y="110" font-size="14">C knowledge"</text>
+         
+         <rect x="10" y="150" width="340" height="70" fill="#ce93d8" stroke="#7b1fa2" rx="3"/>
+         <text x="20" y="170" font-size="13">Get personalized curriculum:</text>
+         <text x="20" y="190" font-size="13">1. Virtual memory → 2. Page tables</text>
+         <text x="20" y="210" font-size="13">3. DMA → 4. Coherence → 5. UMA</text>
+       </g>
+       
+       <!-- Technique 3 -->
+       <g transform="translate(780, 50)">
+         <rect x="0" y="0" width="360" height="230" fill="#e1bee7" stroke="#8e24aa" rx="5"/>
+         <text x="180" y="25" font-size="16" font-weight="bold" text-anchor="middle">
+           The "5 Whys" Deep Dive
+         </text>
+         <text x="10" y="50" font-size="14">"Attention is slow" → Why?</text>
+         <text x="10" y="70" font-size="14">"Memory bound" → Why?</text>
+         <text x="10" y="90" font-size="14">"Random access" → Why?</text>
+         <text x="10" y="110" font-size="14">"Token-major layout" → Why?</text>
+         <text x="10" y="130" font-size="14">"Framework default" → ROOT CAUSE</text>
+         
+         <rect x="10" y="150" width="340" height="70" fill="#ce93d8" stroke="#7b1fa2" rx="3"/>
+         <text x="20" y="170" font-size="13">Each "why" teaches a layer:</text>
+         <text x="20" y="190" font-size="13">• Performance analysis</text>
+         <text x="20" y="210" font-size="13">• Architecture understanding</text>
+       </g>
+       
+       <!-- Technique 4 -->
+       <g transform="translate(1160, 50)">
+         <rect x="0" y="0" width="360" height="230" fill="#e1bee7" stroke="#8e24aa" rx="5"/>
+         <text x="180" y="25" font-size="16" font-weight="bold" text-anchor="middle">
+           Cross-Domain Synthesis
+         </text>
+         <text x="10" y="50" font-size="14">"How would a CPU designer</text>
+         <text x="10" y="70" font-size="14">optimize transformers?"</text>
+         <text x="10" y="90" font-size="14">"How would a game engine</text>
+         <text x="10" y="110" font-size="14">developer approach ML?"</text>
+         
+         <rect x="10" y="150" width="340" height="70" fill="#ce93d8" stroke="#7b1fa2" rx="3"/>
+         <text x="20" y="170" font-size="13">Fresh perspectives:</text>
+         <text x="20" y="190" font-size="13">• Spatial data structures for attention</text>
+         <text x="20" y="210" font-size="13">• Frame buffering for inference</text>
+       </g>
+     </g>
+   </g>
+ </g>
+
+ <!-- Section 5: Example Drilling Session -->
+ <g transform="translate(50, 2730)">
+   <rect x="0" y="0" width="1700" height="600" fill="#e8eaf6" stroke="#3f51b5" stroke-width="3" rx="12"/>
+   <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1a237e">
+     EXAMPLE: COMPLETE TRANSFORMER FLOP DRILLING SESSION
+   </text>
+   
+   <g transform="translate(50, 80)">
+     <!-- Full calculation -->
+     <rect x="0" y="0" width="1600" height="480" fill="#c5cae9" stroke="#5c6bc0" stroke-width="2" rx="8"/>
+     <text x="800" y="30" font-size="22" font-weight="bold" text-anchor="middle" fill="#283593">
+       Let's Calculate Every FLOP in a Transformer Layer
+     </text>
+     
+     <!-- Setup -->
+     <g transform="translate(20, 60)">
+       <rect x="0" y="0" width="760" height="100" fill="#9fa8da" stroke="#3f51b5" rx="5"/>
+       <text x="10" y="25" font-size="16" font-weight="bold" fill="white">Given: seq_len=2048, d_model=768, num_heads=12, d_ff=3072</text>
+       <text x="10" y="50" font-size="15" fill="white">Calculate total FLOPs for one layer (forward pass)</text>
+       <text x="10" y="75" font-size="15" fill="white">Remember: 1 multiply-add = 2 FLOPs</text>
+       
+       <!-- Detailed breakdown -->
+       <g transform="translate(0, 120)">
+         <rect x="0" y="0" width="370" height="280" fill="#e8eaf6" stroke="#5c6bc0" rx="5"/>
+         <text x="185" y="25" font-size="18" font-weight="bold" text-anchor="middle">1. Multi-Head Attention</text>
+         
+         <text x="10" y="50" font-size="14" font-weight="bold">QKV Projections:</text>
+         <text x="20" y="70" font-size="13">3 × (seq × d_in × d_out) × 2</text>
+         <text x="20" y="90" font-size="13">= 3 × (2048 × 768 × 768) × 2</text>
+         <text x="20" y="110" font-size="13" font-weight="bold">= 7,247,757,312 FLOPs</text>
+         
+         <text x="10" y="140" font-size="14" font-weight="bold">Attention Scores (Q @ K^T):</text>
+         <text x="20" y="160" font-size="13">heads × (seq × seq × d_h) × 2</text>
+         <text x="20" y="180" font-size="13">= 12 × (2048 × 2048 × 64) × 2</text>
+         <text x="20" y="200" font-size="13" font-weight="bold">= 6,442,450,944 FLOPs</text>
+         
+         <text x="10" y="230" font-size="14" font-weight="bold">Attention @ V:</text>
+         <text x="20" y="250" font-size="13">heads × (seq × seq × d_h) × 2</text>
+         <text x="20" y="270" font-size="13" font-weight="bold">= 6,442,450,944 FLOPs</text>
+       </g>
+       
+       <g transform="translate(390, 120)">
+         <rect x="0" y="0" width="370" height="280" fill="#e8eaf6" stroke="#5c6bc0" rx="5"/>
+         <text x="185" y="25" font-size="18" font-weight="bold" text-anchor="middle">1. MHA (cont'd)</text>
+         
+         <text x="10" y="50" font-size="14" font-weight="bold">Output Projection:</text>
+         <text x="20" y="70" font-size="13">(seq × d_in × d_out) × 2</text>
+         <text x="20" y="90" font-size="13">= (2048 × 768 × 768) × 2</text>
+         <text x="20" y="110" font-size="13" font-weight="bold">= 2,415,919,104 FLOPs</text>
+         
+         <text x="10" y="140" font-size="14" font-weight="bold">Softmax (approximate):</text>
+         <text x="20" y="160" font-size="13">exp + sum + div per element</text>
+         <text x="20" y="180" font-size="13">≈ 5 × seq × seq × heads</text>
+         <text x="20" y="200" font-size="13" font-weight="bold">≈ 251,658,240 FLOPs</text>
+         
+         <rect x="10" y="230" width="350" height="40" fill="#7986cb" stroke="#3f51b5" rx="3"/>
+         <text x="185" y="255" font-size="14" font-weight="bold" text-anchor="middle" fill="white">
+           MHA Total: 22,800,236,544 FLOPs
+         </text>
+       </g>
+       
+       <g transform="translate(780, 120)">
+         <rect x="0" y="0" width="370" height="280" fill="#e8eaf6" stroke="#5c6bc0" rx="5"/>
+         <text x="185" y="25" font-size="18" font-weight="bold" text-anchor="middle">2. Feed-Forward</text>
+         
+         <text x="10" y="50" font-size="14" font-weight="bold">First Linear (d → 4d):</text>
+         <text x="20" y="70" font-size="13">(seq × d_in × d_out) × 2</text>
+         <text x="20" y="90" font-size="13">= (2048 × 768 × 3072) × 2</text>
+         <text x="20" y="110" font-size="13" font-weight="bold">= 9,663,676,416 FLOPs</text>
+         
+         <text x="10" y="140" font-size="14" font-weight="bold">GELU Activation:</text>
+         <text x="20" y="160" font-size="13">≈ 10 FLOPs per element</text>
+         <text x="20" y="180" font-size="13">= 10 × 2048 × 3072</text>
+         <text x="20" y="200" font-size="13" font-weight="bold">= 62,914,560 FLOPs</text>
+         
+         <text x="10" y="230" font-size="14" font-weight="bold">Second Linear (4d → d):</text>
+         <text x="20" y="250" font-size="13" font-weight="bold">= 9,663,676,416 FLOPs</text>
+       </g>
+       
+       <g transform="translate(1170, 120)">
+         <rect x="0" y="0" width="370" height="280" fill="#e8eaf6" stroke="#5c6bc0" rx="5"/>
+         <text x="185" y="25" font-size="18" font-weight="bold" text-anchor="middle">3. LayerNorms</text>
+         
+         <text x="10" y="50" font-size="14" font-weight="bold">Per LayerNorm:</text>
+         <text x="20" y="70" font-size="13">mean: seq × d = 1,572,864</text>
+         <text x="20" y="90" font-size="13">var: seq × d = 1,572,864</text>
+         <text x="20" y="110" font-size="13">norm: seq × d × 3 = 4,718,592</text>
+         <text x="20" y="130" font-size="13" font-weight="bold">Total: 7,864,320 FLOPs</text>
+         
+         <text x="10" y="160" font-size="14" font-weight="bold">2 LayerNorms per layer:</text>
+         <text x="20" y="180" font-size="13" font-weight="bold">= 15,728,640 FLOPs</text>
+         
+         <rect x="10" y="210" width="350" height="60" fill="#3f51b5" stroke="#283593" rx="3"/>
+         <text x="185" y="235" font-size="16" font-weight="bold" text-anchor="middle" fill="white">
+           GRAND TOTAL:
+         </text>
+         <text x="185" y="260" font-size="16" font-weight="bold" text-anchor="middle" fill="white">
+           42,206,232,576 FLOPs/layer
+         </text>
+       </g>
+     </g>
+   </g>
+ </g>
+
+ <!-- Section 6: Your Learning Strategy -->
+ <g transform="translate(50, 3380)">
+   <rect x="0" y="0" width="1700" height="700" fill="#e8f5e9" stroke="#2e7d32" stroke-width="3" rx="12"/>
+   <text x="850" y="40" font-size="30" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+     YOUR PERSONALIZED LEARNING STRATEGY
+   </text>
+   
+   <g transform="translate(100, 80)">
+     <text x="750" y="0" font-size="22" font-weight="bold" text-anchor="middle" fill="#2e7d32">
+       Combining All Techniques for Maximum Growth
+     </text>
+     
+     <!-- Your Daily Practice -->
+     <g transform="translate(0, 40)">
+       <rect x="0" y="0" width="500" height="250" fill="#f1f8e4" stroke="#689f38" stroke-width="2" rx="8"/>
+       <text x="250" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#33691e">
+         Daily Practice (1-2 hours)
+       </text>
+       
+       <text x="10" y="60" font-size="16" font-weight="bold">Morning Drilling (30 min):</text>
+       <text x="20" y="85" font-size="14">• Pick one concept (cache, SIMD, etc)</text>
+       <text x="20" y="105" font-size="14">• Socratic drilling with AI</text>
+       <text x="20" y="125" font-size="14">• No looking up answers</text>
+       
+       <text x="10" y="155" font-size="16" font-weight="bold">Implementation (1 hour):</text>
+       <text x="20" y="180" font-size="14">• Code what you just learned</text>
+       <text x="20" y="200" font-size="14">• Measure everything</text>
+       <text x="20" y="220" font-size="14">• Find the next bottleneck</text>
+     </g>
+     
+     <!-- Weekly Projects -->
+     <g transform="translate(550, 40)">
+       <rect x="0" y="0" width="500" height="250" fill="#c8e6c9" stroke="#43a047" stroke-width="2" rx="8"/>
+       <text x="250" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+         Weekly Integration
+       </text>
+       
+       <text x="10" y="60" font-size="16" font-weight="bold">YouTube Video Creation:</text>
+       <text x="20" y="85" font-size="14">• Document the week's discoveries</text>
+       <text x="20" y="105" font-size="14">• Show failed attempts too</text>
+       <text x="20" y="125" font-size="14">• Ask viewers for challenges</text>
+       
+       <text x="10" y="155" font-size="16" font-weight="bold">Community Engagement:</text>
+       <text x="20" y="180" font-size="14">• Answer questions → find gaps</text>
+       <text x="20" y="200" font-size="14">• Take on suggested optimizations</text>
+       <text x="20" y="220" font-size="14">• Build network of deep thinkers</text>
+     </g>
+     
+     <!-- Monthly Goals -->
+     <g transform="translate(1100, 40)">
+       <rect x="0" y="0" width="400" height="250" fill="#81c784" stroke="#388e3c" stroke-width="2" rx="8"/>
+       <text x="200" y="30" font-size="20" font-weight="bold" text-anchor="middle" fill="#1b5e20">
+         Monthly Milestones
+       </text>
+       
+       <text x="10" y="60" font-size="16" font-weight="bold">Month 1-2:</text>
+       <text x="20" y="85" font-size="14">• Complete forward pass</text>
+       <text x="20" y="105" font-size="14">• Beat PyTorch by 5x</text>
+       
+       <text x="10" y="135" font-size="16" font-weight="bold">Month 3-4:</text>
+       <text x="20" y="160" font-size="14">• Implement backprop</text>
+       <text x="20" y="180" font-size="14">• Train small model</text>
+       
+       <text x="10" y="210" font-size="16" font-weight="bold">Month 5-6:</text>
+       <text x="20" y="235" font-size="14">• Scale to GPT-2 size</text>
+     </g>
+     
+     <!-- The Meta-Learning Loop -->
+     <g transform="translate(0, 320)">
+       <rect x="0" y="0" width="1500" height="250" fill="#66bb6a" stroke="#43a047" stroke-width="2" rx="8"/>
+       <text x="750" y="35" font-size="22" font-weight="bold" text-anchor="middle" fill="white">
+         Your Meta-Learning Loop
+       </text>
+       
+       <g transform="translate(50, 60)">
+         <!-- Loop elements -->
+         <rect x="0" y="0" width="200" height="80" fill="#4caf50" stroke="#2e7d32" rx="5"/>
+         <text x="100" y="30" font-size="16" font-weight="bold" text-anchor="middle" fill="white">Build</text>
+         <text x="100" y="50" font-size="14" text-anchor="middle" fill="white">Implement in C</text>
+         <text x="100" y="70" font-size="14" text-anchor="middle" fill="white">Hit limits</text>
+         
+         <path d="M 200 40 L 250 40" stroke="white" stroke-width="3" marker-end="url(#arrowwhite)"/>
+         
+         <rect x="250" y="0" width="200" height="80" fill="#4caf50" stroke="#2e7d32" rx="5"/>
+         <text x="350" y="30" font-size="16" font-weight="bold" text-anchor="middle" fill="white">Question</text>
+         <text x="350" y="50" font-size="14" text-anchor="middle" fill="white">Why is it slow?</text>
+         <text x="350" y="70" font-size="14" text-anchor="middle" fill="white">What's missing?</text>
+         
+         <path d="M 450 40 L 500 40" stroke="white" stroke-width="3" marker-end="url(#arrowwhite)"/>
+         
+         <rect x="500" y="0" width="200" height="80" fill="#4caf50" stroke="#2e7d32" rx="5"/>
+         <text x="600" y="30" font-size="16" font-weight="bold" text-anchor="middle" fill="white">Learn</text>
+         <text x="600" y="50" font-size="14" text-anchor="middle" fill="white">Deep dive w/ AI</text>
+         <text x="600" y="70" font-size="14" text-anchor="middle" fill="white">First principles</text>
+         
+         <path d="M 700 40 L 750 40" stroke="white" stroke-width="3" marker-end="url(#arrowwhite)"/>
+         
+         <rect x="750" y="0" width="200" height="80" fill="#4caf50" stroke="#2e7d32" rx="5"/>
+         <text x="850" y="30" font-size="16" font-weight="bold" text-anchor="middle" fill="white">Teach</text>
+         <text x="850" y="50" font-size="14" text-anchor="middle" fill="white">YouTube video</text>
+         <text x="850" y="70" font-size="14" text-anchor="middle" fill="white">Get feedback</text>
+         
+         <path d="M 950 40 L 1000 40" stroke="white" stroke-width="3" marker-end="url(#arrowwhite)"/>
+         
+         <rect x="1000" y="0" width="200" height="80" fill="#4caf50" stroke="#2e7d32" rx="5"/>
+         <text x="1100" y="30" font-size="16" font-weight="bold" text-anchor="middle" fill="white">Connect</text>
+         <text x="1100" y="50" font-size="14" text-anchor="middle" fill="white">Find patterns</text>
+         <text x="1100" y="70" font-size="14" text-anchor="middle" fill="white">Cross-domain</text>
+         
+         <path d="M 1200 40 L 1250 40" stroke="white" stroke-width="3" marker-end="url(#arrowwhite)"/>
+         
+         <rect x="1250" y="0" width="150" height="80" fill="#388e3c" stroke="#1b5e20" rx="5"/>
+         <text x="1325" y="40" font-size="16" font-weight="bold" text-anchor="middle" fill="white">Level Up!</text>
+         <text x="1325" y="60" font-size="14" text-anchor="middle" fill="white">Deeper problems</text>
+         
+         <!-- Loop back -->
+         <path d="M 1325 80 L 1325 120 L 100 120 L 100 80" stroke="white" stroke-width="3" marker-end="url(#arrowwhite)"/>
+       </g>
+       
+       <text x="750" y="170" font-size="18" font-weight="bold" text-anchor="middle" fill="white">
+         Each cycle: Deeper understanding, Faster implementation, Better teaching
+       </text>
+     </g>
+   </g>
+ </g>
+
+ <!-- Arrow definitions -->
+ <defs>
+   <marker id="arrowgreen" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="#2e7d32">
+     <path d="M 0 0 L 10 5 L 0 10 Z"/>
+   </marker>
+   <marker id="arroworange" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="#ff9800">
+     <path d="M 0 0 L 10 5 L 0 10 Z"/>
+   </marker>
+   <marker id="arrowwhite" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" fill="white">
+     <path d="M 0 0 L 10 5 L 0 10 Z"/>
+   </marker>
+ </defs>
+</svg>

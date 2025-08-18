@@ -1,0 +1,159 @@
+<!html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infographic Section: MLP Expansion Explained</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        .mono {
+            font-family: 'Fira Code', monospace;
+        }
+        .slide-container {
+            background-color: #1e293b;
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            margin: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155;
+        }
+        .slide-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            text-align: center;
+        }
+        .slide-subtitle {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #94a3b8;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            border-bottom: 2px solid #a78bfa; /* Purple accent */
+            padding-bottom: 1rem;
+            display: inline-block;
+        }
+        .analogy-box {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            height: 100%;
+        }
+        .expand-color { color: #4ade80; } /* Green */
+        .gate-color { color: #facc15; }   /* Yellow */
+        .project-color { color: #60a5fa; } /* Blue */
+
+        .detector-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(20px, 1fr));
+            gap: 4px;
+            padding: 8px;
+            background: #020617;
+            border-radius: 8px;
+            max-width: 150px;
+            margin: 1rem auto;
+        }
+        .detector {
+            width: 100%;
+            padding-bottom: 100%; /* Aspect ratio 1:1 */
+            background-color: #334155;
+            border-radius: 2px;
+        }
+        .detector.active {
+            background-color: #facc15; /* Yellow for active */
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <main class="max-w-6xl mx-auto">
+        <section class="slide-container">
+            <h2 class="slide-title">The MLP's High-Dimensional Chessboard</h2>
+            <div class="flex justify-center">
+                <h3 class="slide-subtitle">Ask more questions in a bigger space → make a cleaner decision → return a compact verdict.</h3>
+            </div>
+
+            <!-- Main 3-Step Process -->
+            <div class="grid md:grid-cols-3 gap-6 text-center items-start">
+                <!-- Step 1: Input -->
+                <div class="analogy-box">
+                    <h4 class="font-bold text-lg mt-2">1. Input: Tangled Features</h4>
+                    <p class="text-sm text-slate-400 mono">[B, T, 768]</p>
+                    <p class="text-sm text-slate-300 mt-3">Concepts are mixed. A simple rule can't separate "river bank" from "financial bank".</p>
+                    <div class="mt-4 p-4 bg-slate-900 rounded-lg">
+                        <h5 class="text-sm font-bold text-left">Without Expansion (768→768):</h5>
+                        <ul class="text-xs text-left mt-2 space-y-1 text-red-400">
+                            <li>❌ Linear transformation only</li>
+                            <li>❌ Can't learn XOR-like patterns</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Step 2: Expansion -->
+                <div class="analogy-box border-2 border-yellow-400 shadow-lg shadow-yellow-900/50">
+                    <h4 class="font-bold text-lg mt-2 gate-color">2. Expansion: The Bank of Detectors</h4>
+                    <p class="text-sm text-slate-400 mono">[B, T, 3072]</p>
+                    <p class="text-sm text-slate-300 mt-3">Each of the 3072 hidden neurons acts as a "pattern detector". Each token is asked 3072 different questions.</p>
+                    <div class="detector-grid">
+                        <div class="detector"></div><div class="detector active"></div><div class="detector"></div><div class="detector"></div>
+                        <div class="detector"></div><div class="detector"></div><div class="detector"></div><div class="detector active"></div>
+                        <div class="detector active"></div><div class="detector"></div><div class="detector"></div><div class="detector"></div>
+                    </div>
+                    <div class="text-xs text-left space-y-1 p-2 bg-slate-900 rounded">
+                        <p><strong class="gate-color">Detector #42:</strong> "is_question_about_time"</p>
+                        <p><strong class="gate-color">Detector #156:</strong> "has_technical_jargon"</p>
+                        <p><strong class="gate-color">Detector #831:</strong> "needs_formal_tone"</p>
+                    </div>
+                </div>
+
+                <!-- Step 3: Contraction -->
+                <div class="analogy-box">
+                    <h4 class="font-bold text-lg mt-2">3. Projection: The Verdict</h4>
+                    <p class="text-sm text-slate-400 mono">[B, T, 768]</p>
+                    <p class="text-sm text-slate-300 mt-3">The refined understanding is projected back into a compact form for the residual stream.</p>
+                     <div class="mt-4 p-4 bg-slate-900 rounded-lg">
+                        <h5 class="text-sm font-bold text-left">With Expansion (768→3072→768):</h5>
+                        <ul class="text-xs text-left mt-2 space-y-1 text-green-400">
+                            <li>✅ Universal approximator</li>
+                            <li>✅ Can learn any smooth function</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Technical Section -->
+            <div class="mt-8 pt-6 border-t border-slate-700 grid md:grid-cols-2 gap-8 items-start">
+                <!-- Formula & Shapes -->
+                <div>
+                    <h4 class="font-semibold text-slate-200 mb-2 text-center">The Math & The Shapes</h4>
+                    <div class="p-4 bg-slate-900 rounded-lg mono text-sm">
+                        <p class="text-purple-300">MLP(x) = GELU(xW₁ + b₁) · W₂ + b₂</p>
+                        <div class="mt-3 text-xs text-slate-400 space-y-1">
+                            <p><span class="expand-color">xW₁ + b₁:</span> [B,T,768] → [B,T,3072]</p>
+                            <p><span class="gate-color">GELU(...):</span> element-wise gating</p>
+                            <p><span class="project-color">... · W₂ + b₂:</span> [B,T,3072] → [B,T,768]</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Why Project Back? -->
+                <div>
+                    <h4 class="font-semibold text-slate-200 mb-2 text-center">Why Project Back Down?</h4>
+                    <div class="p-4 bg-slate-900 rounded-lg text-sm space-y-2">
+                        <p><strong>1. The Residual Bus:</strong> The model's main information pathway (the residual stream) has a fixed width (768). The MLP's verdict must be "down-sized" to fit back onto this bus.</p>
+                        <p><strong>2. Regularization:</strong> Forcing the network to summarize its high-dimensional findings into a smaller space prevents it from simply memorizing noise.</p>
+                        <p><strong>3. Efficiency:</strong> The next block (e.g., another Attention layer) operates on the 768-dimension. Keeping the main bus narrow saves immense computation.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+</body>
+</html>
+
