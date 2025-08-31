@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Bog Javelin Probe — Construction Blueprint (SVG)</title>
+<style>
+  :root{
+    --ink:#0f172a;      /* text */
+    --muted:#64748b;    /* grid/notes */
+    --line:#94a3b8;     /* outlines */
+    --accent:#2f6fed;   /* collar callouts */
+    --accent2:#0ea5e9;  /* sleeve callouts */
+    --accent3:#00a884;  /* center conductor */
+    --danger:#e11d48;   /* warnings */
+    --bg:#f8fafc;       /* page bg */
+  }
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui, Segoe UI, Roboto, Helvetica, Arial}
+  .frame{max-width:1100px;margin:24px auto;padding:20px}
+  h1{font-weight:800;font-size:28px;margin:0 0 6px}
+  p.lead{margin:0 0 14px;color:var(--muted)}
+  svg{width:100%;height:auto;background:white;border-radius:16px;box-shadow:0 6px 20px rgba(15,23,42,.08)}
+  .h2{font:700 18px/1.2 system-ui, Segoe UI, Roboto, Helvetica, Arial}
+  .h3{font:700 15px/1.1 system-ui, Segoe UI, Roboto, Helvetica, Arial}
+  .sml{font:600 12px/1.1 system-ui, Segoe UI, Roboto, Helvetica, Arial}
+  .muted{fill:var(--muted)}
+  .note{fill:#fffbe6;stroke:#facc15}
+  .ok{fill:#eefdf5;stroke:#86efac}
+  .box{fill:#ffffff;stroke:#e2e8f0}
+  .chip{fill:#0e3a5d;stroke:#0b2840;stroke-width:1.2}
+  .chiptext{fill:#fff;font:600 12px/1.2 system-ui}
+  .dim{stroke:var(--muted);stroke-width:1.6;marker-start:url(#dot);marker-end:url(#dot)}
+  .call{stroke:var(--line);stroke-width:1.6;marker-end:url(#arrow)}
+  .wire{stroke:var(--line);stroke-width:1.8}
+  .dashed{stroke-dasharray:6 6}
+  .t{font:400 12px/1.35 system-ui, Segoe UI, Roboto, Helvetica, Arial}
+  .lbl{font:600 12px/1.2 system-ui}
+</style>
+</head>
+<body>
+<div class="frame">
+  <h1>Bog Javelin Probe — Construction Blueprint</h1>
+  <p class="lead">Continuous sleeve + ground collar + threaded, replaceable tip. Dimensions are field-tested suggestions you can adapt.</p>
+
+  <svg viewBox="0 0 1200 1700" aria-label="Construction blueprint for a soil EM probe">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+      </marker>
+      <marker id="dot" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <circle cx="5" cy="5" r="3" fill="#64748b"/>
+      </marker>
+      <linearGradient id="glass" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#e6eef6"/>
+        <stop offset="1" stop-color="#d7e3ee"/>
+      </linearGradient>
+      <linearGradient id="steel" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#b7c2cc"/>
+        <stop offset="1" stop-color="#8c97a3"/>
+      </linearGradient>
+    </defs>
+
+    <!-- Title band -->
+    <rect x="24" y="20" width="1152" height="70" rx="12" class="box"/>
+    <text x="48" y="64" class="h2">Side Elevation & Key Dimensions (not to scale)</text>
+
+    <!-- MAIN PANEL -->
+    <g transform="translate(0,100)">
+      <!-- left info box -->
+      <rect x="24" y="0" width="420" height="580" rx="14" class="box"/>
+      <text x="44" y="38" class="h3">Materials & Stack</text>
+      <g class="t" fill="#0f172a">
+        <text x="44" y="70">Shaft/body: <tspan class="lbl">Fiberglass (gel-coated) tube</tspan> — inert, stiff, easy to seal</text>
+        <text x="44" y="94">Center conductor: <tspan class="lbl">316L stainless rod</tspan> — threaded to replaceable tip</text>
+        <text x="44" y="118">Outer return sleeve: <tspan class="lbl">316L thin tube or copper band</tspan> — 150–250 mm length</text>
+        <text x="44" y="142">Ground collar (disc): <tspan class="lbl">Copper or stainless, 1–2 mm</tspan> — Ø 80–120 mm</text>
+        <text x="44" y="166">Tip: <tspan class="lbl">Hardened 316L or carbide spike</tspan> — M6/M8 thread</text>
+        <text x="44" y="190">Seals: <tspan class="lbl">IP68 cable gland + urethane/epoxy potting</tspan></text>
+        <text x="44" y="214">EM hygiene: <tspan class="lbl">Ferrite choke(s)</tspan> on coax above collar; single shield bond</text>
+      </g>
+
+      <!-- RIGHT: drawing board -->
+      <rect x="470" y="0" width="706" height="580" rx="14" class="box"/>
+
+      <!-- Depth scale on the right side -->
+      <g transform="translate(1120,40)">
+        <line x1="0" y1="0" x2="0" y2="500" class="wire"/>
+        <!-- ticks every 100 mm -->
+        <g class="muted t">
+          <line x1="0" y1="0"   x2="-12" y2="0"   class="wire"/><text x="-16" y="4" text-anchor="end">0 cm</text>
+          <line x1="0" y1="100" x2="-12" y2="100" class="wire"/><text x="-16" y="104" text-anchor="end">10</text>
+          <line x1="0" y1="200" x2="-12" y2="200" class="wire"/><text x="-16" y="204" text-anchor="end">20</text>
+          <line x1="0" y1="300" x2="-12" y2="300" class="wire"/><text x="-16" y="304" text-anchor="end">30</text>
+          <line x1="0" y1="400" x2="-12" y2="400" class="wire"/><text x="-16" y="404" text-anchor="end">40</text>
+          <line x1="0" y1="500" x2="-12" y2="500" class="wire"/><text x="-16" y="504" text-anchor="end">50</text>
+        </g>
+        <text x="-16" y="-10" class="sml muted" text-anchor="end">Depth (cm from collar)</text>
+      </g>
+
+      <!-- PROBE body -->
+      <!-- shaft -->
+      <rect x="780" y="60" width="52" height="470" rx="10" fill="url(#glass)" stroke="#c3ceda"/>
+      <!-- center conductor rod -->
+      <rect x="804" y="60" width="6" height="420" fill="url(#steel)"/>
+      <!-- ground collar disc -->
+      <ellipse cx="806" cy="60" rx="75" ry="12" fill="#f1c27d" stroke="#a46e22"/>
+      <text x="710" y="40" class="t">Ground collar (disc) — Ø 80–120 mm, 1–2 mm thick</text>
+
+      <!-- outer sleeve (continuous) -->
+      <rect x="784" y="120" width="44" height="200" fill="#b87333" opacity="0.8" stroke="#8a531f"/>
+      <text x="600" y="210" class="t">Continuous stainless / copper sleeve (150–250 mm)</text>
+
+      <!-- tip: threaded spike -->
+      <polygon points="806,530 828,560 784,560" fill="url(#steel)" stroke="#7e8791"/>
+      <rect x="802" y="480" width="8" height="50" fill="#9aa6b2" stroke="#7e8791"/>
+      <text x="610" y="545" class="t">Threaded replaceable tip (M6/M8), hardened 316L or carbide</text>
+
+      <!-- electronics pod + gland -->
+      <rect x="750" y="-20" width="112" height="58" rx="8" class="box"/>
+      <rect x="792" y="-40" width="28" height="20" rx="4" class="chip"/>
+      <text x="806" y="4" class="sml muted" text-anchor="middle">IP68 gland</text>
+      <text x="806" y="24" class="sml muted" text-anchor="middle">Electronics pod</text>
+
+      <!-- ferrite choke callout -->
+      <line x1="820" y1="-10" x2="900" y2="-40" class="call"/>
+      <rect x="900" y="-72" width="170" height="58" rx="10" class="ok"/>
+      <text x="910" y="-50" class="h3">Ferrite choke(s)</text>
+      <text x="910" y="-30" class="t">Clamp-on cores to suppress common-mode current</text>
+
+      <!-- key dimensions -->
+      <!-- collar offset D -->
+      <line x1="860" y1="60" x2="900" y2="60" class="dim"/>
+      <line x1="860" y1="120" x2="900" y2="120" class="dim"/>
+      <text x="905" y="93" class="sml muted">D: 60 mm (collar → sleeve start)</text>
+      <!-- sleeve length B -->
+      <line x1="760" y1="120" x2="760" y2="320" class="dim"/>
+      <text x="734" y="225" class="sml muted" transform="rotate(-90 734 225)">B: 200 mm sleeve length</text>
+      <!-- tip exposure C -->
+      <line x1="760" y1="480" x2="760" y2="560" class="dim"/>
+      <text x="734" y="520" class="sml muted" transform="rotate(-90 734 520)">C: 100 mm tip exposure</text>
+      <!-- shaft OD -->
+      <line x1="780" y1="350" x2="832" y2="350" class="dim"/>
+      <text x="806" y="345" class="sml muted" text-anchor="middle">Shaft OD ≈ 25 mm</text>
+
+      <!-- part labels with colored dots -->
+      <circle cx="770" cy="210" r="5" fill="var(--accent2)"/>
+      <text x="650" y="192" class="sml" fill="var(--accent2)">Outer return sleeve (bond to collar & shield)</text>
+
+      <circle cx="806" cy="275" r="5" fill="var(--accent3)"/>
+      <text x="835" y="280" class="sml" fill="var(--accent3)">Center conductor (316L rod)</text>
+
+      <circle cx="880" cy="60" r="5" fill="var(--accent)"/>
+      <text x="888" y="64" class="sml" fill="var(--accent)">Ground collar (disc)</text>
+    </g>
+
+    <!-- SECOND ROW: Notes + Assembly -->
+    <g transform="translate(0,720)">
+      <!-- function notes -->
+      <rect x="24" y="0" width="570" height="420" rx="14" class="box"/>
+      <text x="44" y="38" class="h3">How the return path works (coaxial, local)</text>
+      <g class="t">
+        <text x="44" y="70">• The soil around the tip becomes part of a **coax-like circuit**.</text>
+        <text x="44" y="94">• Launched field flows from the **center rod** into soil; return currents are captured by the **sleeve** and **collar**.</text>
+        <text x="44" y="118">• The **collar creates a low-impedance equipotential** so currents close locally under the disc (not up the cable).</text>
+        <text x="44" y="142">• Add **ferrite choke(s)** above the collar to kill any common-mode current that escapes the sleeve.</text>
+        <text x="44" y="184" class="h3">Typical dimensions (guidance)</text>
+        <text x="44" y="210">Collar Ø = <tspan class="lbl">3–5× shaft OD</tspan> (e.g., 100 mm for 25 mm shaft)</text>
+        <text x="44" y="234">Sleeve length = <tspan class="lbl">150–250 mm</tspan></text>
+        <text x="44" y="258">Collar offset above sleeve = <tspan class="lbl">50–80 mm</tspan></text>
+        <text x="44" y="282">Tip exposure = <tspan class="lbl">80–120 mm</tspan></text>
+        <text x="44" y="324" class="h3">Field checks</text>
+        <text x="44" y="350">• Sniffer test: probe-in-soil should be &gt;20 dB quieter above collar vs in-air.</text>
+        <text x="44" y="374">• Clamp test: CM current above collar ~ noise floor with the ferrites in place.</text>
+      </g>
+
+      <!-- assembly steps -->
+      <rect x="606" y="0" width="570" height="420" rx="14" class="box"/>
+      <text x="626" y="38" class="h3">Assembly (mechanical only)</text>
+      <g class="t">
+        <text x="626" y="70">1) Machine **replaceable tip** (M6/M8) and **center rod**; fit PTFE bushing in tube.</text>
+        <text x="626" y="94">2) Bond **outer sleeve** (stainless/copper) to lower shaft (150–250 mm). Seal edges.</text>
+        <text x="626" y="118">3) Mount **ground collar disc** 50–80 mm above sleeve; **bond** to sleeve & shield.</text>
+        <text x="626" y="142">4) Route coax through **IP68 gland** into pod; add **ferrite choke(s)** above collar.</text>
+        <text x="626" y="166">5) Pot electronics; single shield bond point. Verify continuity (rod↔disc isolated).</text>
+        <text x="626" y="190">6) Add **flush slots** near sleeve for rinsing peat; add **cross-hole** at top for insertion bar.</text>
+        <text x="626" y="214">7) Install **tip thermistor** if used (temp compensation).</text>
+      </g>
+
+      <!-- small legend -->
+      <rect x="24" y="450" width="1152" height="150" rx="14" class="box"/>
+      <text x="44" y="484" class="h3">Legend & Notes</text>
+      <text x="44" y="512" class="t"><tspan fill="#00a884">●</tspan> Center conductor &nbsp; <tspan fill="#0ea5e9">●</tspan> Outer return sleeve &nbsp; <tspan fill="#2f6fed">●</tspan> Ground collar</text>
+      <text x="44" y="540" class="t">All wetted parts are **metal** (316L or copper) or **gel-coated fiberglass**; no raw epoxy surfaces left exposed to the bog.</text>
+      <text x="44" y="564" class="t">Dimensions shown are typical for a 25 mm shaft; scale up/down proportionally.</text>
+    </g>
+  </svg>
+</div>
+</body>
+</html>

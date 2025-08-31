@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIY Soil Probe: The Hardware Store Prototype Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .info-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        .icon-bg {
+            background-color: #f3f4f6;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-slate-900">DIY Soil Probe: The Hardware Store Prototype Guide</h1>
+            <p class="mt-2 text-lg text-amber-600 font-semibold">Building a Low-Cost, Field-Testable Sensor</p>
+        </header>
+
+        <main class="flex flex-col gap-10">
+
+            <!-- 1. The Shopping List -->
+            <section class="info-card">
+                <h2 class="text-2xl font-bold text-slate-900 mb-6">1. Your "Rev 1" Shopping List (Total: ~$50)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Electrical -->
+                    <div class="flex items-start gap-4">
+                        <div class="icon-bg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold">Electrical Aisle</h3>
+                            <ul class="list-disc list-inside mt-2 text-sm text-slate-700">
+                                <li>RG-58 or RG-6 Coax Cable</li>
+                                <li>Braided Ground Strap</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <!-- Plumbing -->
+                    <div class="flex items-start gap-4">
+                        <div class="icon-bg">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold">Plumbing Aisle</h3>
+                            <ul class="list-disc list-inside mt-2 text-sm text-slate-700">
+                                <li>1/2" Copper Pipe (~2 ft)</li>
+                                <li>1/2" Copper End Cap</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <!-- Fasteners -->
+                    <div class="flex items-start gap-4">
+                        <div class="icon-bg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l-4 4-4-4-4 4" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold">Fastener Aisle</h3>
+                            <ul class="list-disc list-inside mt-2 text-sm text-slate-700">
+                                <li>1/4"-20 Stainless Threaded Rod</li>
+                                <li>1/4"-20 Stainless Nuts/Washers</li>
+                                <li>1/4"-20 Stainless Coupling Nuts</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Component Breakdown & Assembly -->
+            <section class="info-card">
+                <h2 class="text-2xl font-bold text-slate-900 mb-6">2. Component Breakdown & Assembly</h2>
+                <div class="grid md:grid-cols-2 gap-8 items-start">
+                    <div>
+                        <h3 class="font-bold mb-4 text-center">Exploded Assembly View</h3>
+                        <svg viewBox="0 0 200 400" class="w-full h-auto max-w-xs mx-auto">
+                           <!-- Electronics Box -->
+                           <rect x="70" y="10" width="60" height="40" fill="#f3f4f6" stroke="#9ca3af" rx="4"/>
+                           <text x="100" y="35" text-anchor="middle" font-size="8">Electronics Pod</text>
+                           <line x1="100" y1="50" x2="100" y2="70" stroke-dasharray="2 2" stroke="#6b7280"/>
+
+                           <!-- Ground Plane -->
+                           <ellipse cx="100" cy="80" rx="50" ry="10" fill="#fcd34d" stroke="#f59e0b"/>
+                           <text x="100" y="83" text-anchor="middle" font-size="8">Copper End Cap</text>
+                           <line x1="100" y1="90" x2="100" y2="110" stroke-dasharray="2 2" stroke="#6b7280"/>
+
+                           <!-- Outer Sleeve -->
+                           <rect x="80" y="120" width="40" height="150" fill="none" stroke="#e5e7eb"/>
+                           <rect x="80" y="120" width="40" height="150" fill="url(#braid)" opacity="0.4"/>
+                           <rect x="80" y="120" width="40" height="150" fill="none" stroke="#d1d5db" stroke-width="2"/>
+                           <text x="100" y="195" text-anchor="middle" font-size="8">Copper Pipe or</text>
+                           <text x="100" y="205" text-anchor="middle" font-size="8">Coax Braid</text>
+                           <line x1="100" y1="270" x2="100" y2="290" stroke-dasharray="2 2" stroke="#6b7280"/>
+
+                           <!-- Center Rod -->
+                           <rect x="98" y="80" width="4" height="250" fill="#9ca3af" />
+                           <text x="70" y="150" font-size="8">1/4" Stainless Rod</text>
+                           
+                           <!-- Centering Rings -->
+                           <rect x="90" y="150" width="20" height="5" fill="#3b82f6" rx="1"/>
+                           <rect x="90" y="220" width="20" height="5" fill="#3b82f6" rx="1"/>
+                           <text x="140" y="185" font-size="8">Centering Rings</text>
+                           <path d="M112 152 L 135 180" stroke="#3b82f6"/>
+                           <path d="M112 222 L 135 190" stroke="#3b82f6"/>
+
+                           <!-- Tip Assembly -->
+                           <rect x="95" y="300" width="10" height="15" fill="#9ca3af" rx="1"/>
+                           <polygon points="95,315 100,330 105,315" fill="#6b7280"/>
+                           <text x="100" y="350" text-anchor="middle" font-size="8">Replaceable Tip</text>
+                           <line x1="100" y1="330" x2="100" y2="340" stroke-dasharray="2 2" stroke="#6b7280"/>
+                           <defs><pattern id="braid" patternUnits="userSpaceOnUse" width="4" height="4"><path d="M0 0L4 4ZM4 0L0 4Z" stroke="#f59e0b" stroke-width="0.5"/></pattern></defs>
+                        </svg>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="font-bold">A. The Center Rod (Stainless Steel)</h3>
+                            <p class="text-sm mt-1">This is your signal conductor. Must be stainless steel to prevent rust. Good options are threaded rods, the shaft of a long carriage bolt, or a welding rod.</p>
+                        </div>
+                         <div>
+                            <h3 class="font-bold">B. The Outer Shield</h3>
+                            <p class="text-sm mt-1">This is your ground return. A 1/2" copper pipe is rigid and easy to work with. Alternatively, you can strip the braided shield from a cheap RG-6 coax cable.</p>
+                        </div>
+                        <div>
+                            <h3 class="font-bold">C. Assembly Hack: Centering the Rod</h3>
+                             <p class="text-sm mt-1">The rod must be perfectly centered. You can 3D print small centering rings, or simply wrap the rod every few inches with electrical tape until it fits snugly inside the outer shield.</p>
+                        </div>
+                        <div>
+                            <h3 class="font-bold">D. The Replaceable Tip</h3>
+                            <p class="text-sm mt-1">For a durable, replaceable tip, JB Weld a stainless coupling nut to the bottom of your main rod. This allows you to thread in different tips, like a hardened bolt ground to a point.</p>
+                             <svg viewBox="0 0 150 100" class="w-full h-auto mt-2 border rounded-lg p-2">
+                                <rect x="63" y="10" width="14" height="50" fill="#9ca3af"/>
+                                <text x="70" y="20" font-size="8" transform="rotate(-90 70 20)">Main Rod</text>
+                                <rect x="58" y="60" width="24" height="18" fill="#6b7280" rx="2"/>
+                                <text x="88" y="70" font-size="8">Coupling Nut</text>
+                                <text x="88" y="80" font-size="8">(JB Weld)</text>
+                                <polygon points="60,78 70,95 80,78" fill="#475569"/>
+                                <path d="M 60 78 L 80 78" stroke="#9ca3af"/>
+                                <text x="100" y="90" font-size="8">Pointed Bolt</text>
+                             </svg>
+                        </div>
+                        <div class="p-4 rounded-lg border-2 border-red-500 bg-red-50">
+                            <h3 class="font-bold text-red-700">E. CRITICAL CONNECTION: Shield to Ground Plane</h3>
+                            <p class="text-sm mt-1 text-red-900">This is the most important electrical joint. The outer shield (copper pipe or braid) MUST have a solid, low-resistance connection to the ground plane (copper end cap).</p>
+                             <svg viewBox="0 0 150 100" class="w-full h-auto mt-2 border rounded-lg p-2 bg-white">
+                                <!-- Pipe/Shield -->
+                                <rect x="50" y="40" width="50" height="60" fill="url(#braid)" opacity="0.4" stroke="#f59e0b"/>
+                                <text x="75" y="90" text-anchor="middle" font-size="8">Shield/Pipe</text>
+                                <!-- End Cap -->
+                                <path d="M40 40 C 40 30, 110 30, 110 40 L 110 45 C 110 35, 40 35, 40 45 Z" fill="#fcd34d" stroke="#f59e0b"/>
+                                <text x="75" y="25" text-anchor="middle" font-size="8">Copper End Cap</text>
+                                <!-- Solder Joint -->
+                                <path d="M48 40 C 60 35, 90 35, 102 40" stroke="#b91c1c" stroke-width="2" fill="none"/>
+                                <text x="120" y="35" font-size="8" fill="#b91c1c">Solder/Conductive Epoxy</text>
+                             </svg>
+                            <ol class="list-decimal list-inside text-sm mt-2 text-red-900">
+                                <li>Flare the end of the braid slightly.</li>
+                                <li>Place the copper end cap firmly over the flared braid.</li>
+                                <li>Apply flux and solder the cap directly to the braid/pipe for a permanent electrical and mechanical bond.</li>
+                                <li>Clean the joint and seal with heat shrink tubing.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 3. Testing Your Prototype -->
+            <section class="info-card">
+                 <h2 class="text-2xl font-bold text-slate-900 mb-4">3. Quick Bench Test Procedure</h2>
+                 <p class="text-sm mb-4">Before going to the field, verify your TDR electronics are working with these simple tests. You should see a clear and distinct change in the reflection time or amplitude for each step.</p>
+                 <div class="grid grid-cols-2 md-grid-cols-4 gap-6 text-center">
+                    <div class="p-4 bg-slate-50 rounded-lg">
+                        <h3 class="font-bold">1. Dry Sand</h3>
+                        <svg viewBox="0 0 100 100" class="w-24 h-24 mx-auto mt-2"><path d="M0 50 C 20 20, 80 20, 100 50 V 100 H 0 Z" fill="#fde68a"/><rect x="45" y="10" width="10" height="60" fill="#95a5a6"/><ellipse cx="50" cy="10" rx="30" ry="8" fill="#d1d5db"/></svg>
+                        <p class="text-xs mt-2 text-slate-600">Gives a baseline reading. Expect a small, fast reflection.</p>
+                    </div>
+                     <div class="p-4 bg-slate-50 rounded-lg">
+                        <h3 class="font-bold">2. Wet Sand</h3>
+                        <svg viewBox="0 0 100 100" class="w-24 h-24 mx-auto mt-2"><path d="M0 50 C 20 20, 80 20, 100 50 V 100 H 0 Z" fill="#eab308"/><rect x="45" y="10" width="10" height="60" fill="#95a5a6"/><ellipse cx="50" cy="10" rx="30" ry="8" fill="#d1d5db"/></svg>
+                        <p class="text-xs mt-2 text-slate-600">Confirms water sensitivity. Expect a larger, significantly delayed reflection.</p>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-lg">
+                        <h3 class="font-bold">3. Potting Soil</h3>
+                        <svg viewBox="0 0 100 100" class="w-24 h-24 mx-auto mt-2"><path d="M0 50 C 20 20, 80 20, 100 50 V 100 H 0 Z" fill="#78350f"/><rect x="45" y="10" width="10" height="60" fill="#95a5a6"/><ellipse cx="50" cy="10" rx="30" ry="8" fill="#d1d5db"/></svg>
+                        <p class="text-xs mt-2 text-slate-600">Expect multiple small reflections as the wave hits inhomogeneous roots/clumps.</p>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-lg">
+                        <h3 class="font-bold">4. Water</h3>
+                        <svg viewBox="0 0 100 100" class="w-24 h-24 mx-auto mt-2"><path d="M0 50 C 20 20, 80 20, 100 50 V 100 H 0 Z" fill="#e0f2fe"/><rect x="45" y="10" width="10" height="60" fill="#95a5a6"/><ellipse cx="50" cy="10" rx="30" ry="8" fill="#d1d5db"/></svg>
+                        <p class="text-xs mt-2 text-slate-600">Highest permittivity. Expect a very large reflection right at the probe's surface.</p>
+                    </div>
+                 </div>
+            </section>
+
+        </main>
+        <footer class="text-center mt-12 text-xs text-slate-500">
+            <p>This guide provides a low-cost pathway to building a functional TDR soil probe prototype for testing and validation.</p>
+        </footer>
+    </div>
+</body>
+</html>
+

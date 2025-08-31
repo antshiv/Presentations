@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High-Performance RF Soil Impedance Sensor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- SVG Definitions (for reuse across all inline SVGs) -->
+    <svg style="position: absolute; width: 0; height: 0; overflow: hidden;">
+        <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+            </marker>
+            <pattern id="epoxy" patternUnits="userSpaceOnUse" width="10" height="10">
+              <path d="M-1,1 l2,-2 M0,10 l10,-10 M9,11 l2,-2" stroke="#94a3b8" stroke-width="0.5"/>
+            </pattern>
+        </defs>
+    </svg>
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-slate-900">Building a High-Performance RF Soil Impedance Sensor</h1>
+            <p class="mt-2 text-lg text-slate-600">An infographic detailing construction, operation, and the knowledge required.</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column -->
+            <div class="flex flex-col gap-8">
+                
+                <!-- 1. Principle of Operation -->
+                <section class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-4">1. Principle of Operation</h2>
+                    <p class="mb-4 text-slate-700">The sensor operates like a simple 1-port Vector Network Analyzer (VNA). It measures the impedance of the soil by analyzing how an RF signal reflects off it.</p>
+                    <div class="w-full">
+                        <svg viewBox="0 0 320 150" class="w-full h-auto">
+                            <g class="font-sans">
+                                <text x="0" y="10" font-size="12" font-weight="500" fill="#475569">Si5351</text>
+                                <text x="0" y="25" font-size="10" fill="#64748b">RF Source</text>
+                                <rect x="0" y="30" width="60" height="40" rx="4" fill="#e0f2fe" stroke="#0ea5e9"/>
+                                <text x="30" y="55" text-anchor="middle" font-family="monospace" font-size="13" fill="#1e293b">CLK0</text>
+                                
+                                <path d="M 60 50 H 120" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="90" y="40" text-anchor="middle" font-size="12" font-weight="500" fill="#475569">Forward Wave</text>
+                                
+                                <text x="125" y="10" font-size="12" font-weight="500" fill="#475569">Directional</text>
+                                <text x="125" y="25" font-size="10" fill="#64748b">Bridge</text>
+                                <rect x="125" y="30" width="70" height="40" rx="4" fill="#e0f2fe" stroke="#0ea5e9"/>
+                                
+                                <path d="M 195 50 H 240" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="217" y="40" text-anchor="middle" font-size="12" font-weight="500" fill="#475569">To Probe</text>
+                                
+                                <rect x="240" y="30" width="60" height="40" rx="4" fill="#f1f5f9" stroke="#94a3b8"/>
+                                <text x="270" y="55" text-anchor="middle" font-size="12" font-weight="500" fill="#475569">Soil</text>
+                                
+                                <path d="M 240 50 H 195" stroke="#fb923c" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="217" y="70" text-anchor="middle" font-size="12" font-weight="500" fill="#fb923c">Reflected Wave</text>
+                                
+                                <path d="M 160 70 V 100" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="165" y="115" font-size="12" font-weight="500" fill="#475569">Forward Power</text>
+                                <text x="165" y="130" font-size="11" fill="#475569">(to AD8318 #1)</text>
+                            </g>
+                        </svg>
+                    </div>
+                    <p class="mt-4 text-slate-700">The ratio of reflected to forward power (S11 parameter) reveals impedance. This impedance changes predictably with soil moisture, salinity, and texture.</p>
+                </section>
+                
+                <!-- 3. Bill of Materials -->
+                <section class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-4">3. Bill of Materials (BOM)</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-700 uppercase bg-slate-100">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3">Component</th>
+                                    <th scope="col" class="px-4 py-3 text-center">Qty</th>
+                                    <th scope="col" class="px-4 py-3 text-right">Est. Cost (USD)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="bg-white border-b">
+                                    <td class="px-4 py-3 font-medium">AD8318 Log Power Detector Module</td>
+                                    <td class="px-4 py-3 text-center">2</td>
+                                    <td class="px-4 py-3 text-right">$40.00</td>
+                                </tr>
+                                <tr class="bg-white border-b">
+                                    <td class="px-4 py-3 font-medium">Si5351A Clock Generator Module</td>
+                                    <td class="px-4 py-3 text-center">1</td>
+                                    <td class="px-4 py-3 text-right">$7.00</td>
+                                </tr>
+                                <tr class="bg-white border-b">
+                                    <td class="px-4 py-3 font-medium">Microcontroller with ADC (e.g., ESP32)</td>
+                                    <td class="px-4 py-3 text-center">1</td>
+                                    <td class="px-4 py-3 text-right">$9.00</td>
+                                </tr>
+                                <tr class="bg-white border-b">
+                                    <td class="px-4 py-3 font-medium">50Ω 1/4W RF Resistors (thick film)</td>
+                                    <td class="px-4 py-3 text-center">4</td>
+                                    <td class="px-4 py-3 text-right">$2.00</td>
+                                </tr>
+                                <tr class="bg-white border-b">
+                                    <td class="px-4 py-3 font-medium">Mechanical Parts (PVC, Copper Tape, Tip)</td>
+                                    <td class="px-4 py-3 text-center">1 Lot</td>
+                                    <td class="px-4 py-3 text-right">$10.00</td>
+                                </tr>
+                                <tr class="bg-white">
+                                    <td class="px-4 py-3 font-medium">Waterproofing (Epoxy, Cable Gland)</td>
+                                    <td class="px-4 py-3 text-center">1 Lot</td>
+                                    <td class="px-4 py-3 text-right">$8.00</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="font-semibold text-slate-800 bg-slate-100">
+                                    <td class="px-4 py-3 text-base">Total Estimated Cost</td>
+                                    <td class="px-4 py-3"></td>
+                                    <td class="px-4 py-3 text-right text-base">~$76.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </section>
+                
+                <!-- 4. Step-by-Step Assembly -->
+                <section class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-4">4. Step-by-Step Assembly Plan</h2>
+                    <ol class="list-decimal list-inside space-y-4 text-slate-700">
+                        <li><strong class="font-semibold text-slate-800">Construct Probe Body:</strong> Wind copper tape evenly (5mm spacing) on the outside of the PVC pipe to form the ground shield/conductor.</li>
+                        <li><strong class="font-semibold text-slate-800">Prepare Center Conductor:</strong> Attach the stainless steel tip to a solid center rod. This rod will be the primary signal path.</li>
+                        <li><strong class="font-semibold text-slate-800">Assemble Electronics:</strong> Build the directional bridge and detector circuit on a protoboard or custom PCB. Keep signal paths short and use a ground plane.</li>
+                        <li><strong class="font-semibold text-slate-800">Final Assembly:</strong> Insert the center rod into the PVC pipe, ensuring it's centered. Connect the electronics to the probe (center rod &amp; copper spiral).</li>
+                        <li><strong class="font-semibold text-slate-800">Waterproofing:</strong> Pot the electronics section with epoxy. Install the cable gland for the signal cable to exit, creating a watertight seal.</li>
+                        <li><strong class="font-semibold text-slate-800">Connect &amp; Program:</strong> Connect the AD8318 outputs to your microcontroller's ADC pins. Program it to sweep frequencies and record power levels.</li>
+                    </ol>
+                </section>
+            </div>
+
+            <!-- Right Column -->
+            <div class="flex flex-col gap-8">
+                <!-- 2. Annotated Construction -->
+                <section class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-4 text-center">2. Annotated Construction Diagram</h2>
+                    <div class="relative w-full max-w-sm mx-auto">
+                        <svg viewBox="-100 -270 200 450" class="w-full h-auto">
+                            <!-- Main Body -->
+                            <path d="M -50 150 L -50 -150 L 50 -150 L 50 150 Z" fill="#f1f5f9" stroke="#94a3b8" />
+                            <path d="M -50 -150 L -70 -170 L 70 -170 L 50 -150 Z" fill="#e2e8f0" stroke="#94a3b8"/>
+                            <path d="M -70 -170 L -70 -200 L 70 -200 L 70 -170 Z" fill="#e2e8f0" stroke="#94a3b8"/>
+                            
+                            <!-- Copper Spiral -->
+                            <g stroke="#f97316" stroke-width="5" fill="none">
+                                <path d="M -50 -120 C -70 -110, -70 -90, -50 -80" />
+                                <path d="M -50 -80 C -30 -70, -30 -50, -50 -40" stroke-dasharray="82" stroke-dashoffset="41"/>
+                                <path d="M -50 -40 C -70 -30, -70 -10, -50 0" />
+                                <path d="M -50 0 C -30 10, -30 30, -50 40" stroke-dasharray="82" stroke-dashoffset="41"/>
+                                <path d="M -50 40 C -70 50, -70 70, -50 80" />
+                                <path d="M -50 80 C -30 90, -30 110, -50 120" stroke-dasharray="82" stroke-dashoffset="41"/>
+                            </g>
+                            
+                            <!-- Center Rod -->
+                            <rect x="-5" y="-150" width="10" height="290" fill="#cbd5e1" stroke="#94a3b8"/>
+                            
+                            <!-- Steel Tip -->
+                            <path d="M -15 140 L 0 170 L 15 140 Z" fill="#94a3b8" stroke="#475569"/>
+                            
+                            <!-- Electronics -->
+                            <rect x="-40" y="-140" width="80" height="80" rx="4" fill="#e0f2fe" stroke="#0ea5e9"/>
+                            <text x="0" y="-105" text-anchor="middle" font-size="12" fill="#475569">Circuitry</text>
+                            
+                            <!-- Potted Epoxy -->
+                            <rect x="-65" y="-160" width="130" height="110" fill="url(#epoxy)" opacity="0.3"/>
+                            
+                            <!-- Cable Gland -->
+                            <rect x="-25" y="-200" width="50" height="20" rx="2" fill="#64748b"/>
+                            <rect x="-15" y="-220" width="30" height="20" fill="#64748b"/>
+                            <path d="M 0 -220 V -250" stroke="#334155" stroke-width="6"/>
+                        </svg>
+                        
+                        <!-- Annotations using HTML for better responsiveness -->
+                        <div class="absolute top-0 left-0 w-full h-full text-xs text-slate-700 font-medium">
+                           <div class="absolute" style="top: 20%; right: 102%;">
+                               <p class="text-right">Cable Gland</p>
+                               <p class="text-right text-slate-500 text-[10px]">Watertight seal</p>
+                           </div>
+                           <div class="absolute" style="top: 35%; right: 102%;">
+                               <p class="text-right">Potted Electronics</p>
+                               <p class="text-right text-slate-500 text-[10px]">Protects circuit</p>
+                           </div>
+                           <div class="absolute" style="top: 60%; right: 102%;">
+                               <p class="text-right">Center Conductor</p>
+                               <p class="text-right text-slate-500 text-[10px]">Signal path</p>
+                           </div>
+                           <div class="absolute" style="top: 85%; right: 102%;">
+                               <p class="text-right">PVC Body</p>
+                           </div>
+                           <div class="absolute" style="top: 45%; left: 102%;">
+                               <p>External Spiral</p>
+                               <p class="text-slate-500 text-[10px]">Ground path</p>
+                           </div>
+                           <div class="absolute" style="top: 92%; left: 102%; width: 120px;">
+                               <p>Stainless Steel Tip</p>
+                               <p class="text-slate-500 text-[10px]">Durable point</p>
+                           </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- 5. Electrical Schematic -->
+                 <section class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+                    <h2 class="text-2xl font-bold text-slate-900 mb-4">5. Electrical Schematic</h2>
+                    <div class="w-full">
+                         <svg viewBox="-260 -160 550 200" class="w-full h-auto font-sans">
+                            <!-- Si5351 -->
+                            <g>
+                                <rect x="-240" y="-100" width="80" height="50" rx="4" fill="#e0f2fe" stroke="#0ea5e9"/>
+                                <text x="-200" y="-70" text-anchor="middle" font-family="monospace" font-size="13">Si5351</text>
+                                <line x1="-160" y1="-75" x2="-120" y2="-75" stroke="#334155" stroke-width="2"/>
+                                <text x="-190" y="-50" font-size="12" fill="#475569">CLK0 Out</text>
+                            </g>
+                            
+                            <!-- Directional Bridge -->
+                            <g font-family="monospace" font-size="13">
+                                <path d="M -120 -75 h 30 v -40 h 40" fill="none" stroke="#334155"/>
+                                <path d="M -50 -115 v -20 h -10" fill="none" stroke="#334155"/>
+                                <rect x="-65" y="-140" width="30" height="10" fill="white" stroke="black"/>
+                                <text x="-50" y="-148" text-anchor="middle" font-size="10">50Ω</text>
+                                <text x="-50" y="-95" text-anchor="middle">FWD</text>
+                                
+                                <path d="M -90 -75 v 40 h 40" fill="none" stroke="#334155"/>
+                                <path d="M -50 -35 v 20 h -10" fill="none" stroke="#334155"/>
+                                <rect x="-65" y="-10" width="30" height="10" fill="white" stroke="black"/>
+                                <text x="-50" y="-2" text-anchor="middle" font-size="10">50Ω</text>
+                                <text x="-50" y="-55" text-anchor="middle">GND</text>
+                                
+                                <path d="M -50 -75 h 80" fill="none" stroke="#334155"/>
+                                <path d="M 30 -75 v -40 h 40" fill="none" stroke="#334155"/>
+                                <path d="M 70 -115 v -20 h -10" fill="none" stroke="#334155"/>
+                                <rect x="55" y="-140" width="30" height="10" fill="white" stroke="black"/>
+                                <text x="70" y="-148" text-anchor="middle" font-size="10">50Ω</text>
+                                <text x="70" y="-95" text-anchor="middle">REV</text>
+                                
+                                <path d="M 30 -75 v 40 h 40" fill="none" stroke="#334155"/>
+                                <path d="M 70 -35 v 20 h -10" fill="none" stroke="#334155"/>
+                                <rect x="55" y="-10" width="30" height="10" fill="white" stroke="black"/>
+                                <text x="70" y="-2" text-anchor="middle" font-size="10">50Ω</text>
+                                <text x="70" y="-55" text-anchor="middle">GND</text>
+                            </g>
+                            
+                            <!-- Connections to Detectors -->
+                            <g>
+                                <path d="M -50 -115 h 170" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+                                <rect x="120" y="-135" width="120" height="40" rx="4" fill="#e0f2fe" stroke="#0ea5e9"/>
+                                <text x="180" y="-110" text-anchor="middle" font-size="12">AD8318 #1 (Fwd)</text>
+                                <path d="M 240 -115 h 20" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="265" y="-110" font-size="12">to ADC1</text>
+                                
+                                <path d="M 70 -115 h 50" stroke="#fb923c" stroke-width="2" marker-end="url(#arrow)"/>
+                                <rect x="120" y="-85" width="120" height="40" rx="4" fill="#e0f2fe" stroke="#0ea5e9"/>
+                                <text x="180" y="-60" text-anchor="middle" font-size="12">AD8318 #2 (Rev)</text>
+                                <path d="M 240 -65 h 20" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="265" y="-60" font-size="12">to ADC2</text>
+                            </g>
+                            
+                            <!-- To Probe -->
+                            <g font-size="12" fill="#475569">
+                                <path d="M 30 -75 H 120" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="125" y="-70" >To Probe Center Conductor</text>
+                                
+                                <path d="M 10 -15 h 110" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+                                <text x="125" y="-10">To Probe Ground Spiral</text>
+                            </g>
+                        </svg>
+                    </div>
+                 </section>
+            </div>
+        </main>
+
+        <!-- 6. Knowledge Gaps -->
+        <section class="mt-8 bg-white p-6 rounded-lg shadow-md border border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-900 mb-2 text-center">6. Bridging Your Knowledge Gaps</h2>
+            <p class="text-center text-slate-600 mb-6">To truly understand this sensor, you need to master concepts beyond basic electronics.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Bogatin's Work -->
+                <div class="bg-slate-50 p-4 rounded-lg border">
+                    <h3 class="font-bold text-lg text-sky-700 mb-2">Study Eric Bogatin's Work</h3>
+                    <p class="text-sm text-slate-700 mb-3">His work is essential for understanding how high-frequency signals behave. Focus on:</p>
+                    <ul class="list-disc list-inside space-y-2 text-sm text-slate-800">
+                        <li><strong class="font-semibold">Transmission Lines:</strong> Your probe is a coaxial transmission line. Learn how its geometry creates a characteristic impedance (Z₀).</li>
+                        <li><strong class="font-semibold">Impedance Matching:</strong> Understand why signals reflect when the load impedance (soil) does not match the system impedance (50Ω).</li>
+                        <li><strong class="font-semibold">S-Parameters (S11):</strong> This is exactly what you are measuring! S11, or Return Loss, quantifies the reflection.</li>
+                    </ul>
+                </div>
+                <!-- Major Gaps -->
+                <div class="bg-slate-50 p-4 rounded-lg border">
+                    <h3 class="font-bold text-lg text-sky-700 mb-2">Major Gaps to Fill</h3>
+                    <p class="text-sm text-slate-700 mb-3">Mastering this project requires knowledge in:</p>
+                    <ul class="list-disc list-inside space-y-2 text-sm text-slate-800">
+                        <li><strong class="font-semibold">RF Circuit Design:</strong> Learn about parasitic capacitance/inductance and layout considerations for high frequencies.</li>
+                        <li><strong class="font-semibold">Vector Network Analysis:</strong> Your sensor is a DIY VNA. Study how professional VNAs work and, crucially, how they are calibrated.</li>
+                        <li><strong class="font-semibold">Electromagnetic Fields:</strong> Understand how the probe's fringing electric field interacts with the soil dielectric.</li>
+                        <li><strong class="font-semibold">Calibration Methods:</strong> Implement a calibration routine (Open, Short, Load) to remove systematic errors for accurate results.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center mt-10 text-xs text-slate-500">
+            <p>This design synthesizes the provided feedback into a cohesive and improved sensor. The dual AD8318 approach is research-grade but complex.</p>
+            <p>For a simpler start, the voltage divider approach can provide basic, useful data.</p>
+        </footer>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,237 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 2500">
+  <defs>
+    <style>
+      .h1{font:700 36px/1.2 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+      .h2{font:600 26px/1.2 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+      .h3{font:600 20px/1.2 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+      .t{font:400 16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+      .mono{font:500 14px/1.4 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+      .box{fill:#fff;stroke:#d4d7dd;stroke-width:2;rx:12}
+      .chip{fill:#0e3a5d;stroke:#0b2c46;stroke-width:1.5;rx:8}
+      .chiptext{fill:#fff;font:600 15px/1.2 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+      .tag{fill:#eef5ff;stroke:#c9defa;stroke-width:1;rx:6}
+      .ok{fill:#e8fff0;stroke:#b9f0c9}
+      .warn{fill:#fff7e8;stroke:#ffe1a6}
+      .bad{fill:#fff0f0;stroke:#f4b6b6}
+      .bar{fill:#eef2f7}
+      .accent{fill:#2f6fed}
+      .accent2{fill:#00a884}
+      .accent3{fill:#e46e2e}
+      .wire{stroke:#6b7280;stroke-width:2}
+      .wire2{stroke:#2f6fed;stroke-width:2.5}
+      .wire3{stroke:#00a884;stroke-width:2.5}
+      .dash{stroke-dasharray:6 6}
+      .cap{stroke-linecap:round}
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280"/>
+    </marker>
+    <marker id="arrowB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2f6fed"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <rect x="40" y="30" width="1320" height="120" class="box"/>
+  <text x="70" y="90" class="h1">Bog Javelin — Electromagnetic Soil Observatory</text>
+  <text x="70" y="125" class="t">One probe, multi-band sensing: kHz (salinity), 50–500 MHz (moisture & shallow structure), 2.4 GHz (surface moisture).
+    Controller: nRF5340 • Tone source: Si5351 or AD9833 • Detectors: AD8318 • Optional VNA for S11 sweeps.</text>
+
+  <!-- Left column: Probe & Mechanics -->
+  <rect x="40" y="180" width="640" height="520" class="box"/>
+  <text x="60" y="220" class="h2">A) Probe & Mechanics</text>
+
+  <!-- Javelin drawing -->
+  <g transform="translate(60,245)">
+    <!-- Shaft -->
+    <rect x="260" y="0" width="20" height="430" fill="#e6eef6" stroke="#c3ceda" rx="10"/>
+    <!-- Stainless tip -->
+    <path d="M270,430 L290,510 L260,510 Z" fill="#9aa6b2" stroke="#7d8793"/>
+    <!-- Parallel electrodes -->
+    <rect x="240" y="330" width="8" height="110" fill="#8a8f95"/>
+    <rect x="292" y="330" width="8" height="110" fill="#8a8f95"/>
+    <text x="180" y="325" class="t">Parallel stainless electrodes (10–20 mm spacing, 80–120 mm long)</text>
+    <!-- Ground collar -->
+    <rect x="236" y="300" width="72" height="22" fill="#b97725" stroke="#8c5a1d" rx="5"/>
+    <text x="75" y="316" class="t">Grounded copper “skirt” collar (ties to shield; pushes fields downward)</text>
+    <!-- Weather box -->
+    <rect x="10" y="40" width="180" height="110" class="box"/>
+    <text x="20" y="65" class="h3">Weatherproof box</text>
+    <text x="20" y="90" class="t">• nRF5340 (control/ADC/BLE)</text>
+    <text x="20" y="110" class="t">• Si5351 / AD9833 (LF tone)</text>
+    <text x="20" y="130" class="t">• 2× AD8318 (RF power)</text>
+    <!-- Field rings -->
+    <circle cx="270" cy="470" r="50" fill="none" stroke="#9fd1ff" class="dash"/>
+    <circle cx="270" cy="470" r="90" fill="none" stroke="#9fd1ff" class="dash"/>
+    <circle cx="270" cy="470" r="130" fill="none" stroke="#9fd1ff" class="dash"/>
+  </g>
+
+  <!-- labels -->
+  <text x="90" y="650" class="t">Materials: fiberglass/PVC shaft, 316L stainless rods & tip, copper collar, RG316 coax. 
+  Double O-ring seals; potting at tip; drain holes for cleaning.</text>
+
+  <!-- Middle column: Electronics -->
+  <rect x="40" y="720" width="1320" height="460" class="box"/>
+  <text x="60" y="760" class="h2">B) Electronics & Signal Paths</text>
+
+  <!-- Blocks -->
+  <!-- nRF5340 -->
+  <rect x="70" y="795" width="130" height="70" class="chip"/>
+  <text x="85" y="838" class="chiptext">nRF5340</text>
+  <text x="75" y="870" class="t">ADC • BLE • timers</text>
+
+  <!-- Si5351 -->
+  <rect x="250" y="785" width="130" height="60" class="chip"/>
+  <text x="270" y="820" class="chiptext">Si5351</text>
+  <text x="255" y="845" class="t">kHz–100+ MHz tone</text>
+
+  <!-- AD9833 alt -->
+  <rect x="250" y="855" width="130" height="50" class="tag"/>
+  <text x="260" y="885" class="t">Alt: AD9833 (≤12.5 MHz DDS)</text>
+
+  <!-- Directional coupler -->
+  <rect x="440" y="795" width="170" height="70" class="box"/>
+  <text x="450" y="820" class="h3">Directional coupler</text>
+  <text x="450" y="845" class="t">Splits FWD/REFL</text>
+
+  <!-- Probe load -->
+  <rect x="660" y="795" width="130" height="70" class="box"/>
+  <text x="680" y="820" class="h3">Probe</text>
+  <text x="670" y="845" class="t">soil interface</text>
+
+  <!-- AD8318 forward -->
+  <rect x="440" y="905" width="140" height="60" class="chip"/>
+  <text x="455" y="940" class="chiptext">AD8318 (FWD)</text>
+  <!-- AD8318 refl -->
+  <rect x="610" y="905" width="140" height="60" class="chip"/>
+  <text x="625" y="940" class="chiptext">AD8318 (REFL)</text>
+  <!-- Instrumentation amp LF -->
+  <rect x="910" y="795" width="180" height="70" class="chip"/>
+  <text x="925" y="830" class="chiptext">INA826 (LF I/V)</text>
+  <text x="920" y="855" class="t">measures Vshunt & Vprobe</text>
+  <!-- Shunt -->
+  <rect x="840" y="810" width="40" height="40" class="box"/>
+  <text x="845" y="835" class="t">Shunt</text>
+
+  <!-- Optional VNA -->
+  <rect x="1120" y="795" width="200" height="70" class="tag"/>
+  <text x="1130" y="820" class="h3">Optional: LiteVNA</text>
+  <text x="1130" y="845" class="t">50–500 MHz S11 sweep</text>
+
+  <!-- Wires -->
+  <line x1="380" y1="815" x2="440" y2="830" class="wire2" marker-end="url(#arrowB)"/>
+  <text x="330" y="807" class="mono">TX</text>
+  <line x1="610" y1="830" x2="660" y2="830" class="wire" marker-end="url(#arrow)"/>
+  <text x="620" y="820" class="mono">to Probe</text>
+  <line x1="525" y1="870" x2="510" y2="905" class="wire" marker-end="url(#arrow)"/>
+  <text x="468" y="900" class="mono">FWD</text>
+  <line x1="595" y1="870" x2="670" y2="905" class="wire" marker-end="url(#arrow)"/>
+  <text x="640" y="900" class="mono">REFL</text>
+
+  <line x1="980" y1="830" x2="1120" y2="830" class="wire dash" marker-end="url(#arrow)"/>
+  <text x="990" y="815" class="mono">Alt path: VNA S11</text>
+
+  <!-- LF path arrows -->
+  <line x1="380" y1="875" x2="840" y2="830" class="wire3" marker-end="url(#arrowB)"/>
+  <text x="430" y="860" class="mono">LF tone → shunt → I/V</text>
+  <line x1="1010" y1="865" x2="135" y2="865" class="wire dash" marker-end="url(#arrow)"/>
+  <text x="190" y="885" class="mono">ADC (nRF)</text>
+
+  <!-- How it works -->
+  <rect x="40" y="1205" width="1320" height="300" class="box"/>
+  <text x="60" y="1245" class="h2">C) How It Works</text>
+  <text x="60" y="1280" class="t">• Low-freq impedance (10 Hz–100 kHz): inject small sine through shunt → measure Vprobe & Vshunt → 
+    synchronous detection → complex Z(f) → electrical conductivity σ (salinity) and dispersion.</text>
+  <text x="60" y="1310" class="t">• Mid-band (50–500 MHz): measure scalar/complex S11(f). Water drives ε′; reflections vs f reveal shallow layers/roots.
+    IFFT{S11(f)} → impulse response → echo delays → depth d = v·Δt/2, v = c/√ε<tspan baseline-shift="super">r</tspan>.</text>
+  <text x="60" y="1340" class="t">• 2.4 GHz (CW): very shallow (mm–cm) moisture via return loss (high sensitivity to surface water).</text>
+  <text x="60" y="1370" class="t">Resolution ↔ bandwidth: Δd ≈ v/(2B). With εr≈20 ⇒ v≈6.7×10⁷ m/s. For 0.1 m depth resolution, B≈335 MHz.</text>
+
+  <!-- Frequency bands bar -->
+  <rect x="60" y="1410" width="1280" height="70" class="bar"/>
+  <rect x="60"  y="1410" width="400" height="70" class="accent"/>
+  <rect x="460" y="1410" width="520" height="70" class="accent2"/>
+  <rect x="980" y="1410" width="360" height="70" class="accent3"/>
+  <text x="110" y="1455" class="h3" fill="#fff">kHz: EC / salinity (σ)</text>
+  <text x="560" y="1455" class="h3" fill="#fff">50–500 MHz: ε′/ε″, shallow structure</text>
+  <text x="1030" y="1455" class="h3" fill="#fff">2.4 GHz: surface moisture</text>
+
+  <!-- BOM -->
+  <rect x="40" y="1505" width="640" height="320" class="box"/>
+  <text x="60" y="1545" class="h2">D) Bill of Materials (v1)</text>
+  <text x="60" y="1580" class="t">• nRF5340 dev board – control/ADC/BLE</text>
+  <text x="60" y="1605" class="t">• Si5351 (or AD9833) – LF tone source</text>
+  <text x="60" y="1630" class="t">• Directional coupler (2–3 GHz) – forward/reflected split</text>
+  <text x="60" y="1655" class="t">• 2× AD8318 power detectors – FWD/REFL</text>
+  <text x="60" y="1680" class="t">• INA826 (or equiv) + precision shunt resistor (100–1000 Ω)</text>
+  <text x="60" y="1705" class="t">• Stainless tip & twin electrodes • Copper ground collar • RG316 coax • Ferrites/TVS</text>
+  <text x="60" y="1730" class="t">• Temp sensor at tip (NTC or TMP117) • Weather box • Battery</text>
+  <text x="60" y="1760" class="t">Optional: LiteVNA/nanoVNA for true S11 sweeps; AD5933 for turnkey LF impedance.</text>
+
+  <!-- Build steps -->
+  <rect x="720" y="1505" width="640" height="320" class="box"/>
+  <text x="740" y="1545" class="h2">E) Build & Test Plan</text>
+  <text x="740" y="1580" class="t">1) Machine tip + install twin electrodes (316L). Add grounded collar 50–80 mm above.</text>
+  <text x="740" y="1605" class="t">2) Wire LF path: tone → shunt → INA826 → ADC. Verify on resistor loads.</text>
+  <text x="740" y="1630" class="t">3) Wire RF path: Si5351 2.4 GHz (or CW test mode from nRF) → coupler → probe; FWD/REFL → AD8318 → ADC.</text>
+  <text x="740" y="1655" class="t">4) Calibration: open/short in air; reference saline (e.g., 0.1 S/m KCl); pure water. Store coefficients.</text>
+  <text x="740" y="1680" class="t">5) Bucket curve: dry media → add water stepwise. Fit ε′→VWC. Validate repeatability.</text>
+  <text x="740" y="1705" class="t">6) Field trial: sweep LF (10 Hz–100 kHz) and 2.4 GHz RL; log temperature; render in Antsand dashboard.</text>
+  <text x="740" y="1730" class="t">7) Upgrade: add LiteVNA for 50–500 MHz S11; compute IFFT(S11) for depth picks; compare with cores.</text>
+
+  <!-- Bogatin mapping -->
+  <rect x="40" y="1845" width="1320" height="330" class="box"/>
+  <text x="60" y="1885" class="h2">F) “Bogatin → Bog Sensor” Study Map</text>
+
+  <!-- Table headers -->
+  <rect x="60" y="1910" width="320" height="40" class="tag"/>
+  <rect x="380" y="1910" width="450" height="40" class="tag"/>
+  <rect x="830" y="1910" width="510" height="40" class="tag"/>
+  <text x="70" y="1937" class="h3">Bogatin concept</text>
+  <text x="390" y="1937" class="h3">What it means in soil</text>
+  <text x="840" y="1937" class="h3">What to do / output</text>
+
+  <!-- Rows -->
+  <text x="70" y="1970" class="t">TDR / time-domain</text>
+  <text x="390" y="1970" class="t">Echoes from impedance steps (layers, roots)</text>
+  <text x="840" y="1970" class="t">IFFT(S11) or step-pulse → peaks → depth d=vΔt/2</text>
+
+  <text x="70" y="2000" class="t">S-parameters (S11)</text>
+  <text x="390" y="2000" class="t">Reflection magnitude/phase vs f</text>
+  <text x="840" y="2000" class="t">Return loss trends; ripple period Δf=v/(2L) → range</text>
+
+  <text x="70" y="2030" class="t">ε<tspan baseline-shift="super">r</tspan> & tanδ</text>
+  <text x="390" y="2030" class="t">Water-dominated permittivity; loss from σ + bound water</text>
+  <text x="840" y="2030" class="t">Moisture % from ε′; penetration limits from tanδ</text>
+
+  <text x="70" y="2060" class="t">Calibration & de-embed</text>
+  <text x="390" y="2060" class="t">Remove probe/cable effects</text>
+  <text x="840" y="2060" class="t">Open/short/load; saline standards; temperature compensation</text>
+
+  <text x="70" y="2090" class="t">Bandwidth ↔ resolution</text>
+  <text x="390" y="2090" class="t">B sets Δd; lossy media blur echoes</text>
+  <text x="840" y="2090" class="t">Target B≈200–400 MHz for 0.1–0.2 m depth resolution</text>
+
+  <!-- Knowledge gaps -->
+  <rect x="40" y="2195" width="1320" height="260" class="box"/>
+  <text x="60" y="2235" class="h2">G) Major Gaps & What to Learn Next</text>
+
+  <rect x="60" y="2260" width="640" height="170" class="ok"/>
+  <text x="75" y="2285" class="h3">Core to master</text>
+  <text x="75" y="2310" class="t">• Complex impedance & lock-in detection (implement synchronous I/Q on nRF).</text>
+  <text x="75" y="2335" class="t">• Return loss, S11 calibration (SOLT mindset) and conversion to ε′/ε″.</text>
+  <text x="75" y="2360" class="t">• Windowing/zero-padding + IFFT(S11) for range profiles; peak picking & confidence.</text>
+
+  <rect x="720" y="2260" width="640" height="80" class="warn"/>
+  <text x="735" y="2285" class="h3">Medium difficulty</text>
+  <text x="735" y="2310" class="t">• Probe EM modeling (simple 2-rod capacitance / transmission-line equivalent).<tspan x="735" dy="24">• Error budgets: temp drift, contact pressure, soil heterogeneity.</tspan></text>
+
+  <rect x="720" y="2345" width="640" height="85" class="bad"/>
+  <text x="735" y="2370" class="h3">Harder / later</text>
+  <text x="735" y="2395" class="t">• True radiating GPR (regulatory + antenna detuning in wet media). 
+  • Full complex VNA de-embedding (TRL) if you chase sub-dB accuracy.</text>
+
+  <!-- Footer -->
+  <text x="40" y="2475" class="t">Regulatory note: contact/ground-coupled measurements with low source levels behave as test instruments. 
+  Radiating MHz radar requires coordination/authorization in many regions.</text>
+</svg>

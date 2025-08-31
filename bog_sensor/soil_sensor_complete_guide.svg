@@ -1,0 +1,409 @@
+<svg viewBox="0 0 1200 2000" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="2000" fill="#f8f9fa"/>
+  
+  <!-- Title -->
+  <text x="600" y="40" font-size="32" font-weight="bold" text-anchor="middle" fill="#2c3e50">
+    Electromagnetic Soil Sensor: Complete System
+  </text>
+  <text x="600" y="70" font-size="18" text-anchor="middle" fill="#7f8c8d">
+    From RF Generation to Soil Property Analysis
+  </text>
+  
+  <!-- Section 1: Core Components -->
+  <g transform="translate(50, 100)">
+    <rect x="0" y="0" width="1100" height="300" fill="white" stroke="#dee2e6" stroke-width="2" rx="10"/>
+    <text x="20" y="35" font-size="24" font-weight="bold" fill="#2c3e50">1. Key Components &amp; Circuit</text>
+    
+    <!-- Component boxes -->
+    <g transform="translate(50, 60)">
+      <!-- nRF5340 -->
+      <rect x="0" y="0" width="120" height="80" fill="#3498db" rx="5"/>
+      <text x="60" y="40" font-size="14" text-anchor="middle" fill="white">nRF5340</text>
+      <text x="60" y="60" font-size="12" text-anchor="middle" fill="white">Controller</text>
+      
+      <!-- Si5351 -->
+      <rect x="200" y="0" width="120" height="80" fill="#9b59b6" rx="5"/>
+      <text x="260" y="40" font-size="14" text-anchor="middle" fill="white">Si5351</text>
+      <text x="260" y="60" font-size="12" text-anchor="middle" fill="white">8kHz-200MHz</text>
+      
+      <!-- Directional Coupler -->
+      <rect x="400" y="0" width="120" height="80" fill="#e67e22" rx="5"/>
+      <text x="460" y="35" font-size="14" text-anchor="middle" fill="white">Directional</text>
+      <text x="460" y="55" font-size="14" text-anchor="middle" fill="white">Coupler</text>
+      <text x="460" y="75" font-size="11" text-anchor="middle" fill="white">(4 resistors)</text>
+      
+      <!-- AD8307 -->
+      <rect x="600" y="0" width="120" height="80" fill="#16a085" rx="5"/>
+      <text x="660" y="40" font-size="14" text-anchor="middle" fill="white">AD8307</text>
+      <text x="660" y="60" font-size="12" text-anchor="middle" fill="white">Log Detector</text>
+      
+      <!-- Probe -->
+      <rect x="800" y="0" width="120" height="80" fill="#27ae60" rx="5"/>
+      <text x="860" y="40" font-size="14" text-anchor="middle" fill="white">Probe</text>
+      <text x="860" y="60" font-size="12" text-anchor="middle" fill="white">Coaxial Design</text>
+    </g>
+    
+    <!-- Connection arrows -->
+    <g stroke="#34495e" stroke-width="2" fill="none">
+      <path d="M 170 140 L 250 140" marker-end="url(#arrowhead)"/>
+      <path d="M 370 140 L 450 140" marker-end="url(#arrowhead)"/>
+      <path d="M 570 140 L 650 140" marker-end="url(#arrowhead)"/>
+      <path d="M 770 140 L 850 140" marker-end="url(#arrowhead)"/>
+    </g>
+    
+    <!-- Labels -->
+    <text x="210" y="130" font-size="11" fill="#7f8c8d">I2C</text>
+    <text x="410" y="130" font-size="11" fill="#7f8c8d">RF</text>
+    <text x="610" y="130" font-size="11" fill="#7f8c8d">Voltage</text>
+    <text x="810" y="130" font-size="11" fill="#7f8c8d">RF</text>
+    
+    <!-- Circuit diagram -->
+    <g transform="translate(100, 180)">
+      <text x="0" y="0" font-size="14" font-weight="bold" fill="#2c3e50">Actual Circuit:</text>
+      <text x="0" y="25" font-family="monospace" font-size="12" fill="#34495e">
+        Si5351 → [50Ω]─┬─[50Ω]→ Probe
+      </text>
+      <text x="100" y="45" font-family="monospace" font-size="12" fill="#34495e">
+                  │   │
+      </text>
+      <text x="100" y="65" font-family="monospace" font-size="12" fill="#34495e">
+                [50Ω][50Ω]
+      </text>
+      <text x="100" y="85" font-family="monospace" font-size="12" fill="#34495e">
+                  │   │
+      </text>
+      <text x="100" y="105" font-family="monospace" font-size="12" fill="#34495e">
+                FWD  REV → AD8307s → nRF5340 ADC
+      </text>
+    </g>
+    
+    <!-- Cost breakdown -->
+    <g transform="translate(600, 180)">
+      <text x="0" y="0" font-size="14" font-weight="bold" fill="#2c3e50">Total Cost:</text>
+      <text x="0" y="25" font-size="12" fill="#34495e">Si5351: $8</text>
+      <text x="0" y="45" font-size="12" fill="#34495e">AD8307: $15</text>
+      <text x="0" y="65" font-size="12" fill="#34495e">Resistors: $2</text>
+      <text x="0" y="85" font-size="12" fill="#34495e">PVC + Copper: $8</text>
+      <text x="0" y="105" font-size="12" fill="#27ae60" font-weight="bold">Total: $33</text>
+    </g>
+  </g>
+  
+  <!-- Section 2: Probe Design -->
+  <g transform="translate(50, 430)">
+    <rect x="0" y="0" width="500" height="400" fill="white" stroke="#dee2e6" stroke-width="2" rx="10"/>
+    <text x="20" y="35" font-size="24" font-weight="bold" fill="#2c3e50">2. Physical Probe Design</text>
+    
+    <!-- Probe illustration -->
+    <g transform="translate(200, 80)">
+      <!-- PVC pipe -->
+      <rect x="-20" y="0" width="40" height="250" fill="#ecf0f1" stroke="#95a5a6" stroke-width="2"/>
+      
+      <!-- Center conductor -->
+      <rect x="-2" y="10" width="4" height="230" fill="#e74c3c"/>
+      
+      <!-- Copper spiral -->
+      <g stroke="#f39c12" stroke-width="3" fill="none">
+        <ellipse cx="0" cy="30" rx="25" ry="5"/>
+        <ellipse cx="0" cy="50" rx="25" ry="5"/>
+        <ellipse cx="0" cy="70" rx="25" ry="5"/>
+        <ellipse cx="0" cy="90" rx="25" ry="5"/>
+        <ellipse cx="0" cy="110" rx="25" ry="5"/>
+        <ellipse cx="0" cy="130" rx="25" ry="5"/>
+        <ellipse cx="0" cy="150" rx="25" ry="5"/>
+        <ellipse cx="0" cy="170" rx="25" ry="5"/>
+      </g>
+      
+      <!-- Steel tip -->
+      <polygon points="0,250 -15,270 15,270" fill="#7f8c8d"/>
+      
+      <!-- Labels -->
+      <text x="50" y="20" font-size="12" fill="#34495e">Weatherproof box</text>
+      <line x1="25" y1="0" x2="45" y2="20" stroke="#34495e" stroke-width="1"/>
+      
+      <text x="50" y="120" font-size="12" fill="#e74c3c">Center probe</text>
+      <line x1="5" y1="120" x2="45" y2="120" stroke="#e74c3c" stroke-width="1"/>
+      
+      <text x="50" y="90" font-size="12" fill="#f39c12">Copper spiral</text>
+      <line x1="30" y1="90" x2="45" y2="90" stroke="#f39c12" stroke-width="1"/>
+      
+      <text x="50" y="260" font-size="12" fill="#7f8c8d">Steel tip</text>
+      <line x1="20" y1="260" x2="45" y2="260" stroke="#7f8c8d" stroke-width="1"/>
+    </g>
+    
+    <!-- Specifications -->
+    <g transform="translate(50, 100)">
+      <text x="0" y="0" font-size="14" font-weight="bold" fill="#2c3e50">Specifications:</text>
+      <text x="0" y="25" font-size="12" fill="#34495e">• Length: 1 meter</text>
+      <text x="0" y="45" font-size="12" fill="#34495e">• Diameter: 1/2" PVC</text>
+      <text x="0" y="65" font-size="12" fill="#34495e">• Spiral: 5mm spacing</text>
+      <text x="0" y="85" font-size="12" fill="#34495e">• Center: Copper rod</text>
+      <text x="0" y="105" font-size="12" fill="#34495e">• Tip: Hardened steel</text>
+    </g>
+  </g>
+  
+  <!-- Section 3: Frequency Ranges -->
+  <g transform="translate(600, 430)">
+    <rect x="0" y="0" width="550" height="400" fill="white" stroke="#dee2e6" stroke-width="2" rx="10"/>
+    <text x="20" y="35" font-size="24" font-weight="bold" fill="#2c3e50">3. Frequency Ranges &amp; Penetration</text>
+    
+    <!-- Frequency bars -->
+    <g transform="translate(50, 80)">
+      <!-- 10-100 kHz -->
+      <rect x="0" y="0" width="450" height="40" fill="url(#grad1)" rx="5"/>
+      <text x="10" y="25" font-size="12" fill="white" font-weight="bold">10-100 kHz</text>
+      <text x="200" y="25" font-size="12" fill="white">10-20m depth | Bedrock</text>
+      
+      <!-- 100kHz-1MHz -->
+      <rect x="0" y="50" width="400" height="40" fill="url(#grad2)" rx="5"/>
+      <text x="10" y="75" font-size="12" fill="white" font-weight="bold">100kHz-1MHz</text>
+      <text x="200" y="75" font-size="12" fill="white">5-10m | Clay, salinity</text>
+      
+      <!-- 1-10 MHz -->
+      <rect x="0" y="100" width="350" height="40" fill="url(#grad3)" rx="5"/>
+      <text x="10" y="125" font-size="12" fill="white" font-weight="bold">1-10 MHz</text>
+      <text x="200" y="125" font-size="12" fill="white">2-5m | Organic matter</text>
+      
+      <!-- 10-100 MHz -->
+      <rect x="0" y="150" width="300" height="40" fill="url(#grad4)" rx="5"/>
+      <text x="10" y="175" font-size="12" fill="white" font-weight="bold">10-100 MHz</text>
+      <text x="200" y="175" font-size="12" fill="white">0.5-2m | Moisture</text>
+      
+      <!-- 100-200 MHz -->
+      <rect x="0" y="200" width="250" height="40" fill="url(#grad5)" rx="5"/>
+      <text x="10" y="225" font-size="12" fill="white" font-weight="bold">100-200 MHz</text>
+      <text x="200" y="225" font-size="12" fill="white">10-50cm | Surface</text>
+    </g>
+    
+    <!-- Noise characteristics -->
+    <g transform="translate(50, 340)">
+      <text x="0" y="0" font-size="14" font-weight="bold" fill="#2c3e50">Signal Quality:</text>
+      <text x="0" y="25" font-size="12" fill="#34495e">• SNR: 40-60 dB typical</text>
+      <text x="0" y="45" font-size="12" fill="#34495e">• Noise sources: Temperature, moisture changes</text>
+    </g>
+  </g>
+  
+  <!-- Section 4: Reflection Interpretation -->
+  <g transform="translate(50, 860)">
+    <rect x="0" y="0" width="1100" height="350" fill="white" stroke="#dee2e6" stroke-width="2" rx="10"/>
+    <text x="20" y="35" font-size="24" font-weight="bold" fill="#2c3e50">4. What Reflections Mean</text>
+    
+    <!-- Reflection diagram -->
+    <g transform="translate(100, 80)">
+      <!-- Transmitted signal -->
+      <circle cx="50" cy="50" r="30" fill="#3498db" opacity="0.5"/>
+      <text x="50" y="55" font-size="12" text-anchor="middle" fill="white">TX</text>
+      
+      <!-- Arrow -->
+      <path d="M 90 50 L 150 50" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+      
+      <!-- Soil -->
+      <rect x="160" y="20" width="100" height="60" fill="#8b6f47" rx="5"/>
+      <text x="210" y="55" font-size="14" text-anchor="middle" fill="white">SOIL</text>
+      
+      <!-- Reflected signal -->
+      <path d="M 260 50 L 320 50" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+      <circle cx="350" cy="50" r="30" fill="#e74c3c" opacity="0.5"/>
+      <text x="350" y="55" font-size="12" text-anchor="middle" fill="white">RX</text>
+      
+      <!-- Equations -->
+      <text x="0" y="120" font-size="12" fill="#34495e">Reflection Coefficient (Γ) = (Z_soil - Z_probe) / (Z_soil + Z_probe)</text>
+      <text x="0" y="145" font-size="12" fill="#34495e">Return Loss (dB) = -20 × log₁₀(|Γ|)</text>
+      <text x="0" y="170" font-size="12" fill="#34495e">VSWR = (1 + |Γ|) / (1 - |Γ|)</text>
+    </g>
+    
+    <!-- Interpretation table -->
+    <g transform="translate(600, 80)">
+      <text x="0" y="0" font-size="14" font-weight="bold" fill="#2c3e50">Typical Values:</text>
+      
+      <!-- Table headers -->
+      <text x="0" y="30" font-size="12" font-weight="bold" fill="#34495e">Condition</text>
+      <text x="150" y="30" font-size="12" font-weight="bold" fill="#34495e">Return Loss</text>
+      <text x="250" y="30" font-size="12" font-weight="bold" fill="#34495e">Meaning</text>
+      
+      <!-- Table rows -->
+      <text x="0" y="55" font-size="11" fill="#34495e">Dry soil</text>
+      <text x="150" y="55" font-size="11" fill="#34495e">-3 to -6 dB</text>
+      <text x="250" y="55" font-size="11" fill="#34495e">High impedance</text>
+      
+      <text x="0" y="75" font-size="11" fill="#34495e">Moist soil</text>
+      <text x="150" y="75" font-size="11" fill="#34495e">-10 to -15 dB</text>
+      <text x="250" y="75" font-size="11" fill="#34495e">Moderate match</text>
+      
+      <text x="0" y="95" font-size="11" fill="#34495e">Wet soil</text>
+      <text x="150" y="95" font-size="11" fill="#34495e">-20 to -30 dB</text>
+      <text x="250" y="95" font-size="11" fill="#34495e">Low impedance</text>
+      
+      <text x="0" y="115" font-size="11" fill="#34495e">Metal/Rock</text>
+      <text x="150" y="115" font-size="11" fill="#34495e">0 to -3 dB</text>
+      <text x="250" y="115" font-size="11" fill="#34495e">Total reflection</text>
+    </g>
+    
+    <!-- Time domain -->
+    <g transform="translate(100, 270)">
+      <text x="0" y="0" font-size="14" font-weight="bold" fill="#2c3e50">Time Domain Analysis:</text>
+      <text x="0" y="25" font-size="12" fill="#34495e">Distance = (Speed × Time) / 2</text>
+      <text x="0" y="45" font-size="12" fill="#34495e">Speed in soil ≈ 0.3 × c (speed of light)</text>
+      <text x="0" y="65" font-size="12" fill="#34495e">1 microsecond reflection = 1.5 meters depth</text>
+    </g>
+  </g>
+  
+  <!-- Section 5: Property Correlation -->
+  <g transform="translate(50, 1240)">
+    <rect x="0" y="0" width="1100" height="400" fill="white" stroke="#dee2e6" stroke-width="2" rx="10"/>
+    <text x="20" y="35" font-size="24" font-weight="bold" fill="#2c3e50">5. Frequency to Property Correlation</text>
+    
+    <!-- Property grid -->
+    <g transform="translate(50, 80)">
+      <!-- Moisture -->
+      <rect x="0" y="0" width="200" height="120" fill="#3498db" fill-opacity="0.2" stroke="#3498db" stroke-width="2" rx="5"/>
+      <text x="100" y="25" font-size="14" font-weight="bold" text-anchor="middle" fill="#2c3e50">Moisture</text>
+      <text x="10" y="50" font-size="11" fill="#34495e">Frequency: 10-100 MHz</text>
+      <text x="10" y="70" font-size="11" fill="#34495e">Mechanism: Dielectric</text>
+      <text x="10" y="90" font-size="11" fill="#34495e">εr water = 80</text>
+      <text x="10" y="110" font-size="11" fill="#34495e">Accuracy: ±2% vol.</text>
+      
+      <!-- Salinity -->
+      <rect x="220" y="0" width="200" height="120" fill="#9b59b6" fill-opacity="0.2" stroke="#9b59b6" stroke-width="2" rx="5"/>
+      <text x="320" y="25" font-size="14" font-weight="bold" text-anchor="middle" fill="#2c3e50">Salinity/EC</text>
+      <text x="230" y="50" font-size="11" fill="#34495e">Frequency: 10-100 kHz</text>
+      <text x="230" y="70" font-size="11" fill="#34495e">Mechanism: Ionic</text>
+      <text x="230" y="90" font-size="11" fill="#34495e">conductivity</text>
+      <text x="230" y="110" font-size="11" fill="#34495e">Range: 0.01-5 S/m</text>
+      
+      <!-- Organic Matter -->
+      <rect x="440" y="0" width="200" height="120" fill="#27ae60" fill-opacity="0.2" stroke="#27ae60" stroke-width="2" rx="5"/>
+      <text x="540" y="25" font-size="14" font-weight="bold" text-anchor="middle" fill="#2c3e50">Organic Matter</text>
+      <text x="450" y="50" font-size="11" fill="#34495e">Frequency: 1-10 MHz</text>
+      <text x="450" y="70" font-size="11" fill="#34495e">Mechanism: Molecular</text>
+      <text x="450" y="90" font-size="11" fill="#34495e">resonances</text>
+      <text x="450" y="110" font-size="11" fill="#34495e">Detects: Humus</text>
+      
+      <!-- Temperature -->
+      <rect x="660" y="0" width="200" height="120" fill="#e74c3c" fill-opacity="0.2" stroke="#e74c3c" stroke-width="2" rx="5"/>
+      <text x="760" y="25" font-size="14" font-weight="bold" text-anchor="middle" fill="#2c3e50">Temperature</text>
+      <text x="670" y="50" font-size="11" fill="#34495e">Frequency: All</text>
+      <text x="670" y="70" font-size="11" fill="#34495e">Mechanism: Frequency</text>
+      <text x="670" y="90" font-size="11" fill="#34495e">shift with temp</text>
+      <text x="670" y="110" font-size="11" fill="#34495e">Accuracy: ±1°C</text>
+      
+      <!-- pH (inferred) -->
+      <rect x="0" y="140" width="200" height="120" fill="#f39c12" fill-opacity="0.2" stroke="#f39c12" stroke-width="2" rx="5"/>
+      <text x="100" y="165" font-size="14" font-weight="bold" text-anchor="middle" fill="#2c3e50">pH (Inferred)</text>
+      <text x="10" y="190" font-size="11" fill="#34495e">Frequency: 10-100 kHz</text>
+      <text x="10" y="210" font-size="11" fill="#34495e">Mechanism: H+ ion</text>
+      <text x="10" y="230" font-size="11" fill="#34495e">concentration</text>
+      <text x="10" y="250" font-size="11" fill="#34495e">Accuracy: ±0.5 pH</text>
+      
+      <!-- Clay Content -->
+      <rect x="220" y="140" width="200" height="120" fill="#95a5a6" fill-opacity="0.2" stroke="#95a5a6" stroke-width="2" rx="5"/>
+      <text x="320" y="165" font-size="14" font-weight="bold" text-anchor="middle" fill="#2c3e50">Clay Content</text>
+      <text x="230" y="190" font-size="11" fill="#34495e">Frequency: 100kHz-1MHz</text>
+      <text x="230" y="210" font-size="11" fill="#34495e">Mechanism: Cation</text>
+      <text x="230" y="230" font-size="11" fill="#34495e">exchange capacity</text>
+      <text x="230" y="250" font-size="11" fill="#34495e">Detects: Clay vs sand</text>
+      
+      <!-- Methane (potential) -->
+      <rect x="440" y="140" width="200" height="120" fill="#16a085" fill-opacity="0.2" stroke="#16a085" stroke-width="2" rx="5"/>
+      <text x="540" y="165" font-size="14" font-weight="bold" text-anchor="middle" fill="#2c3e50">Gas Pockets</text>
+      <text x="450" y="190" font-size="11" fill="#34495e">Frequency: 100+ MHz</text>
+      <text x="450" y="210" font-size="11" fill="#34495e">Mechanism: Voids have</text>
+      <text x="450" y="230" font-size="11" fill="#34495e">different impedance</text>
+      <text x="450" y="250" font-size="11" fill="#34495e">Shows as: Anomalies</text>
+      
+      <!-- Compaction -->
+      <rect x="660" y="140" width="200" height="120" fill="#34495e" fill-opacity="0.2" stroke="#34495e" stroke-width="2" rx="5"/>
+      <text x="760" y="165" font-size="14" font-weight="bold" text-anchor="middle" fill="#2c3e50">Compaction</text>
+      <text x="670" y="190" font-size="11" fill="#34495e">Frequency: All</text>
+      <text x="670" y="210" font-size="11" fill="#34495e">Mechanism: Bulk</text>
+      <text x="670" y="230" font-size="11" fill="#34495e">density affects speed</text>
+      <text x="670" y="250" font-size="11" fill="#34495e">Measure: Velocity</text>
+    </g>
+  </g>
+  
+  <!-- Section 6: Data Flow -->
+  <g transform="translate(50, 1670)">
+    <rect x="0" y="0" width="1100" height="280" fill="white" stroke="#dee2e6" stroke-width="2" rx="10"/>
+    <text x="20" y="35" font-size="24" font-weight="bold" fill="#2c3e50">6. Data Collection &amp; Storage</text>
+    
+    <!-- Flow diagram -->
+    <g transform="translate(100, 80)">
+      <!-- Sweep -->
+      <rect x="0" y="0" width="150" height="80" fill="#3498db" rx="5"/>
+      <text x="75" y="35" font-size="12" text-anchor="middle" fill="white">Frequency Sweep</text>
+      <text x="75" y="55" font-size="11" text-anchor="middle" fill="white">8kHz → 200MHz</text>
+      
+      <path d="M 160 40 L 210 40" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+      
+      <!-- Measurement -->
+      <rect x="220" y="0" width="150" height="80" fill="#9b59b6" rx="5"/>
+      <text x="295" y="35" font-size="12" text-anchor="middle" fill="white">Measure S11</text>
+      <text x="295" y="55" font-size="11" text-anchor="middle" fill="white">Magnitude + Phase</text>
+      
+      <path d="M 380 40 L 430 40" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+      
+      <!-- Processing -->
+      <rect x="440" y="0" width="150" height="80" fill="#e67e22" rx="5"/>
+      <text x="515" y="35" font-size="12" text-anchor="middle" fill="white">Edge Processing</text>
+      <text x="515" y="55" font-size="11" text-anchor="middle" fill="white">FFT, Averaging</text>
+      
+      <path d="M 600 40 L 650 40" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+      
+      <!-- Storage -->
+      <rect x="660" y="0" width="150" height="80" fill="#27ae60" rx="5"/>
+      <text x="735" y="35" font-size="12" text-anchor="middle" fill="white">Local Storage</text>
+      <text x="735" y="55" font-size="11" text-anchor="middle" fill="white">SD Card / Flash</text>
+      
+      <path d="M 820 40 L 870 40" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+      
+      <!-- Cloud -->
+      <ellipse cx="920" cy="40" rx="60" ry="35" fill="#16a085"/>
+      <text x="920" y="35" font-size="12" text-anchor="middle" fill="white">Cloud</text>
+      <text x="920" y="50" font-size="11" text-anchor="middle" fill="white">Analysis</text>
+    </g>
+    
+    <!-- Data format -->
+    <g transform="translate(100, 180)">
+      <text x="0" y="0" font-size="14" font-weight="bold" fill="#2c3e50">Data Format (per sweep):</text>
+      <text x="0" y="25" font-size="11" font-family="monospace" fill="#34495e">
+        {timestamp, location, [freq, mag_dB, phase_deg], temperature, battery}
+      </text>
+      <text x="0" y="50" font-size="12" fill="#34495e">• Size per sweep: ~2 KB</text>
+      <text x="300" y="50" font-size="12" fill="#34495e">• Sweeps per hour: 60</text>
+      <text x="500" y="50" font-size="12" fill="#34495e">• Daily data: ~3 MB</text>
+    </g>
+  </g>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#34495e"/>
+    </marker>
+    
+    <!-- Gradients -->
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#8e44ad;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#3498db;stop-opacity:1"/>
+    </linearGradient>
+    
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3498db;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#16a085;stop-opacity:1"/>
+    </linearGradient>
+    
+    <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#16a085;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#27ae60;stop-opacity:1"/>
+    </linearGradient>
+    
+    <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#27ae60;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#f39c12;stop-opacity:1"/>
+    </linearGradient>
+    
+    <linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f39c12;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#e74c3c;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+</svg>
