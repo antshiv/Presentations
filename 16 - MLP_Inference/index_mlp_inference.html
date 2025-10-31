@@ -672,72 +672,7 @@ void mlp_forward(float* output, const float* input, const MLPWeights* weights, i
 				</aside>
 			</section>
 
-			<!-- Section 14: Performance Numbers -->
-			<section>
-				<h2>Performance Results</h2>
-
-				<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 0.65em;">
-					<div class="highlight-box">
-						<h4 style="color: #58a6ff;">GPT-2 (117M params)</h4>
-						<table style="width: 100%;">
-							<tr><td>Tokens/sec (batch=1):</td><td><strong>~150</strong></td></tr>
-							<tr><td>Tokens/sec (batch=32):</td><td><strong>~1200</strong></td></tr>
-							<tr><td>MLP time (% of total):</td><td><strong>65%</strong></td></tr>
-							<tr><td>GFLOPS achieved:</td><td><strong>~450</strong></td></tr>
-						</table>
-						<p style="margin-top: 10px; color: #8b949e;">Xeon 8375C (32 cores @ 2.9GHz)</p>
-					</div>
-
-					<div class="highlight-box">
-						<h4 style="color: #39d353;">Optimization Breakdown</h4>
-						<table style="width: 100%;">
-							<tr><td>Naive C:</td><td>~20 tokens/sec</td></tr>
-							<tr><td>+ AVX-512:</td><td>~60 tokens/sec (3× faster)</td></tr>
-							<tr><td>+ Cache tiling:</td><td>~90 tokens/sec (1.5× faster)</td></tr>
-							<tr><td>+ Token parallel:</td><td>~150 tokens/sec (1.7× faster)</td></tr>
-						</table>
-						<p style="margin-top: 10px; color: #39d353;"><strong>Total: 7.5× speedup!</strong></p>
-					</div>
-				</div>
-
-				<div class="highlight-box" style="margin-top: 20px; font-size: 0.7em;">
-					<h4 style="color: #ffa657;">Key Insights</h4>
-					<ul>
-						<li>MLP is 65% of inference time (attention is only 25%, embeddings 10%)</li>
-						<li>Batch size dramatically improves throughput (8× better at batch=32 vs batch=1)</li>
-						<li>Each optimization compounds: AVX-512 × Tiling × Parallelism = 7.5× total</li>
-						<li>We achieve ~70% of theoretical peak FLOPS - excellent for memory-bound workload!</li>
-					</ul>
-				</div>
-
-				<aside class="notes">
-					Let's look at actual performance numbers from our implementation.
-
-					For GPT-2 (117M parameters) running on a Xeon 8375C with 32 cores:
-					- Single token inference: ~150 tokens/sec
-					- Batched inference (32 tokens): ~1200 tokens/sec
-					- MLP takes 65% of total inference time!
-
-					This last point is crucial: the MLP is the bottleneck, not attention! Despite all the
-					hype around attention mechanisms, the MLP is actually doing most of the compute. This is
-					because GEMM is O(d²) while attention is O(T²), and for typical sequence lengths, d² >> T².
-
-					The optimization breakdown shows the cumulative effect:
-					- Naive C implementation: ~20 tokens/sec (baseline)
-					- Adding AVX-512 SIMD: 3× faster (vectorization wins!)
-					- Adding cache tiling: 1.5× faster (better memory locality)
-					- Adding token parallelism: 1.7× faster (utilizing all cores)
-					- Total: 7.5× speedup over naive implementation!
-
-					The batch size effect is also important: processing 32 tokens together is 8× more efficient
-					than processing them one at a time. This is because we can better amortize memory latency
-					and keep the execution units busy.
-
-					Achieving ~70% of theoretical peak FLOPS is excellent for a memory-bound workload like this!
-				</aside>
-			</section>
-
-			<!-- Section 15: Live Demo Setup -->
+			<!-- Section 14: Live Demo Setup -->
 			<section>
 				<h2>Demo: GPT-2 Inference in C</h2>
 
@@ -746,9 +681,9 @@ void mlp_forward(float* output, const float* input, const MLPWeights* weights, i
 					<ul>
 						<li>Load pre-trained GPT-2 weights from HuggingFace</li>
 						<li>Run inference on sample prompts</li>
-						<li>Profile MLP layer performance</li>
+						<li>Walk through GEMM and GELU implementations</li>
 						<li>Show numerical validation vs PyTorch</li>
-						<li>Demonstrate token-parallel execution</li>
+						<li>Explain token-parallel execution strategy</li>
 					</ul>
 				</div>
 
@@ -760,14 +695,17 @@ gcc -O3 -march=native -fopenmp -mavx512f gpt2_inference.c -o gpt2
 OMP_NUM_THREADS=32 ./gpt2 --prompt "The future of AI is"
 
 # Expected output:
-# Token 0: The (14.2ms, MLP: 9.1ms)
-# Token 1: future (13.8ms, MLP: 8.9ms)
-# Token 2: of (14.1ms, MLP: 9.0ms)
-# Token 3: AI (14.3ms, MLP: 9.2ms)
-# Token 4: is (13.9ms, MLP: 8.8ms)
+# Loading GPT-2 weights...
+# Token 0: The
+# Token 1: future
+# Token 2: of
+# Token 3: AI
+# Token 4: is
 # ...
-# Throughput: 148 tokens/sec
-# MLP percentage: 64.2%
+# Generation complete!
+#
+# Note: Accurate performance benchmarking requires bare-metal environments.
+# Virtualized platforms (K8s/OpenShift) can skew results.
 				</code></pre>
 
 				<aside class="notes">
@@ -778,17 +716,17 @@ OMP_NUM_THREADS=32 ./gpt2 --prompt "The future of AI is"
 					1. Loading real GPT-2 weights: We'll use the 117M parameter model from HuggingFace,
 					converted to our binary format.
 
-					2. Running inference: We'll generate text autoregressively, showing the latency breakdown
-					for each token.
+					2. Running inference: We'll generate text autoregressively, demonstrating the complete
+					pipeline from tokenization through generation.
 
-					3. Profiling: We'll instrument the code to show exactly how much time is spent in each
-					component (MLP, attention, embeddings).
+					3. Code walkthrough: We'll examine the key components - GEMM kernels, GELU activation,
+					and token-parallel execution.
 
 					4. Numerical validation: We'll compare our output activations against PyTorch to show
 					bit-for-bit accuracy (differences < 1e-6).
 
-					5. Token parallelism: We'll show how inference scales across multiple cores by processing
-					multiple tokens in parallel.
+					5. Architecture insights: We'll explain how the MLP layer fits into the broader transformer
+					architecture and why it's the computational bottleneck.
 
 					The compilation flags are important:
 					- -O3: Maximum optimization
@@ -796,11 +734,22 @@ OMP_NUM_THREADS=32 ./gpt2 --prompt "The future of AI is"
 					- -fopenmp: Enable multi-threading
 					- -mavx512f: Explicitly enable AVX-512
 
+					Important note: For accurate performance measurements, you need bare-metal hardware.
+					Virtualized environments like Kubernetes or OpenShift introduce variability due to:
+					- Resource contention from noisy neighbors
+					- CPU throttling and frequency scaling variations
+					- Memory bandwidth sharing
+					- Hypervisor overhead
+
+					For this presentation, we focus on correctness and code walkthrough rather than
+					specific performance numbers. Proper benchmarking should be done in controlled,
+					dedicated environments.
+
 					Let's run it and see the MLP in action!
 				</aside>
 			</section>
 
-			<!-- Section 16: Numerical Validation -->
+			<!-- Section 15: Numerical Validation -->
 			<section>
 				<h2>Numerical Validation vs PyTorch</h2>
 				<div class="svg-container">
@@ -838,7 +787,7 @@ OMP_NUM_THREADS=32 ./gpt2 --prompt "The future of AI is"
 				</aside>
 			</section>
 
-			<!-- Section 17: Code Walkthrough -->
+			<!-- Section 16: Code Walkthrough -->
 			<section>
 				<h2>Code Deep Dive: GELU Implementation</h2>
 
@@ -921,7 +870,7 @@ void gelu_avx512(float* data, int size) {
 				</aside>
 			</section>
 
-			<!-- Section 18: Lessons Learned -->
+			<!-- Section 17: Lessons Learned -->
 			<section>
 				<h2>Key Takeaways</h2>
 
@@ -991,7 +940,7 @@ void gelu_avx512(float* data, int size) {
 				</aside>
 			</section>
 
-			<!-- Section 19: Series Wrap-up -->
+			<!-- Section 18: Series Wrap-up -->
 			<section>
 				<h2>Series Wrap-Up: The Complete Picture</h2>
 
@@ -1007,16 +956,16 @@ void gelu_avx512(float* data, int size) {
 				</div>
 
 				<div class="highlight-box" style="margin-top: 20px; font-size: 0.7em;">
-					<h4 style="color: #39d353;">The Journey from 20 to 150 tokens/sec</h4>
+					<h4 style="color: #39d353;">The Optimization Journey</h4>
 					<ul>
-						<li><strong>Naive implementation:</strong> ~20 tokens/sec (baseline)</li>
-						<li><strong>+ Memory layouts:</strong> ~35 tokens/sec (better cache usage)</li>
-						<li><strong>+ SIMD (AVX-512):</strong> ~90 tokens/sec (vectorization)</li>
-						<li><strong>+ Cache tiling:</strong> ~120 tokens/sec (GEMM optimization)</li>
-						<li><strong>+ Token parallelism:</strong> ~150 tokens/sec (multi-core)</li>
+						<li><strong>Memory layouts:</strong> Organizing data in execution order</li>
+						<li><strong>SIMD (AVX-512):</strong> Processing 16 floats simultaneously</li>
+						<li><strong>Cache tiling:</strong> Optimizing GEMM for cache hierarchy</li>
+						<li><strong>Token parallelism:</strong> Distributing work across cores</li>
+						<li><strong>NUMA awareness:</strong> Minimizing cross-socket traffic</li>
 					</ul>
-					<p style="margin-top: 15px; color: #ffa657;"><strong>Total: 7.5× speedup through
-					systematic optimization!</strong></p>
+					<p style="margin-top: 15px; color: #ffa657;"><strong>Systematic optimization:
+					each technique compounds for maximum performance!</strong></p>
 				</div>
 
 				<aside class="notes">
@@ -1040,15 +989,19 @@ void gelu_avx512(float* data, int size) {
 					5. SIMD vectorization: Using AVX-512 to process 16 floats at once, dramatically improving
 					throughput on compute-bound operations.
 
-					The journey from 20 to 150 tokens/sec represents systematic, principled optimization:
+					The optimization journey represents systematic, principled engineering:
 					- Each optimization builds on the previous ones
 					- We measure and profile at each step
 					- We validate correctness at each step
-					- The optimizations are composable - they multiply, not just add
+					- The optimizations are composable - they compound and multiply
 
 					This is the essence of performance engineering: understand the theory, profile the code,
 					apply optimizations systematically, and validate results. These principles apply far beyond
 					just LLM inference - they're fundamental to high-performance computing.
+
+					Note: Proper performance benchmarking requires bare-metal environments. Virtualized
+					environments like Kubernetes/OpenShift can significantly skew results due to noisy
+					neighbors, CPU throttling, and resource contention.
 
 					Thank you for joining this series! We've gone from understanding the math to implementing
 					a real, optimized GPT-2 inference engine in C. You now have the knowledge to understand
@@ -1056,7 +1009,7 @@ void gelu_avx512(float* data, int size) {
 				</aside>
 			</section>
 
-			<!-- Section 20: Q&A and Resources -->
+			<!-- Section 19: Q&A and Resources -->
 			<section>
 				<h2>Thank You!</h2>
 
@@ -1064,7 +1017,6 @@ void gelu_avx512(float* data, int size) {
 					<h4 style="color: #58a6ff;">Resources</h4>
 					<ul>
 						<li>📝 Code: <a href="https://github.com/antshiv">github.com/antshiv</a></li>
-						<li>📧 Contact: <a href="mailto:contact@antshiv.com">contact@antshiv.com</a></li>
 						<li>🌐 Website: <a href="https://shivasnotes.com">shivasnotes.com</a></li>
 						<li>🏢 ANTSHIV ROBOTICS: <a href="https://antshiv.com">antshiv.com</a></li>
 					</ul>
@@ -1088,10 +1040,16 @@ void gelu_avx512(float* data, int size) {
 					</ul>
 				</div>
 
-				<h3 style="margin-top: 30px; color: #ffa657;">Questions?</h3>
+				<h3 style="margin-top: 30px; color: #ffa657;">Questions? Drop them in the comments below!</h3>
 
 				<aside class="notes">
-					Thank you for attending this series!
+					Thank you for watching this YouTube series!
+
+					Before we wrap up, if you found this video helpful:
+					- Please hit that LIKE button - it really helps the algorithm!
+					- SUBSCRIBE to the channel for more deep dives into CPU AI and systems programming
+					- Drop a COMMENT below with your questions, thoughts, or topics you'd like to see covered
+					- Share this with anyone interested in understanding transformers at a deep level
 
 					All the code, slides, and resources are available on GitHub. The implementation is
 					production-quality - you can actually use it!
@@ -1158,52 +1116,6 @@ void gelu_avx512(float* data, int size) {
 
 		// Custom zoom enhancement for better visual feedback
 		Reveal.on('ready', function() {
-			// Add zoom instruction overlay on first slide
-			const firstSlide = document.querySelector('.slides section');
-			if (firstSlide) {
-				const zoomInfo = document.createElement('div');
-				zoomInfo.style.cssText = `
-					position: absolute;
-					top: 20px;
-					right: 20px;
-					background: rgba(255, 111, 0, 0.9);
-					color: white;
-					padding: 15px 20px;
-					border-radius: 8px;
-					font-size: 0.6em;
-					font-family: monospace;
-					box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-					z-index: 1000;
-					animation: fadeInOut 8s ease-in-out;
-				`;
-				zoomInfo.innerHTML = `
-					<strong>🔍 Zoom Controls:</strong><br>
-					• Alt+Click (Mac: Cmd+Click) to zoom<br>
-					• Press 'S' for speaker notes<br>
-					• Press 'O' for overview<br>
-					• Press 'F' for fullscreen
-				`;
-
-				// Add fade animation
-				const style = document.createElement('style');
-				style.textContent = `
-					@keyframes fadeInOut {
-						0% { opacity: 0; transform: translateY(-10px); }
-						10% { opacity: 1; transform: translateY(0); }
-						90% { opacity: 1; transform: translateY(0); }
-						100% { opacity: 0; transform: translateY(-10px); }
-					}
-				`;
-				document.head.appendChild(style);
-
-				firstSlide.appendChild(zoomInfo);
-
-				// Remove after animation
-				setTimeout(() => {
-					zoomInfo.remove();
-				}, 8000);
-			}
-
 			// Enhanced cursor feedback for zoomable elements
 			document.querySelectorAll('img, .svg-container').forEach(el => {
 				el.addEventListener('mouseenter', function(e) {
@@ -1216,38 +1128,6 @@ void gelu_avx512(float* data, int size) {
 					this.style.cursor = 'default';
 				});
 			});
-		});
-
-		// Visual feedback when zoom is active
-		document.addEventListener('click', function(e) {
-			if (e.altKey || e.metaKey || e.ctrlKey) {
-				// Create ripple effect at click location
-				const ripple = document.createElement('div');
-				ripple.style.cssText = `
-					position: fixed;
-					width: 30px;
-					height: 30px;
-					border: 3px solid rgba(255, 111, 0, 0.8);
-					border-radius: 50%;
-					pointer-events: none;
-					left: ${e.clientX - 15}px;
-					top: ${e.clientY - 15}px;
-					animation: rippleEffect 0.6s ease-out;
-					z-index: 10000;
-				`;
-
-				const rippleStyle = document.createElement('style');
-				rippleStyle.textContent = `
-					@keyframes rippleEffect {
-						0% { transform: scale(0.5); opacity: 1; }
-						100% { transform: scale(2.5); opacity: 0; }
-					}
-				`;
-				document.head.appendChild(rippleStyle);
-
-				document.body.appendChild(ripple);
-				setTimeout(() => ripple.remove(), 600);
-			}
 		});
 
 	</script>
