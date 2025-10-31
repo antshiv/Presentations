@@ -111,7 +111,7 @@
 
   <!-- Validation Methodology -->
   <g transform="translate(100, 300)">
-    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+    <text x="0" y="25" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
       Multi-Level Validation Approach
     </text>
     
@@ -157,7 +157,7 @@
 
   <!-- Accuracy Metrics -->
   <g transform="translate(100, 480)">
-    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+    <text x="0" y="25" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
       Accuracy Metrics Implementation
     </text>
     
@@ -216,7 +216,7 @@
 
   <!-- Token Generation Validation -->
   <g transform="translate(1100, 300)">
-    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+    <text x="0" y="25" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
       Token Generation Validation
     </text>
     
@@ -262,7 +262,7 @@
 
   <!-- Tolerance Thresholds -->
   <g transform="translate(100, 660)">
-    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+    <text x="0" y="25" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
       Numerical Tolerance Guidelines
     </text>
     
@@ -299,7 +299,7 @@
   </g>
 
   <!-- Validation Results Summary -->
-  <g transform="translate(100, 820)">
+  <g transform="translate(100, 870)">
     <rect x="0" y="0" width="1700" height="180" rx="10" fill="#0a1420" stroke="#00ff88" stroke-width="2"/>
     <text x="850" y="30" font-family="monospace" font-size="18" text-anchor="middle" fill="#00ff88">Validation Results Summary</text>
     
@@ -348,7 +348,7 @@
   </g>
 
   <!-- Key Insights Box -->
-  <g transform="translate(1150, 480)">
+  <g transform="translate(1150, 680)">
     <rect x="0" y="0" width="650" height="160" rx="10" fill="#2a3f5f" stroke="#00ff88" stroke-width="2"/>
     <text x="325" y="30" font-family="monospace" font-size="16" text-anchor="middle" fill="#00ff88">Key Validation Insights</text>
     

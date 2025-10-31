@@ -126,8 +126,8 @@
 
   <!-- Bump Allocator Implementation -->
   <g transform="translate(100, 400)">
-    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
-      Bump Allocator: Simple & Predictable
+    <text x="0" y="25" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+      Bump Allocator: Simple and Predictable
     </text>
     
     <g transform="translate(0, 40)">
@@ -156,7 +156,7 @@
     
     <!-- MLP Allocation Sequence -->
     <g transform="translate(700, 40)">
-      <rect x="0" y="0" width="600" height="220" rx="10" fill="#1a2332" stroke="#ffd93d" stroke-width="2"/>
+      <rect x="0" y="0" width="530" height="220" rx="10" fill="#1a2332" stroke="#ffd93d" stroke-width="2"/>
       <text x="300" y="25" font-family="monospace" font-size="14" text-anchor="middle" fill="#ffd93d">MLP Allocation Sequence</text>
       
       <text x="20" y="50" font-family="monospace" font-size="10" fill="#888">// Allocate MLP tensors in order, all aligned</text>
@@ -180,7 +180,7 @@
 
   <!-- Hardware Benefits -->
   <g transform="translate(100, 660)">
-    <text x="0" y="0" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
+    <text x="0" y="25" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#00ccff">
       Hardware-Aware Design Benefits
     </text>
     
