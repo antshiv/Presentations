@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="grad-slow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f87171;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-fast" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrow-slow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#f87171" />
+    </marker>
+    <marker id="arrow-fast" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#34d399" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="800" y="40" font-size="32" font-weight="bold" fill="#f0f0f0" text-anchor="middle">Gradient Calculation: A Tale of Two Parallelisms</text>
+  <text x="800" y="70" font-size="16" fill="#aaa" text-anchor="middle">Visualizing Memory Access Patterns for FC1 Weight Gradients (∂L/∂W)</text>
+
+  <!-- Slow Method (Left) -->
+  <rect x="50" y="100" width="700" height="750" rx="15" fill="#2a2a2a" stroke="#f87171" stroke-width="3"/>
+  <text x="400" y="140" font-size="24" font-weight="bold" fill="#f87171" text-anchor="middle">❌ Token-Parallel (The Bottleneck)</text>
+  <text x="400" y="170" font-size="14" fill="#ccc" text-anchor="middle">Parallelize over Tokens</text>
+
+  <!-- Threads (Slow) -->
+  <g id="threads-slow">
+    <rect x="80" y="250" width="150" height="50" rx="8" fill="url(#grad-slow)"/>
+    <text x="155" y="280" font-size="14" fill="white" text-anchor="middle">Thread 0 (Tokens 0-255)</text>
+    <rect x="80" y="450" width="150" height="50" rx="8" fill="url(#grad-slow)"/>
+    <text x="155" y="480" font-size="14" fill="white" text-anchor="middle">Thread 1 (Tokens 256-511)</text>
+    <rect x="80" y="650" width="150" height="50" rx="8" fill="url(#grad-slow)"/>
+    <text x="155" y="680" font-size="14" fill="white" text-anchor="middle">Thread 2 (Tokens 512-767)</text>
+  </g>
+
+  <!-- Gradient Matrix (Slow) -->
+  <rect x="350" y="200" width="350" height="550" rx="10" fill="#1e1e1e" stroke="#888" stroke-width="1"/>
+  <text x="525" y="230" font-size="16" fill="#ccc" text-anchor="middle">Gradient Matrix d_W [D × 4D]</text>
+  
+  <!-- Arrows (Slow) - a tangled mess -->
+  <path d="M 230 275 Q 350 275, 450 300" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)"/>
+  <path d="M 230 275 Q 400 350, 500 450" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)" stroke-dasharray="5,5"/>
+  <path d="M 230 275 Q 380 450, 480 600" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)"/>
+
+  <path d="M 230 475 Q 350 475, 450 350" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)"/>
+  <path d="M 230 475 Q 400 400, 500 500" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)" stroke-dasharray="5,5"/>
+  <path d="M 230 475 Q 380 550, 480 650" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)"/>
+  
+  <path d="M 230 675 Q 350 675, 450 700" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)"/>
+  <path d="M 230 675 Q 400 600, 500 550" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)" stroke-dasharray="5,5"/>
+  <path d="M 230 675 Q 380 500, 480 400" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)"/>
+
+  <!-- Lock Icons -->
+  <text x="480" y="480" font-size="40">🔒</text>
+  <text x="420" y="320" font-size="20">🔒</text>
+  <text x="550" y="650" font-size="30">🔒</text>
+  <text x="500" y="400" font-size="25">🔒</text>
+
+  <!-- Explanation (Slow) -->
+  <rect x="360" y="580" width="330" height="150" rx="8" fill="#3d1f1f" stroke="#f87171" stroke-width="2"/>
+  <text x="525" y="605" font-size="14" font-weight="bold" fill="#f87171" text-anchor="middle">Problem: Write Conflicts</text>
+  <text x="370" y="635" font-size="12" fill="#ccc">All threads try to update ALL weights.</text>
+  <text x="370" y="655" font-size="12" fill="#ccc">This creates a race condition.</text>
+  <text x="370" y="680" font-size="12" fill="#f87171" font-weight="bold">Solution: Use `atomic` operations.</text>
+  <text x="370" y="700" font-size="12" fill="#f87171">Result: Massive thread contention, no SIMD.</text>
+
+
+  <!-- Fast Method (Right) -->
+  <rect x="850" y="100" width="700" height="750" rx="15" fill="#2a2a2a" stroke="#34d399" stroke-width="3"/>
+  <text x="1200" y="140" font-size="24" font-weight="bold" fill="#34d399" text-anchor="middle">✅ Feature-Parallel (The Solution)</text>
+  <text x="1200" y="170" font-size="14" fill="#ccc" text-anchor="middle">Parallelize over Output Features</text>
+
+  <!-- Threads (Fast) -->
+  <g id="threads-fast">
+    <rect x="880" y="250" width="150" height="50" rx="8" fill="url(#grad-fast)"/>
+    <text x="955" y="280" font-size="14" fill="white" text-anchor="middle">Thread 0</text>
+    <rect x="880" y="450" width="150" height="50" rx="8" fill="url(#grad-fast)"/>
+    <text x="955" y="480" font-size="14" fill="white" text-anchor="middle">Thread 1</text>
+    <rect x="880" y="650" width="150" height="50" rx="8" fill="url(#grad-fast)"/>
+    <text x="955" y="680" font-size="14" fill="white" text-anchor="middle">Thread N</text>
+  </g>
+
+  <!-- Gradient Matrix (Fast) -->
+  <rect x="1150" y="200" width="350" height="550" rx="10" fill="#1e1e1e" stroke="#888" stroke-width="1"/>
+  <text x="1325" y="230" font-size="16" fill="#ccc" text-anchor="middle">Gradient Matrix d_W [D × 4D]</text>
+
+  <!-- Rows -->
+  <rect x="1160" y="250" width="330" height="50" rx="5" fill="#1f3d2f" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1325" y="280" font-size="12" fill="#34d399" text-anchor="middle">Row 0 (owned by Thread 0)</text>
+  
+  <rect x="1160" y="450" width="330" height="50" rx="5" fill="#1f3d2f" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1325" y="480" font-size="12" fill="#34d399" text-anchor="middle">Row 1 (owned by Thread 1)</text>
+
+  <text x="1325" y="580" font-size="20" fill="#888">...</text>
+
+  <rect x="1160" y="650" width="330" height="50" rx="5" fill="#1f3d2f" stroke="#34d399" stroke-width="1.5"/>
+  <text x="1325" y="680" font-size="12" fill="#34d399" text-anchor="middle">Row N (owned by Thread N)</text>
+
+  <!-- Arrows (Fast) - clean and parallel -->
+  <line x1="1030" y1="275" x2="1160" y2="275" stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#arrow-fast)"/>
+  <line x1="1030" y1="475" x2="1160" y2="475" stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#arrow-fast)"/>
+  <line x1="1030" y1="675" x2="1160" y2="675" stroke="#34d399" stroke-width="3" fill="none" marker-end="url(#arrow-fast)"/>
+
+  <!-- SIMD Icon -->
+  <text x="1300" y="310" font-size="11" fill="#4ade80" font-family="monospace">[f0 f1 ... f15]</text>
+  <text x="1300" y="510" font-size="11" fill="#4ade80" font-family="monospace">[f0 f1 ... f15]</text>
+  <text x="1300" y="710" font-size="11" fill="#4ade80" font-family="monospace">[f0 f1 ... f15]</text>
+  <text x="1400" y="310" font-size="12" fill="#4ade80" font-weight="bold">AVX-512</text>
+  <text x="1400" y="510" font-size="12" fill="#4ade80" font-weight="bold">AVX-512</text>
+  <text x="1400" y="710" font-size="12" fill="#4ade80" font-weight="bold">AVX-512</text>
+
+  <!-- Explanation (Fast) -->
+  <rect x="880" y="580" width="250" height="150" rx="8" fill="#1f3d2f" stroke="#34d399" stroke-width="2"/>
+  <text x="1005" y="605" font-size="14" font-weight="bold" fill="#34d399" text-anchor="middle">Solution: Disjoint Writes</text>
+  <text x="890" y="635" font-size="12" fill="#ccc">Each thread owns one output row.</text>
+  <text x="890" y="655" font-size="12" fill="#ccc">Memory writes are completely separate.</text>
+  <text x="890" y="680" font-size="12" fill="#34d399" font-weight="bold">Result: ZERO atomic operations.</text>
+  <text x="890" y="700" font-size="12" fill="#34d399">Bonus: Enables cache-friendly SIMD.</text>
+
+</svg>

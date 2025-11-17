@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800">
+  <defs>
+    <linearGradient id="grad-embed-wt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#81c784;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#66bb6a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-shared" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6f00;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e65100;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrow-wt" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#888" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="500" y="40" font-size="28" font-weight="bold" fill="#f0f0f0" text-anchor="middle">Weight Tying in GPT-2</text>
+  <text x="500" y="65" font-size="14" fill="#aaa" text-anchor="middle">Shared Weights Between Token Embedding and LM Head</text>
+
+  <!-- Shared Weight Matrix (Center) -->
+  <rect x="350" y="100" width="300" height="120" rx="10" fill="url(#grad-shared)" stroke="#e65100" stroke-width="4"/>
+  <text x="500" y="135" font-size="18" font-weight="bold" fill="white" text-anchor="middle">Shared Weight Matrix</text>
+  <text x="500" y="160" font-size="14" fill="white" text-anchor="middle">W_embed [V × D]</text>
+  <text x="500" y="180" font-size="13" fill="#ffe0b2" text-anchor="middle">[50257 × 1536]</text>
+  <text x="500" y="205" font-size="11" fill="white" text-anchor="middle">Single allocation in memory</text>
+
+  <!-- Left: Token Embedding -->
+  <rect x="50" y="280" width="300" height="180" rx="10" fill="url(#grad-embed-wt)" stroke="#66bb6a" stroke-width="2"/>
+  <text x="200" y="310" font-size="16" font-weight="bold" fill="white" text-anchor="middle">Token Embedding</text>
+  <text x="200" y="335" font-size="12" fill="white" text-anchor="middle">(Forward Pass)</text>
+
+  <text x="70" y="365" font-size="11" fill="white">Input: Token IDs [T]</text>
+  <text x="70" y="385" font-size="11" fill="#e0f7e0" font-family="monospace">tokens = [15496, 2345, ...]</text>
+
+  <text x="70" y="415" font-size="11" fill="white">Operation:</text>
+  <text x="70" y="435" font-size="11" fill="#e0f7e0" font-family="monospace">embed[t] = W_embed[tokens[t]]</text>
+  <text x="70" y="450" font-size="10" fill="#888">(Lookup/Gather)</text>
+
+  <!-- Arrow from shared matrix to embedding -->
+  <line x1="410" y1="220" x2="250" y2="280" stroke="#888" stroke-width="3" marker-end="url(#arrow-wt)"/>
+  <text x="320" y="245" font-size="11" fill="#4ade80" font-weight="bold">Used for lookup</text>
+
+  <!-- Right: LM Head -->
+  <rect x="650" y="280" width="300" height="180" rx="10" fill="url(#grad-embed-wt)" stroke="#66bb6a" stroke-width="2"/>
+  <text x="800" y="310" font-size="16" font-weight="bold" fill="white" text-anchor="middle">LM Head (Output)</text>
+  <text x="800" y="335" font-size="12" fill="white" text-anchor="middle">(Forward Pass)</text>
+
+  <text x="670" y="365" font-size="11" fill="white">Input: Hidden states [T × D]</text>
+  <text x="670" y="385" font-size="11" fill="#e0f7e0" font-family="monospace">hidden = final_ln_output</text>
+
+  <text x="670" y="415" font-size="11" fill="white">Operation:</text>
+  <text x="670" y="435" font-size="11" fill="#e0f7e0" font-family="monospace">logits = hidden @ W_embed^T</text>
+  <text x="670" y="450" font-size="10" fill="#888">(Matrix multiply)</text>
+
+  <!-- Arrow from shared matrix to LM head -->
+  <line x1="590" y1="220" x2="750" y2="280" stroke="#888" stroke-width="3" marker-end="url(#arrow-wt)"/>
+  <text x="680" y="245" font-size="11" fill="#4ade80" font-weight="bold">Used for projection</text>
+
+  <!-- Backward Pass Section -->
+  <rect x="50" y="500" width="900" height="270" rx="10" fill="#2d333b" stroke="#60a5fa" stroke-width="2"/>
+  <text x="500" y="530" font-size="18" font-weight="bold" fill="#60a5fa" text-anchor="middle">Backward Pass: Gradients Accumulate!</text>
+
+  <!-- Embedding Gradient -->
+  <rect x="80" y="550" width="400" height="90" rx="8" fill="#1e1e1e" stroke="#81c784" stroke-width="1"/>
+  <text x="280" y="575" font-size="14" font-weight="bold" fill="#81c784" text-anchor="middle">Token Embedding Gradient</text>
+  <text x="100" y="600" font-size="11" fill="#ccc" font-family="monospace">for (int t = 0; t &lt; T; t++) {</text>
+  <text x="100" y="617" font-size="11" fill="#4ade80" font-family="monospace">  int token_id = tokens[t];</text>
+  <text x="100" y="634" font-size="11" fill="#f87171" font-family="monospace">  d_W_embed[token_id] += d_embed[t];</text>
+  <text x="100" y="649" font-size="11" fill="#ccc" font-family="monospace">}</text>
+
+  <!-- LM Head Gradient -->
+  <rect x="520" y="550" width="400" height="90" rx="8" fill="#1e1e1e" stroke="#ff6f00" stroke-width="1"/>
+  <text x="720" y="575" font-size="14" font-weight="bold" fill="#ff6f00" text-anchor="middle">LM Head Gradient</text>
+  <text x="540" y="600" font-size="11" fill="#ccc" font-family="monospace">// d_logits [T × V], hidden [T × D]</text>
+  <text x="540" y="617" font-size="11" fill="#f87171" font-family="monospace">d_W_embed += d_logits^T @ hidden;</text>
+  <text x="540" y="634" font-size="10" fill="#888">(Matrix multiply: [V × T] @ [T × D])</text>
+
+  <!-- Critical Warning -->
+  <rect x="80" y="660" width="840" height="90" rx="8" fill="#3d1f1f" stroke="#f87171" stroke-width="3"/>
+  <text x="500" y="685" font-size="16" font-weight="bold" fill="#f87171" text-anchor="middle">⚠️ CRITICAL: Both Gradients Update SAME Matrix!</text>
+  <text x="100" y="710" font-size="13" fill="#f87171" font-family="monospace">∂L/∂W_embed = ∂L/∂W_token_emb + ∂L/∂W_lm_head</text>
+  <text x="100" y="730" font-size="11" fill="#ccc">This is CORRECT! The matrix is used in two places, so both gradients must contribute.</text>
+
+  <!-- Common Bug -->
+  <rect x="80" y="665" width="840" height="15" rx="3" fill="#f87171" opacity="0.2"/>
+
+  <!-- Implementation Example -->
+  <text x="500" y="775" font-size="12" font-weight="bold" fill="#4ade80" text-anchor="middle">Implementation Pattern (Correct):</text>
+  <text x="150" y="795" font-size="10" fill="#888" font-family="monospace">1. Zero gradients:  d_W_embed = 0</text>
+  <text x="500" y="795" font-size="10" fill="#888" font-family="monospace">2. Backward LM head:  d_W_embed += ...</text>
+  <text x="750" y="795" font-size="10" fill="#888" font-family="monospace">3. Backward embedding:  d_W_embed += ...</text>
+</svg>

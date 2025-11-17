@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700">
+  <defs>
+    <linearGradient id="grad-forward-res" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ade80;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-backward-res" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrow-fwd" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#4ade80" />
+    </marker>
+    <marker id="arrow-bwd" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#60a5fa" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="500" y="40" font-size="28" font-weight="bold" fill="#f0f0f0" text-anchor="middle">Residual Connection: Gradient Flow</text>
+  <text x="500" y="65" font-size="14" fill="#aaa" text-anchor="middle">Understanding How Gradients Split and Merge</text>
+
+  <!-- Forward Pass Section -->
+  <rect x="50" y="100" width="400" height="250" rx="10" fill="#2a2a2a" stroke="#4ade80" stroke-width="2"/>
+  <text x="250" y="125" font-size="16" font-weight="bold" fill="#4ade80" text-anchor="middle">Forward Pass</text>
+
+  <!-- Input -->
+  <rect x="80" y="150" width="120" height="50" rx="8" fill="url(#grad-forward-res)" stroke="#22c55e" stroke-width="2"/>
+  <text x="140" y="180" font-size="13" fill="white" text-anchor="middle">Input x</text>
+
+  <!-- Arrow down to transformation -->
+  <line x1="140" y1="200" x2="140" y2="230" stroke="#4ade80" stroke-width="2" marker-end="url(#arrow-fwd)"/>
+
+  <!-- Transformation (e.g., Attention or MLP) -->
+  <rect x="80" y="240" width="120" height="50" rx="8" fill="#ffd54f" stroke="#f59e0b" stroke-width="2"/>
+  <text x="140" y="260" font-size="12" fill="#333" text-anchor="middle">F(x)</text>
+  <text x="140" y="275" font-size="10" fill="#666" text-anchor="middle">(Attention/MLP)</text>
+
+  <!-- Skip connection path -->
+  <path d="M 200 175 Q 300 175, 300 315" stroke="#4ade80" stroke-width="3" fill="none" stroke-dasharray="5,5"/>
+  <text x="310" y="230" font-size="11" fill="#4ade80" font-weight="bold">Skip</text>
+
+  <!-- Arrow down from transformation -->
+  <line x1="140" y1="290" x2="140" y2="315" stroke="#4ade80" stroke-width="2" marker-end="url(#arrow-fwd)"/>
+
+  <!-- Addition -->
+  <circle cx="250" cy="315" r="20" fill="#4ade80" stroke="#22c55e" stroke-width="2"/>
+  <text x="250" y="322" font-size="20" font-weight="bold" fill="#2a2a2a" text-anchor="middle">+</text>
+
+  <!-- Output -->
+  <line x1="270" y1="315" x2="340" y2="315" stroke="#4ade80" stroke-width="2" marker-end="url(#arrow-fwd)"/>
+  <rect x="280" y="290" width="120" height="50" rx="8" fill="url(#grad-forward-res)" stroke="#22c55e" stroke-width="2"/>
+  <text x="340" y="315" font-size="13" fill="white" text-anchor="middle">Output</text>
+  <text x="340" y="330" font-size="11" fill="white" text-anchor="middle">x + F(x)</text>
+
+  <!-- Backward Pass Section -->
+  <rect x="550" y="100" width="400" height="250" rx="10" fill="#2a2a2a" stroke="#60a5fa" stroke-width="2"/>
+  <text x="750" y="125" font-size="16" font-weight="bold" fill="#60a5fa" text-anchor="middle">Backward Pass</text>
+
+  <!-- Gradient from above -->
+  <rect x="680" y="150" width="140" height="50" rx="8" fill="url(#grad-backward-res)" stroke="#3b82f6" stroke-width="2"/>
+  <text x="750" y="170" font-size="13" fill="white" text-anchor="middle">∂L/∂output</text>
+  <text x="750" y="188" font-size="10" fill="white" text-anchor="middle">(from layer above)</text>
+
+  <!-- Arrow down -->
+  <line x1="750" y1="200" x2="750" y2="230" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow-bwd)"/>
+
+  <!-- Split point -->
+  <circle cx="750" cy="240" r="8" fill="#60a5fa" stroke="#3b82f6" stroke-width="2"/>
+
+  <!-- Arrow to transformation gradient -->
+  <line x1="750" y1="248" x2="640" y2="270" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow-bwd)"/>
+  <text x="680" y="260" font-size="10" fill="#60a5fa" font-weight="bold">Copy 1</text>
+
+  <!-- Arrow to skip gradient -->
+  <line x1="750" y1="248" x2="860" y2="270" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrow-bwd)"/>
+  <text x="820" y="260" font-size="10" fill="#60a5fa" font-weight="bold">Copy 2</text>
+
+  <!-- Gradient through transformation -->
+  <rect x="570" y="280" width="140" height="50" rx="8" fill="#ffd54f" stroke="#f59e0b" stroke-width="2"/>
+  <text x="640" y="300" font-size="12" fill="#333" text-anchor="middle">∇F(x)</text>
+  <text x="640" y="315" font-size="10" fill="#666" text-anchor="middle">backward pass</text>
+
+  <!-- Skip gradient (identity) -->
+  <rect x="790" y="280" width="140" height="50" rx="8" fill="#34d399" stroke="#10b981" stroke-width="2"/>
+  <text x="860" y="300" font-size="12" fill="white" text-anchor="middle">Identity</text>
+  <text x="860" y="315" font-size="10" fill="white" text-anchor="middle">∂(x)/∂x = 1</text>
+
+  <!-- Implementation Notes -->
+  <rect x="50" y="400" width="900" height="270" rx="10" fill="#2d333b" stroke="#888" stroke-width="2"/>
+  <text x="500" y="430" font-size="18" font-weight="bold" fill="#ff6f00" text-anchor="middle">Implementation Details</text>
+
+  <!-- Forward Code -->
+  <rect x="80" y="450" width="400" height="200" rx="8" fill="#1e1e1e" stroke="#4ade80" stroke-width="1"/>
+  <text x="280" y="475" font-size="14" font-weight="bold" fill="#4ade80" text-anchor="middle">Forward (C code)</text>
+  <text x="100" y="500" font-size="11" fill="#ccc" font-family="monospace">// Residual connection</text>
+  <text x="100" y="520" font-size="11" fill="#4ade80" font-family="monospace">float *input = ...;</text>
+  <text x="100" y="540" font-size="11" fill="#4ade80" font-family="monospace">float *output = ...;</text>
+  <text x="100" y="560" font-size="11" fill="#888" font-family="monospace"></text>
+  <text x="100" y="580" font-size="11" fill="#ffd54f" font-family="monospace">attention_forward(input, temp);</text>
+  <text x="100" y="600" font-size="11" fill="#888" font-family="monospace"></text>
+  <text x="100" y="620" font-size="11" fill="#4ade80" font-family="monospace">// output = input + temp</text>
+  <text x="100" y="635" font-size="11" fill="#ccc" font-family="monospace">add_vectors(output, input, temp);</text>
+
+  <!-- Backward Code -->
+  <rect x="520" y="450" width="410" height="200" rx="8" fill="#1e1e1e" stroke="#60a5fa" stroke-width="1"/>
+  <text x="725" y="475" font-size="14" font-weight="bold" fill="#60a5fa" text-anchor="middle">Backward (C code)</text>
+  <text x="540" y="500" font-size="11" fill="#ccc" font-family="monospace">// Gradient splits at residual</text>
+  <text x="540" y="520" font-size="11" fill="#60a5fa" font-family="monospace">float *d_output = ...;  // from above</text>
+  <text x="540" y="540" font-size="11" fill="#60a5fa" font-family="monospace">float *d_input = ...;</text>
+  <text x="540" y="560" font-size="11" fill="#888" font-family="monospace"></text>
+  <text x="540" y="580" font-size="11" fill="#f87171" font-family="monospace">// CRITICAL: Split gradient</text>
+  <text x="540" y="595" font-size="11" fill="#ffd54f" font-family="monospace">attention_backward(d_output, d_temp);</text>
+  <text x="540" y="610" font-size="11" fill="#888" font-family="monospace"></text>
+  <text x="540" y="625" font-size="11" fill="#4ade80" font-family="monospace">// Accumulate both paths</text>
+  <text x="540" y="640" font-size="11" fill="#ccc" font-family="monospace">add_vectors(d_input, d_output, d_temp);</text>
+
+  <!-- Warning Box -->
+  <rect x="100" y="380" width="800" height="15" rx="3" fill="#f87171" opacity="0.3"/>
+  <text x="500" y="391" font-size="11" font-weight="bold" fill="#f87171" text-anchor="middle">⚠️ Common Bug: Forgetting to accumulate skip gradient → Wrong gradients!</text>
+</svg>

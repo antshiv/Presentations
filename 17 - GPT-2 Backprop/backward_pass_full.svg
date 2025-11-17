@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600">
+  <defs>
+    <linearGradient id="grad-loss" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f87171;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-backward" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrowback" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#60a5fa" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="40" font-size="32" font-weight="bold" fill="#f0f0f0" text-anchor="middle">GPT-2 Backward Pass</text>
+  <text x="600" y="70" font-size="16" fill="#aaa" text-anchor="middle">Gradient Flow: Loss → Embeddings (Chain Rule in Action)</text>
+
+  <!-- Loss Function -->
+  <rect x="400" y="100" width="400" height="70" rx="10" fill="url(#grad-loss)" stroke="#dc2626" stroke-width="3"/>
+  <text x="600" y="125" font-size="16" font-weight="bold" fill="white" text-anchor="middle">Cross-Entropy Loss</text>
+  <text x="600" y="145" font-size="12" fill="white" text-anchor="middle">L = -Σ y_true × log(y_pred)</text>
+  <text x="600" y="160" font-size="10" fill="#ffe0e0" text-anchor="middle">Start: ∂L/∂L = 1.0</text>
+
+  <!-- Arrow -->
+  <line x1="600" y1="170" x2="600" y2="200" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrowback)"/>
+  <text x="650" y="185" font-size="11" fill="#60a5fa" font-weight="bold">∂L/∂logits</text>
+
+  <!-- Softmax Backward -->
+  <rect x="400" y="210" width="400" height="60" rx="10" fill="url(#grad-backward)" stroke="#3b82f6" stroke-width="2"/>
+  <text x="600" y="235" font-size="14" font-weight="bold" fill="white" text-anchor="middle">∇ Softmax Backward</text>
+  <text x="600" y="255" font-size="11" fill="white" text-anchor="middle">d_logits = softmax(logits) - y_true</text>
+
+  <!-- Arrow -->
+  <line x1="600" y1="270" x2="600" y2="300" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrowback)"/>
+  <text x="650" y="285" font-size="11" fill="#60a5fa" font-weight="bold">∂L/∂final_ln_out</text>
+
+  <!-- LM Head Backward (Weight Tying) -->
+  <rect x="350" y="310" width="500" height="80" rx="10" fill="url(#grad-backward)" stroke="#3b82f6" stroke-width="2"/>
+  <text x="600" y="335" font-size="14" font-weight="bold" fill="white" text-anchor="middle">∇ LM Head Backward</text>
+  <text x="600" y="355" font-size="11" fill="white" text-anchor="middle">∂L/∂W_embed += d_logits^T @ final_ln_out  (Accumulate!)</text>
+  <text x="600" y="375" font-size="10" fill="#ffe0b2" text-anchor="middle">⚠️ Weight Tying: Gradients accumulate to SAME embedding matrix</text>
+
+  <!-- Arrow -->
+  <line x1="600" y1="390" x2="600" y2="420" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrowback)"/>
+  <text x="650" y="405" font-size="11" fill="#60a5fa" font-weight="bold">∂L/∂layer6_out</text>
+
+  <!-- Final LayerNorm Backward -->
+  <rect x="400" y="430" width="400" height="60" rx="10" fill="url(#grad-backward)" stroke="#3b82f6" stroke-width="2"/>
+  <text x="600" y="455" font-size="14" font-weight="bold" fill="white" text-anchor="middle">∇ Final LayerNorm</text>
+  <text x="600" y="475" font-size="11" fill="white" text-anchor="middle">∂L/∂γ, ∂L/∂β, ∂L/∂input</text>
+
+  <!-- Arrow -->
+  <line x1="600" y1="490" x2="600" y2="520" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrowback)"/>
+
+  <!-- Transformer Layers Backward (Loop) -->
+  <rect x="200" y="530" width="800" height="280" rx="10" fill="#2a2a2a" stroke="#444" stroke-width="2"/>
+  <text x="600" y="555" font-size="16" font-weight="bold" fill="#ff6f00" text-anchor="middle">∇ Transformer Layers (6 → 1) - Backward Loop</text>
+
+  <!-- Layer N backward -->
+  <g id="layer-backward">
+    <!-- Residual 2 backward -->
+    <rect x="230" y="575" width="740" height="50" rx="8" fill="#3d3d3d" stroke="#4ade80" stroke-width="2"/>
+    <text x="600" y="595" font-size="12" font-weight="bold" fill="#4ade80" text-anchor="middle">Residual 2: d_residual1 = d_residual2 (split gradient)</text>
+    <text x="600" y="612" font-size="10" fill="#888" text-anchor="middle">∂L/∂mlp_output = ∂L/∂residual2 (copy), ∂L/∂residual1 += ∂L/∂residual2 (accumulate)</text>
+
+    <!-- MLP Backward -->
+    <rect x="250" y="640" width="700" height="50" rx="8" fill="url(#grad-backward)" stroke="#3b82f6" stroke-width="2"/>
+    <text x="600" y="660" font-size="12" font-weight="bold" fill="white" text-anchor="middle">∇ MLP: FC2 → GELU → FC1</text>
+    <text x="600" y="677" font-size="10" fill="white" text-anchor="middle">∂L/∂W_fc2, ∂L/∂W_fc1, ∂L/∂ln2_out (chain rule)</text>
+
+    <!-- LayerNorm 2 Backward -->
+    <rect x="250" y="700" width="700" height="40" rx="8" fill="url(#grad-backward)" stroke="#3b82f6" stroke-width="2"/>
+    <text x="600" y="725" font-size="11" fill="white" text-anchor="middle">∇ LayerNorm 2: ∂L/∂γ₂, ∂L/∂β₂, ∂L/∂ln2_input</text>
+
+    <!-- Residual 1 backward -->
+    <rect x="230" y="750" width="740" height="50" rx="8" fill="#3d3d3d" stroke="#4ade80" stroke-width="2"/>
+    <text x="600" y="770" font-size="12" font-weight="bold" fill="#4ade80" text-anchor="middle">Residual 1: d_ln1_input = d_ln2_input (split gradient)</text>
+    <text x="600" y="787" font-size="10" fill="#888" text-anchor="middle">∂L/∂attn_output = ∂L/∂ln2_input (copy), ∂L/∂ln1_input += ∂L/∂ln2_input (accumulate)</text>
+  </g>
+
+  <!-- Arrow -->
+  <line x1="600" y1="810" x2="600" y2="840" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrowback)"/>
+  <text x="650" y="825" font-size="11" fill="#60a5fa" font-weight="bold">Repeat 6×</text>
+
+  <!-- Embedding Backward -->
+  <rect x="350" y="850" width="500" height="80" rx="10" fill="url(#grad-backward)" stroke="#3b82f6" stroke-width="2"/>
+  <text x="600" y="875" font-size="14" font-weight="bold" fill="white" text-anchor="middle">∇ Embedding Layer</text>
+  <text x="600" y="895" font-size="11" fill="white" text-anchor="middle">∂L/∂W_token += ∂L/∂embed_out[token_ids]  (scatter add)</text>
+  <text x="600" y="915" font-size="10" fill="#ffe0b2" text-anchor="middle">⚠️ Accumulates with LM head gradients (weight tying!)</text>
+
+  <!-- Arrow -->
+  <line x1="600" y1="930" x2="600" y2="960" stroke="#60a5fa" stroke-width="3" marker-end="url(#arrowback)"/>
+
+  <!-- Gradient Accumulation Complete -->
+  <rect x="350" y="970" width="500" height="80" rx="10" fill="url(#grad-grad)" stroke="#10b981" stroke-width="3"/>
+  <text x="600" y="995" font-size="16" font-weight="bold" fill="white" text-anchor="middle">✅ All Gradients Computed</text>
+  <text x="600" y="1015" font-size="12" fill="white" text-anchor="middle">∂L/∂W for every weight in the network</text>
+  <text x="600" y="1035" font-size="11" fill="white" text-anchor="middle">Ready for weight update: W = W - lr × ∂L/∂W</text>
+
+  <!-- Key Insights Box -->
+  <rect x="100" y="1100" width="1000" height="450" rx="10" fill="#2d333b" stroke="#4ade80" stroke-width="2"/>
+  <text x="600" y="1130" font-size="18" font-weight="bold" fill="#4ade80" text-anchor="middle">Key Implementation Details</text>
+
+  <!-- Chain Rule Pattern -->
+  <rect x="130" y="1150" width="460" height="180" rx="8" fill="#1e1e1e" stroke="#888" stroke-width="1"/>
+  <text x="360" y="1175" font-size="14" font-weight="bold" fill="#60a5fa" text-anchor="middle">Chain Rule Pattern</text>
+  <text x="150" y="1200" font-size="11" fill="#ccc">Every operation follows:</text>
+  <text x="150" y="1220" font-size="12" fill="#4ade80" font-family="monospace">∂L/∂W = ∂L/∂output × ∂output/∂W</text>
+  <text x="150" y="1240" font-size="12" fill="#4ade80" font-family="monospace">         ↑parent       ↑local</text>
+  <text x="150" y="1270" font-size="11" fill="#ccc">Example (FC layer):</text>
+  <text x="150" y="1290" font-size="11" fill="#888" font-family="monospace">∂L/∂W_fc = d_output^T @ input</text>
+  <text x="150" y="1310" font-size="11" fill="#888" font-family="monospace">∂L/∂input = d_output @ W_fc^T</text>
+
+  <!-- Tricky Areas -->
+  <rect x="610" y="1150" width="460" height="180" rx="8" fill="#1e1e1e" stroke="#888" stroke-width="1"/>
+  <text x="840" y="1175" font-size="14" font-weight="bold" fill="#f87171" text-anchor="middle">⚠️ Tricky Areas</text>
+  <text x="630" y="1200" font-size="11" fill="#f87171" font-weight="bold">1. Residual Connections:</text>
+  <text x="640" y="1217" font-size="10" fill="#ccc">Gradient SPLITS (copy) then ACCUMULATES</text>
+  <text x="640" y="1232" font-size="10" fill="#888" font-family="monospace">d_input += d_residual_out</text>
+
+  <text x="630" y="1255" font-size="11" fill="#f87171" font-weight="bold">2. Weight Tying:</text>
+  <text x="640" y="1272" font-size="10" fill="#ccc">Embedding weights used in TWO places:</text>
+  <text x="640" y="1287" font-size="10" fill="#888">• Token embedding (forward)</text>
+  <text x="640" y="1302" font-size="10" fill="#888">• LM head (output projection)</text>
+  <text x="640" y="1317" font-size="10" fill="#4ade80" font-family="monospace">∂L/∂W_embed = ∂L/∂W_tok + ∂L/∂W_lm</text>
+
+  <!-- Gradient Zeroing -->
+  <rect x="130" y="1350" width="940" height="90" rx="8" fill="#1e1e1e" stroke="#888" stroke-width="1"/>
+  <text x="600" y="1375" font-size="14" font-weight="bold" fill="#ff6f00" text-anchor="middle">Critical: Gradient Zeroing</text>
+  <text x="150" y="1400" font-size="11" fill="#ccc">MUST zero gradients before each backward pass:</text>
+  <text x="150" y="1420" font-size="11" fill="#888" font-family="monospace">zero_gradients(M);  // memset all gradient buffers to 0</text>
+  <text x="150" y="1435" font-size="10" fill="#f87171">Otherwise gradients accumulate across steps → wrong updates!</text>
+
+  <!-- Gradient Update -->
+  <rect x="130" y="1460" width="940" height="70" rx="8" fill="#1e1e1e" stroke="#888" stroke-width="1"/>
+  <text x="600" y="1485" font-size="14" font-weight="bold" fill="#4ade80" text-anchor="middle">Weight Update (SGD)</text>
+  <text x="150" y="1510" font-size="11" fill="#888" font-family="monospace">W_new = W_old - learning_rate × ∂L/∂W</text>
+  <text x="150" y="1525" font-size="10" fill="#ccc">Performed AFTER all gradients computed (batch gradient descent)</text>
+</svg>

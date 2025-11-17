@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000">
+  <defs>
+    <linearGradient id="grad-slow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f87171;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-fast" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrow-slow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#f87171" />
+    </marker>
+    <marker id="arrow-fast" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#34d399" />
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="800" y="40" font-size="28" font-weight="bold" fill="#ff6f00" text-anchor="middle">Token-Parallel vs Feature-Parallel</text>
+  <text x="800" y="70" font-size="15" fill="#888" text-anchor="middle">Visualizing Memory Access Patterns for FC1 Weight Gradients</text>
+
+  <!-- Slow Method (Left) -->
+  <rect x="50" y="100" width="700" height="750" rx="15" fill="#2a2a2a" stroke="#f87171" stroke-width="3"/>
+  <text x="400" y="140" font-size="24" font-weight="bold" fill="#f87171" text-anchor="middle">❌ Token-Parallel (SLOW)</text>
+  <text x="400" y="170" font-size="14" fill="#aaa" text-anchor="middle">Parallelize over tokens → 9.4M atomic operations</text>
+
+  <!-- Threads (Slow) -->
+  <g id="threads-slow">
+    <rect x="80" y="220" width="180" height="50" rx="8" fill="url(#grad-slow)"/>
+    <text x="170" y="240" font-size="12" fill="white" text-anchor="middle" font-weight="bold">Thread 0</text>
+    <text x="170" y="258" font-size="11" fill="#ffe0b2" text-anchor="middle">Tokens 0-255</text>
+
+    <rect x="80" y="420" width="180" height="50" rx="8" fill="url(#grad-slow)"/>
+    <text x="170" y="440" font-size="12" fill="white" text-anchor="middle" font-weight="bold">Thread 1</text>
+    <text x="170" y="458" font-size="11" fill="#ffe0b2" text-anchor="middle">Tokens 256-511</text>
+
+    <rect x="80" y="620" width="180" height="50" rx="8" fill="url(#grad-slow)"/>
+    <text x="170" y="640" font-size="12" fill="white" text-anchor="middle" font-weight="bold">Thread N</text>
+    <text x="170" y="658" font-size="11" fill="#ffe0b2" text-anchor="middle">Tokens 768-1023</text>
+  </g>
+
+  <!-- Gradient Matrix (Slow) -->
+  <rect x="350" y="200" width="350" height="480" rx="10" fill="#1e1e1e" stroke="#888" stroke-width="2"/>
+  <text x="525" y="230" font-size="16" font-weight="bold" fill="#ccc" text-anchor="middle">d_W [1536 × 6144]</text>
+  <text x="525" y="250" font-size="12" fill="#888" text-anchor="middle">All threads write to ALL weights</text>
+
+  <!-- Arrows (Slow) - tangled mess showing conflicts -->
+  <path d="M 260 245 Q 350 245, 450 280" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)"/>
+  <path d="M 260 245 Q 400 320, 500 420" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)" stroke-dasharray="5,5"/>
+  <path d="M 260 245 Q 380 420, 480 580" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)" opacity="0.6"/>
+
+  <path d="M 260 445 Q 350 445, 450 340" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)"/>
+  <path d="M 260 445 Q 400 400, 500 480" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)" stroke-dasharray="5,5"/>
+  <path d="M 260 445 Q 380 520, 480 620" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)" opacity="0.6"/>
+
+  <path d="M 260 645 Q 350 645, 450 650" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)"/>
+  <path d="M 260 645 Q 400 580, 500 520" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)" stroke-dasharray="5,5"/>
+  <path d="M 260 645 Q 380 480, 480 380" stroke="#f87171" stroke-width="2" fill="none" marker-end="url(#arrow-slow)" opacity="0.6"/>
+
+  <!-- Lock Icons showing contention -->
+  <text x="480" y="450" font-size="45">🔒</text>
+  <text x="420" y="310" font-size="25">🔒</text>
+  <text x="550" y="620" font-size="35">🔒</text>
+  <text x="500" y="380" font-size="28">🔒</text>
+
+  <!-- Problem Box (Slow) -->
+  <rect x="80" y="720" width="620" height="110" rx="10" fill="rgba(248, 113, 113, 0.15)" stroke="#f87171" stroke-width="2"/>
+  <text x="390" y="750" font-size="16" font-weight="bold" fill="#f87171" text-anchor="middle">Three Bottlenecks</text>
+  <text x="90" y="775" font-size="13" fill="#ccc">❌ <tspan font-weight="bold" fill="#f87171">9,437,184 atomic operations</tspan> (1536 × 6144 weights)</text>
+  <text x="90" y="795" font-size="13" fill="#ccc">❌ <tspan font-weight="bold" fill="#f87171">No SIMD vectorization</tspan> possible (scalar only)</text>
+  <text x="90" y="815" font-size="13" fill="#ccc">❌ <tspan font-weight="bold" fill="#f87171">Cache thrashing</tspan> from constant invalidation</text>
+
+  <!-- Fast Method (Right) -->
+  <rect x="850" y="100" width="700" height="750" rx="15" fill="#2a2a2a" stroke="#34d399" stroke-width="3"/>
+  <text x="1200" y="140" font-size="24" font-weight="bold" fill="#34d399" text-anchor="middle">✅ Feature-Parallel (FAST)</text>
+  <text x="1200" y="170" font-size="14" fill="#aaa" text-anchor="middle">Parallelize over output features → 0 atomic operations</text>
+
+  <!-- Threads (Fast) -->
+  <g id="threads-fast">
+    <rect x="880" y="220" width="180" height="50" rx="8" fill="url(#grad-fast)"/>
+    <text x="970" y="240" font-size="12" fill="white" text-anchor="middle" font-weight="bold">Thread 0</text>
+    <text x="970" y="258" font-size="11" fill="#e0f7e0" text-anchor="middle">Output Row 0</text>
+
+    <rect x="880" y="420" width="180" height="50" rx="8" fill="url(#grad-fast)"/>
+    <text x="970" y="440" font-size="12" fill="white" text-anchor="middle" font-weight="bold">Thread 1</text>
+    <text x="970" y="458" font-size="11" fill="#e0f7e0" text-anchor="middle">Output Row 1</text>
+
+    <rect x="880" y="620" width="180" height="50" rx="8" fill="url(#grad-fast)"/>
+    <text x="970" y="640" font-size="12" fill="white" text-anchor="middle" font-weight="bold">Thread N</text>
+    <text x="970" y="658" font-size="11" fill="#e0f7e0" text-anchor="middle">Output Row N</text>
+  </g>
+
+  <!-- Gradient Matrix (Fast) -->
+  <rect x="1150" y="200" width="350" height="480" rx="10" fill="#1e1e1e" stroke="#888" stroke-width="2"/>
+  <text x="1325" y="230" font-size="16" font-weight="bold" fill="#ccc" text-anchor="middle">d_W [1536 × 6144]</text>
+  <text x="1325" y="250" font-size="12" fill="#888" text-anchor="middle">Each thread owns ONE row (disjoint memory)</text>
+
+  <!-- Rows showing ownership -->
+  <rect x="1160" y="280" width="330" height="45" rx="5" fill="rgba(52, 211, 153, 0.2)" stroke="#34d399" stroke-width="2"/>
+  <text x="1325" y="308" font-size="13" fill="#34d399" text-anchor="middle" font-weight="bold">Row 0 → Thread 0 only</text>
+
+  <rect x="1160" y="480" width="330" height="45" rx="5" fill="rgba(52, 211, 153, 0.2)" stroke="#34d399" stroke-width="2"/>
+  <text x="1325" y="508" font-size="13" fill="#34d399" text-anchor="middle" font-weight="bold">Row 1 → Thread 1 only</text>
+
+  <text x="1325" y="580" font-size="20" fill="#666">...</text>
+
+  <rect x="1160" y="620" width="330" height="45" rx="5" fill="rgba(52, 211, 153, 0.2)" stroke="#34d399" stroke-width="2"/>
+  <text x="1325" y="648" font-size="13" fill="#34d399" text-anchor="middle" font-weight="bold">Row N → Thread N only</text>
+
+  <!-- Arrows (Fast) - clean parallel lines -->
+  <line x1="1060" y1="245" x2="1160" y2="302" stroke="#34d399" stroke-width="3" marker-end="url(#arrow-fast)"/>
+  <line x1="1060" y1="445" x2="1160" y2="502" stroke="#34d399" stroke-width="3" marker-end="url(#arrow-fast)"/>
+  <line x1="1060" y1="645" x2="1160" y2="642" stroke="#34d399" stroke-width="3" marker-end="url(#arrow-fast)"/>
+
+  <!-- SIMD visualization -->
+  <rect x="1180" y="340" width="280" height="30" rx="5" fill="#1f3d2f" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="1320" y="361" font-size="11" fill="#4ade80" text-anchor="middle" font-family="monospace">[f0 f1 f2 ... f14 f15] AVX-512 (16-wide)</text>
+
+  <rect x="1180" y="540" width="280" height="30" rx="5" fill="#1f3d2f" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="1320" y="561" font-size="11" fill="#4ade80" text-anchor="middle" font-family="monospace">[f0 f1 f2 ... f14 f15] AVX-512 (16-wide)</text>
+
+  <!-- Solution Box (Fast) -->
+  <rect x="880" y="720" width="620" height="110" rx="10" fill="rgba(52, 211, 153, 0.15)" stroke="#34d399" stroke-width="2"/>
+  <text x="1190" y="750" font-size="16" font-weight="bold" fill="#34d399" text-anchor="middle">Three Wins</text>
+  <text x="890" y="775" font-size="13" fill="#ccc">✅ <tspan font-weight="bold" fill="#34d399">Zero atomic operations</tspan> (disjoint memory)</text>
+  <text x="890" y="795" font-size="13" fill="#ccc">✅ <tspan font-weight="bold" fill="#34d399">Full AVX-512 SIMD</tspan> (16× throughput per instruction)</text>
+  <text x="890" y="815" font-size="13" fill="#ccc">✅ <tspan font-weight="bold" fill="#34d399">Cache-friendly</tspan> contiguous memory access</text>
+
+  <!-- Performance comparison at bottom -->
+  <rect x="50" y="900" width="1500" height="70" rx="10" fill="#1e1e1e" stroke="#ff6f00" stroke-width="2"/>
+  <text x="800" y="930" font-size="18" font-weight="bold" fill="#ff6f00" text-anchor="middle">Performance Impact: 5-10× Speedup</text>
+  <text x="800" y="955" font-size="14" fill="#aaa" text-anchor="middle">From eliminating atomics + enabling SIMD + optimizing cache access</text>
+</svg>

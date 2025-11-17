@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500">
+  <defs>
+    <linearGradient id="grad-attention" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ba68c8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9c27b0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-mlp" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e57373;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d32f2f;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#888" />
+    </marker>
+  </defs>
+
+  <!-- Container -->
+  <rect x="50" y="10" width="1100" height="480" rx="10" fill="#2a2a2a" stroke="#444" stroke-width="2"/>
+  <text x="600" y="35" font-size="16" font-weight="bold" fill="#ff6f00" text-anchor="middle">Transformer Layer (×6)</text>
+
+  <!-- Input -->
+  <text x="600" y="60" font-size="11" font-weight="bold" fill="#4ade80" text-anchor="middle">Input (x)</text>
+  <line x1="600" y1="65" x2="600" y2="85" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <!-- ========== RESIDUAL BLOCK 1 ========== -->
+
+  <!-- Split point 1 -->
+  <circle cx="600" cy="85" r="5" fill="#4ade80"/>
+
+  <!-- LayerNorm 1 -->
+  <rect x="530" y="95" width="140" height="45" rx="8" fill="#3d3d3d" stroke="#666" stroke-width="2"/>
+  <text x="600" y="113" font-size="11" fill="#ccc" text-anchor="middle">LayerNorm 1</text>
+  <text x="600" y="128" font-size="9" fill="#888" text-anchor="middle">[T × D]</text>
+
+  <line x1="600" y1="140" x2="600" y2="160" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <!-- Multi-Head Attention -->
+  <rect x="530" y="165" width="140" height="50" rx="8" fill="url(#grad-attention)" stroke="#9c27b0" stroke-width="2"/>
+  <text x="600" y="185" font-size="12" font-weight="bold" fill="white" text-anchor="middle">Multi-Head Attn</text>
+  <text x="600" y="202" font-size="10" fill="white" text-anchor="middle">Q, K, V → 8 heads</text>
+
+  <line x1="600" y1="215" x2="600" y2="235" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <!-- Skip 1 -->
+  <path d="M 600 85 L 150 85 L 150 245 L 580 245" stroke="#4ade80" stroke-width="3" fill="none" stroke-dasharray="8,4"/>
+  <text x="145" y="160" font-size="11" font-weight="bold" fill="#4ade80" text-anchor="end">Skip 1</text>
+  <text x="145" y="175" font-size="9" fill="#4ade80" text-anchor="end">(bypass LN+Attn)</text>
+
+  <!-- ADD 1 -->
+  <circle cx="600" cy="245" r="20" fill="#4ade80" stroke="#2a2a2a" stroke-width="2"/>
+  <text x="600" y="252" font-size="22" font-weight="bold" fill="#2a2a2a" text-anchor="middle">+</text>
+  <text x="680" y="250" font-size="11" fill="#4ade80">x + Attn(LN(x))</text>
+
+  <line x1="600" y1="265" x2="600" y2="285" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <!-- ========== RESIDUAL BLOCK 2 ========== -->
+
+  <!-- Split point 2 -->
+  <circle cx="600" cy="285" r="5" fill="#4ade80"/>
+
+  <!-- LayerNorm 2 -->
+  <rect x="530" y="295" width="140" height="45" rx="8" fill="#3d3d3d" stroke="#666" stroke-width="2"/>
+  <text x="600" y="313" font-size="11" fill="#ccc" text-anchor="middle">LayerNorm 2</text>
+  <text x="600" y="328" font-size="9" fill="#888" text-anchor="middle">[T × D]</text>
+
+  <line x1="600" y1="340" x2="600" y2="360" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <!-- MLP -->
+  <rect x="530" y="365" width="140" height="50" rx="8" fill="url(#grad-mlp)" stroke="#d32f2f" stroke-width="2"/>
+  <text x="600" y="385" font-size="12" font-weight="bold" fill="white" text-anchor="middle">MLP (FFN)</text>
+  <text x="600" y="402" font-size="10" fill="white" text-anchor="middle">FC1 → GELU → FC2</text>
+
+  <line x1="600" y1="415" x2="600" y2="435" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+  <!-- Skip 2 -->
+  <path d="M 600 285 L 1050 285 L 1050 445 L 620 445" stroke="#4ade80" stroke-width="3" fill="none" stroke-dasharray="8,4"/>
+  <text x="1055" y="360" font-size="11" font-weight="bold" fill="#4ade80">Skip 2</text>
+  <text x="1055" y="375" font-size="9" fill="#4ade80">(bypass LN+MLP)</text>
+
+  <!-- ADD 2 -->
+  <circle cx="600" cy="445" r="20" fill="#4ade80" stroke="#2a2a2a" stroke-width="2"/>
+  <text x="600" y="452" font-size="22" font-weight="bold" fill="#2a2a2a" text-anchor="middle">+</text>
+  <text x="450" y="450" font-size="11" fill="#4ade80" text-anchor="end">prev + MLP(LN(prev))</text>
+
+  <!-- Output -->
+  <line x1="600" y1="465" x2="600" y2="480" stroke="#888" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="610" y="475" font-size="10" fill="#4ade80">Output</text>
+</svg>

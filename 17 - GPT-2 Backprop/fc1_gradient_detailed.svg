@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900">
+  <defs>
+    <linearGradient id="grad-data" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a90e2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#357abd;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-weight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#81c784;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#66bb6a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-grad-data" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-atomic" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f87171;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad-fast" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34d399;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="40" font-size="28" font-weight="bold" fill="#f0f0f0" text-anchor="middle">FC1 Layer: Gradient Computation Detail</text>
+  <text x="700" y="65" font-size="14" fill="#aaa" text-anchor="middle">Feature-Parallel vs Token-Parallel Comparison</text>
+
+  <!-- Forward Pass Reference -->
+  <rect x="50" y="90" width="1300" height="120" rx="10" fill="#2a2a2a" stroke="#4ade80" stroke-width="2"/>
+  <text x="700" y="115" font-size="16" font-weight="bold" fill="#4ade80" text-anchor="middle">Forward Pass (for reference)</text>
+
+  <!-- Forward equation -->
+  <text x="100" y="145" font-size="14" fill="#ccc" font-family="monospace">Output [T × 4D] = Input [T × D] @ W_fc1 [D × 4D] + bias [4D]</text>
+  <text x="100" y="170" font-size="12" fill="#888">Example: [1024 × 1536] @ [1536 × 6144] + [6144] = [1024 × 6144]</text>
+  <text x="100" y="195" font-size="11" fill="#4ade80">Each token gets expanded from D=1536 to 4D=6144 dimensions</text>
+
+  <!-- Backward Pass Section -->
+  <rect x="50" y="230" width="1300" height="140" rx="10" fill="#2d333b" stroke="#60a5fa" stroke-width="2"/>
+  <text x="700" y="255" font-size="16" font-weight="bold" fill="#60a5fa" text-anchor="middle">Backward Pass: Three Gradients to Compute</text>
+
+  <!-- Three gradient computations -->
+  <rect x="80" y="275" width="380" height="80" rx="8" fill="#1e1e1e" stroke="#888" stroke-width="1"/>
+  <text x="270" y="295" font-size="13" font-weight="bold" fill="#60a5fa" text-anchor="middle">1. ∂L/∂W_fc1 [D × 4D]</text>
+  <text x="90" y="315" font-size="11" fill="#ccc" font-family="monospace">= Input^T [D × T]</text>
+  <text x="90" y="332" font-size="11" fill="#ccc" font-family="monospace">  @ d_output [T × 4D]</text>
+  <text x="90" y="349" font-size="10" fill="#888">Weight gradient</text>
+
+  <rect x="490" y="275" width="380" height="80" rx="8" fill="#1e1e1e" stroke="#888" stroke-width="1"/>
+  <text x="680" y="295" font-size="13" font-weight="bold" fill="#60a5fa" text-anchor="middle">2. ∂L/∂bias [4D]</text>
+  <text x="500" y="315" font-size="11" fill="#ccc" font-family="monospace">= sum(d_output, axis=0)</text>
+  <text x="500" y="332" font-size="11" fill="#888">[T × 4D] → [4D]</text>
+  <text x="500" y="349" font-size="10" fill="#888">Sum over tokens</text>
+
+  <rect x="900" y="275" width="420" height="80" rx="8" fill="#1e1e1e" stroke="#888" stroke-width="1"/>
+  <text x="1110" y="295" font-size="13" font-weight="bold" fill="#60a5fa" text-anchor="middle">3. ∂L/∂Input [T × D]</text>
+  <text x="910" y="315" font-size="11" fill="#ccc" font-family="monospace">= d_output [T × 4D]</text>
+  <text x="910" y="332" font-size="11" fill="#ccc" font-family="monospace">  @ W_fc1^T [4D × D]</text>
+  <text x="910" y="349" font-size="10" fill="#888">Backprop to previous layer</text>
+
+  <!-- Token-Parallel (Slow) -->
+  <rect x="50" y="400" width="650" height="450" rx="10" fill="#2a2a2a" stroke="#f87171" stroke-width="3"/>
+  <text x="375" y="430" font-size="18" font-weight="bold" fill="#f87171" text-anchor="middle">❌ Token-Parallel (SLOW)</text>
+
+  <text x="80" y="465" font-size="13" fill="#ccc">Parallelize over output × input dimensions:</text>
+  <pre style="margin: 475px 0 0 80px; font-size: 10px; color: #f87171; font-family: monospace; line-height: 1.4;">
+#pragma omp parallel for collapse(2)
+for (int out_idx = 0; out_idx &lt; 4*D; out_idx++) {
+  for (int in_idx = 0; in_idx &lt; D; in_idx++) {
+    float grad_sum = 0.0f;
+
+    // Accumulate over tokens
+    for (int t = 0; t &lt; T; t++) {
+      grad_sum += d_output[t * 4*D + out_idx] *
+                  input[t * D + in_idx];
+    }
+
+    #pragma omp atomic  // ⚠️ BOTTLENECK!
+    d_W_fc1[out_idx * D + in_idx] += grad_sum;
+  }
+}
+  </pre>
+
+  <rect x="80" y="630" width="590" height="200" rx="8" fill="#3d1f1f" stroke="#f87171" stroke-width="2"/>
+  <text x="375" y="655" font-size="14" font-weight="bold" fill="#f87171" text-anchor="middle">Problems:</text>
+  <text x="100" y="680" font-size="12" fill="#f87171">❌ Atomic operation on EVERY weight element</text>
+  <text x="120" y="700" font-size="11" fill="#ccc">• 1536 × 6144 = 9,437,184 atomic operations</text>
+  <text x="120" y="715" font-size="11" fill="#ccc">• Thread contention on shared memory</text>
+
+  <text x="100" y="740" font-size="12" fill="#f87171">❌ No SIMD vectorization</text>
+  <text x="120" y="760" font-size="11" fill="#ccc">• Scalar accumulation</text>
+  <text x="120" y="775" font-size="11" fill="#ccc">• Cannot use AVX-512 FMA instructions</text>
+
+  <text x="100" y="800" font-size="12" fill="#f87171">❌ Cache thrashing</text>
+  <text x="120" y="820" font-size="11" fill="#ccc">• Multiple threads writing to same cache lines</text>
+
+  <!-- Feature-Parallel (Fast) -->
+  <rect x="720" y="400" width="650" height="450" rx="10" fill="#2a2a2a" stroke="#34d399" stroke-width="3"/>
+  <text x="1045" y="430" font-size="18" font-weight="bold" fill="#34d399" text-anchor="middle">✅ Feature-Parallel (FAST)</text>
+
+  <text x="750" y="465" font-size="13" fill="#ccc">Parallelize over OUTPUT features only:</text>
+  <pre style="margin: 475px 0 0 750px; font-size: 10px; color: #34d399; font-family: monospace; line-height: 1.4;">
+#pragma omp parallel for schedule(dynamic, 1)
+for (int out_idx = 0; out_idx &lt; 4*D; out_idx++) {
+  float *dst_row = d_W_fc1 + out_idx * D;
+
+  // SIMD over input features
+  for (int in_idx = 0; in_idx &lt; D; in_idx += 16) {
+    __m512 accum = _mm512_setzero_ps();
+
+    // Accumulate over tokens
+    for (int t = 0; t &lt; T; t++) {
+      __m512 input_vec =
+        _mm512_load_ps(input + t*D + in_idx);
+      __m512 grad = _mm512_set1_ps(
+        d_output[t * 4*D + out_idx]);
+      accum = _mm512_fmadd_ps(grad, input_vec, accum);
+    }
+
+    __m512 prev = _mm512_load_ps(dst_row + in_idx);
+    _mm512_store_ps(dst_row + in_idx,
+                     _mm512_add_ps(prev, accum));
+    // ✅ NO ATOMIC! Thread owns this row
+  }
+}
+  </pre>
+
+  <rect x="750" y="660" width="590" height="170" rx="8" fill="#1f3d2f" stroke="#34d399" stroke-width="2"/>
+  <text x="1045" y="685" font-size="14" font-weight="bold" fill="#34d399" text-anchor="middle">Advantages:</text>
+  <text x="770" y="710" font-size="12" fill="#34d399">✅ ZERO atomic operations</text>
+  <text x="790" y="730" font-size="11" fill="#ccc">• Each thread owns one output row (disjoint memory)</text>
+
+  <text x="770" y="755" font-size="12" fill="#34d399">✅ AVX-512 SIMD vectorization</text>
+  <text x="790" y="775" font-size="11" fill="#ccc">• 16-wide FMA: Process 16 elements per iteration</text>
+
+  <text x="770" y="800" font-size="12" fill="#34d399">✅ Cache-friendly</text>
+  <text x="790" y="820" font-size="11" fill="#ccc">• Each thread works on contiguous 64-byte aligned rows</text>
+
+  <!-- Performance comparison -->
+  <text x="700" y="880" font-size="16" font-weight="bold" fill="#ff6f00" text-anchor="middle">Expected Speedup: 5-10× (Atomics removal + SIMD)</text>
+</svg>
