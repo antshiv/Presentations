@@ -1,0 +1,1280 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>GPT-2 in C: What Went Well, What Went Wrong, and What's Next</title>
+
+    <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+    <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+    <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#60a5fa',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#3b82f6',
+                lineColor: '#888',
+                secondaryColor: '#8b5cf6',
+                tertiaryColor: '#34d399',
+                background: '#1a1a1a',
+                mainBkg: '#2d333b',
+                secondBkg: '#1e1e1e',
+                textColor: '#f0f0f0',
+                fontSize: '14px'
+            }
+        });
+    </script>
+
+    <style>
+        :root { --r-main-font-size: 28px; }
+        .reveal .slides section { font-size: 1em; text-align: center;}
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; text-align: center;}
+        .reveal p { text-align: center; }
+        .reveal ul { text-align: left; }
+        .reveal pre { margin: 20px auto; }
+        .reveal code { font-size: 0.75em; line-height: 1.4; }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .side-by-side {
+            display: flex;
+            justify-content: space-around;
+            align-items: start;
+            gap: 20px;
+        }
+
+        .status-box {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .status-good {
+            background: rgba(74, 222, 128, 0.2);
+            border-left: 4px solid #4ade80;
+        }
+
+        .status-warning {
+            background: rgba(251, 191, 36, 0.2);
+            border-left: 4px solid #fbbf24;
+        }
+
+        .status-bad {
+            background: rgba(239, 68, 68, 0.2);
+            border-left: 4px solid #ef4444;
+        }
+
+        .lesson-box {
+            background: rgba(139, 92, 246, 0.15);
+            border-left: 4px solid #8b5cf6;
+            padding: 20px;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #4ade80, #fbbf24, #ef4444);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+            padding-left: 30px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -35px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+
+        .timeline-item.warning::before {
+            background: #fbbf24;
+        }
+
+        .timeline-item.error::before {
+            background: #ef4444;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px auto;
+        }
+
+        .comparison-table {
+            width: 100%;
+            text-align: left;
+            font-size: 0.85em;
+        }
+
+        .comparison-table th {
+            background: rgba(74, 222, 128, 0.2);
+            padding: 10px;
+        }
+
+        .comparison-table td {
+            padding: 10px;
+            border-bottom: 1px solid #444;
+        }
+
+        .highlight-green { color: #4ade80; font-weight: bold; }
+        .highlight-yellow { color: #fbbf24; font-weight: bold; }
+        .highlight-red { color: #ef4444; font-weight: bold; }
+        .highlight-blue { color: #60a5fa; font-weight: bold; }
+        .highlight-purple { color: #8b5cf6; font-weight: bold; }
+
+        .code-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .architecture-diagram {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .emoji-large {
+            font-size: 3em;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+    <h1>GPT-2 in C</h1>
+    <h3>What Went Well, What Went Wrong,<br>and What's Next</h3>
+    <p style="margin-top: 50px; font-size: 0.8em; opacity: 0.7;">
+        A Journey Through 15,000 Lines of C Code
+    </p>
+    <p class="emoji-large">🏛️ → 🚀</p>
+    <aside class="notes">
+        This presentation covers my 10-week journey building a GPT-2 transformer from scratch in C.
+        I'll share what worked, what didn't, and the lessons that will shape the next iteration.
+    </aside>
+</section>
+
+<!-- The Challenge -->
+<section>
+    <h2>The Original Goal</h2>
+    <div class="status-box status-good">
+        <p><strong>Build GPT-2 from scratch in C</strong></p>
+        <ul>
+            <li>Full transformer architecture</li>
+            <li>Forward pass (inference)</li>
+            <li>Backward pass (training)</li>
+            <li>AVX-512 optimization</li>
+            <li>Validate against PyTorch</li>
+        </ul>
+    </div>
+    <p style="margin-top: 30px;">
+        <span class="highlight-blue">Why C?</span> Learn at the lowest level, optimize for embedded systems
+    </p>
+    <aside class="notes">
+        The goal was ambitious: implement every component of GPT-2 from scratch to truly understand
+        how transformers work at the hardware level. Target was embedded deployment on drones.
+    </aside>
+</section>
+
+<!-- The Journey: Timeline -->
+<section>
+    <h2>10 Weeks of Development</h2>
+    <div class="timeline">
+        <div class="timeline-item">
+            <strong>Weeks 1-2:</strong> Token + position embeddings, basic matmul
+        </div>
+        <div class="timeline-item">
+            <strong>Weeks 3-4:</strong> LayerNorm, multi-head attention (forward)
+        </div>
+        <div class="timeline-item">
+            <strong>Weeks 5-6:</strong> MLP, GELU, residual connections (forward)
+        </div>
+        <div class="timeline-item warning">
+            <strong>Weeks 7-8:</strong> Backward pass implementation (all layers)
+        </div>
+        <div class="timeline-item error">
+            <strong>Weeks 9-10:</strong> Training loop debugging (loss → 0.0 bug)
+        </div>
+    </div>
+    <aside class="notes">
+        First 6 weeks went smoothly - forward pass validated perfectly. Weeks 7-8 introduced numerical
+        precision challenges in backprop. Weeks 9-10 hit a wall with training loop bug.
+    </aside>
+</section>
+
+<!-- What Works -->
+<section>
+    <h2>What Works ✅</h2>
+    <div class="two-column">
+        <div>
+            <h4 class="highlight-green">Perfect Forward Pass</h4>
+            <ul>
+                <li>All layers validated</li>
+                <li>Diff < 1e-5 vs PyTorch</li>
+                <li>Fast inference (AVX-512)</li>
+                <li>OpenMP parallelization</li>
+            </ul>
+        </div>
+        <div>
+            <h4 class="highlight-green">Validation Infrastructure</h4>
+            <ul>
+                <li>12 validation scripts</li>
+                <li>Component-by-component</li>
+                <li>Numerical diff checking</li>
+                <li>Comprehensive test suite</li>
+            </ul>
+        </div>
+    </div>
+    <div class="status-box status-good" style="margin-top: 30px;">
+        <p><strong>PyTorch Training → C Inference Pipeline</strong></p>
+        <p>Train in PyTorch, export weights, infer in optimized C code</p>
+    </div>
+    <aside class="notes">
+        The inference engine is production-ready. Validation caught 20+ bugs early.
+        PyTorch integration provides a working training path.
+    </aside>
+</section>
+
+<!-- What Has Issues -->
+<section>
+    <h2>What Has Issues ⚠️</h2>
+    <div class="status-box status-bad">
+        <h4 class="highlight-red">Training Loop Bug</h4>
+        <ul>
+            <li>Loss drops to 0.0 after first step</li>
+            <li>Generates garbage output ("!!!!!!!")</li>
+            <li>Hidden somewhere in 15k line codebase</li>
+            <li>Likely in gradient accumulation or loss computation</li>
+        </ul>
+    </div>
+    <div class="status-box status-warning" style="margin-top: 20px;">
+        <h4 class="highlight-yellow">Backprop Numerical Diffs</h4>
+        <ul>
+            <li>Weight gradients: 1e-2 to 1e-3 diff (acceptable)</li>
+            <li>LayerNorm backward: some 1e-1 (high but tolerable)</li>
+            <li>Mathematical formulas proven correct</li>
+            <li>Issues likely numerical precision, not logic</li>
+        </ul>
+    </div>
+    <aside class="notes">
+        The training bug is the killer. After a step, loss becomes 0.0 and model generates nonsense.
+        Backprop diffs are borderline acceptable but not ideal.
+    </aside>
+</section>
+
+<!-- Validation Example -->
+<section>
+    <h2>Validation Was Everything</h2>
+    <pre><code class="language-python"># validation/validate_qkv.py
+import torch
+import numpy as np
+
+# Load PyTorch model
+model = GPT2Model.from_pretrained('gpt2')
+
+# Load C activations
+c_qkv = np.fromfile('debug_qkv.bin', dtype=np.float32)
+
+# Compare
+pytorch_qkv = model.transformer.h[0].attn.c_attn(x)
+diff = np.abs(c_qkv - pytorch_qkv.detach().numpy())
+
+print(f"Max diff: {diff.max():.2e}")
+print(f"Mean diff: {diff.mean():.2e}")
+
+assert diff.max() < 1e-5, "QKV projection failed!"
+</code></pre>
+    <p class="highlight-green" style="margin-top: 20px;">
+        ✓ This caught 20+ bugs before they became intractable
+    </p>
+    <aside class="notes">
+        Every component was validated against PyTorch. Load C outputs, compare to PyTorch reference,
+        check numerical diff. This was the single most valuable technique.
+    </aside>
+</section>
+
+<!-- The Problem: Code Complexity -->
+<section>
+    <h2>The Problem: Code Complexity</h2>
+    <div class="code-comparison">
+        <div>
+            <h4 class="highlight-red">main.c: 15,000 lines</h4>
+            <pre><code class="language-c">// All in one file:
+void forward_pass() { ... }  // 2000 lines
+void backward_pass() { ... } // 3000 lines
+void optimizer_step() { ... } // 500 lines
+void training_loop() { ... } // 800 lines
+
+// Diverging code paths:
+#ifdef DEBUG
+    // Different code!
+#else
+    // Production code
+#endif
+</code></pre>
+        </div>
+        <div>
+            <h4 class="highlight-yellow">Where's the bug?</h4>
+            <ul style="font-size: 0.85em;">
+                <li>Backprop? (3000 lines)</li>
+                <li>Optimizer? (500 lines)</li>
+                <li>Training loop? (800 lines)</li>
+                <li>Forward pass? (2000 lines)</li>
+                <li>Memory management?</li>
+                <li>Threading issues?</li>
+            </ul>
+            <p class="highlight-red" style="margin-top: 30px;">
+                🔍 Can't isolate the bug!
+            </p>
+        </div>
+    </div>
+    <aside class="notes">
+        15k lines in one file made debugging impossible. Forward and backward in different sections.
+        Debug flags changed code paths. Too many moving parts to isolate the bug.
+    </aside>
+</section>
+
+<!-- Lesson 1: Component-by-Component -->
+<section>
+    <h2>Lesson 1: Component-by-Component</h2>
+    <div class="side-by-side">
+        <div class="status-box status-bad" style="flex: 1;">
+            <h4 class="highlight-red">❌ What I Did</h4>
+            <ol>
+                <li>Write all forward passes</li>
+                <li>Test forward passes</li>
+                <li>Write all backward passes</li>
+                <li>Test backward passes</li>
+                <li>Debug everything at once</li>
+            </ol>
+        </div>
+        <div class="status-box status-good" style="flex: 1;">
+            <h4 class="highlight-green">✅ What I Should Have Done</h4>
+            <ol>
+                <li>Write RMSNorm forward</li>
+                <li>Write RMSNorm backward</li>
+                <li>Validate both < 1e-5</li>
+                <li>Move to next component</li>
+                <li>Never have more than 1 unknown</li>
+            </ol>
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 30px;">
+        <strong>Key Insight:</strong> When a bug appears, you know exactly where it is (current component).
+        You never debug 15,000 lines at once.
+    </div>
+    <aside class="notes">
+        This was the biggest mistake. Building everything then testing everything means when bugs appear,
+        you have no idea where they are. Component-by-component means bugs are always in the current component.
+    </aside>
+</section>
+
+<!-- Lesson 2: Validation Infrastructure -->
+<section>
+    <h2>Lesson 2: Validation is an Investment</h2>
+    <div class="chart-container">
+        <canvas id="validationROI"></canvas>
+    </div>
+    <p class="highlight-purple">
+        Every hour spent on validation saved 5+ hours of debugging
+    </p>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('validationROI').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Time Spent', 'Time Saved', 'Net Benefit'],
+                    datasets: [{
+                        label: 'Hours',
+                        data: [30, 150, 120],
+                        backgroundColor: [
+                            'rgba(251, 191, 36, 0.7)',
+                            'rgba(74, 222, 128, 0.7)',
+                            'rgba(139, 92, 246, 0.7)'
+                        ],
+                        borderColor: [
+                            '#fbbf24',
+                            '#4ade80',
+                            '#8b5cf6'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#444' },
+                            ticks: { color: '#fff' }
+                        },
+                        x: {
+                            grid: { color: '#444' },
+                            ticks: { color: '#fff' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#fff' } }
+                    }
+                }
+            });
+        });
+    </script>
+    <aside class="notes">
+        30% of development time went to validation infrastructure. But it caught bugs immediately,
+        before they compounded. ROI was 5:1 - massively worth it.
+    </aside>
+</section>
+
+<!-- Testing We Did -->
+<section>
+    <h2>Testing We Did (It Wasn't Enough)</h2>
+    <div class="two-column">
+        <div>
+            <h4 class="highlight-green">What We Had</h4>
+            <ul style="font-size: 0.85em;">
+                <li><code>validate_embeddings.py</code></li>
+                <li><code>validate_qkv.py</code></li>
+                <li><code>validate_attn.py</code></li>
+                <li><code>validate_layer_stages.py</code></li>
+                <li><code>validate_backward.py</code></li>
+                <li><code>validate_vs_pytorch.py</code></li>
+                <li>6 unit test files</li>
+                <li>Numerical diff checking</li>
+            </ul>
+        </div>
+        <div>
+            <h4 class="highlight-yellow">What Was Missing</h4>
+            <ul style="font-size: 0.85em;">
+                <li>Integration tests</li>
+                <li>End-to-end training test</li>
+                <li>Gradient checking (numerical)</li>
+                <li>Memory leak detection</li>
+                <li>Race condition tests</li>
+                <li>Regression tests</li>
+                <li>Performance benchmarks</li>
+                <li>CI/CD pipeline</li>
+            </ul>
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 20px;">
+        <strong>Why It Wasn't Enough:</strong> We validated components in isolation, but never validated
+        the complete training loop end-to-end. The bug was in the integration, not the components.
+    </div>
+    <aside class="notes">
+        We had comprehensive component validation. But we never tested the full training loop against
+        PyTorch step-by-step. That's where the bug hid.
+    </aside>
+</section>
+
+<!-- Debugging Method -->
+<section>
+    <h2>My Debugging Method (Inefficient)</h2>
+    <div class="timeline">
+        <div class="timeline-item">
+            <strong>Step 1:</strong> Notice loss = 0.0
+        </div>
+        <div class="timeline-item">
+            <strong>Step 2:</strong> Add printf everywhere
+        </div>
+        <div class="timeline-item">
+            <strong>Step 3:</strong> Rebuild (2 minutes)
+        </div>
+        <div class="timeline-item">
+            <strong>Step 4:</strong> Run, analyze output
+        </div>
+        <div class="timeline-item warning">
+            <strong>Step 5:</strong> Find suspicious value
+        </div>
+        <div class="timeline-item">
+            <strong>Step 6:</strong> Add more printfs around it
+        </div>
+        <div class="timeline-item">
+            <strong>Step 7:</strong> Rebuild (2 minutes)
+        </div>
+        <div class="timeline-item error">
+            <strong>Step 8:</strong> Repeat 20 times, still no bug found
+        </div>
+    </div>
+    <p class="highlight-red" style="margin-top: 20px;">
+        🐌 Each iteration took 5-10 minutes. 20 iterations = 3 hours of frustration.
+    </p>
+    <aside class="notes">
+        Printf debugging in 15k line file is slow. Compile time, run time, analyzing output.
+        No systematic approach. Just thrashing around hoping to find the bug.
+    </aside>
+</section>
+
+<!-- Better Debugging Method -->
+<section>
+    <h2>Better Debugging Method (Next Time)</h2>
+    <div class="two-column">
+        <div>
+            <h4 class="highlight-green">Automated Gradient Checking</h4>
+            <pre><code class="language-c">// Numerical gradient
+float eps = 1e-4;
+w[i] += eps;
+float loss_plus = compute_loss();
+w[i] -= 2*eps;
+float loss_minus = compute_loss();
+float numerical_grad =
+    (loss_plus - loss_minus)/(2*eps);
+
+// Analytical gradient
+float analytical_grad = dw[i];
+
+// Compare
+float diff = fabs(numerical_grad
+                 - analytical_grad);
+assert(diff < 1e-3);
+</code></pre>
+        </div>
+        <div>
+            <h4 class="highlight-green">Differential Testing</h4>
+            <pre><code class="language-python"># Run PyTorch step
+pytorch_model.zero_grad()
+pytorch_loss = pytorch_model(x)
+pytorch_loss.backward()
+pytorch_grads = get_grads()
+
+# Run C step
+c_loss = c_forward(x)
+c_backward()
+c_grads = load_c_grads()
+
+# Compare EVERY intermediate
+assert_close(c_loss, pytorch_loss)
+assert_close(c_grads, pytorch_grads)
+
+# Find divergence point!
+</code></pre>
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 20px;">
+        <strong>Key Insight:</strong> Automate validation at every step. Don't wait for the full
+        training loop to fail. Catch divergence immediately.
+    </div>
+    <aside class="notes">
+        Gradient checking catches backprop bugs mechanically. Differential testing finds exactly
+        where C diverges from PyTorch. Both should be automated, not manual printf debugging.
+    </aside>
+</section>
+
+<!-- Lesson 3: Memory Layout -->
+<section>
+    <h2>Lesson 3: Memory Layout Matters</h2>
+    <div class="status-box status-good">
+        <h4>What Worked</h4>
+        <ul>
+            <li><strong>64-byte alignment:</strong> Significant performance boost with AVX-512</li>
+            <li><strong>Contiguous memory block:</strong> Reduced TLB misses</li>
+            <li><strong>Head-major layout for attention:</strong> Better cache locality</li>
+            <li><strong>Hugepages (2MB):</strong> Reduced TLB pressure in large models</li>
+        </ul>
+    </div>
+    <div style="margin-top: 20px; text-align: left;">
+        <h4 class="highlight-blue">Performance Impact:</h4>
+        <ul>
+            <li>8-10x speedup with OpenMP (12-core Xeon)</li>
+            <li>2-3x speedup from memory alignment alone</li>
+            <li>Cache hit rate improved from 60% → 85%</li>
+        </ul>
+    </div>
+    <aside class="notes">
+        Memory layout wasn't just for performance - it affected correctness too. Unaligned data
+        caused subtle bugs with SIMD instructions. Getting this right early paid off.
+    </aside>
+</section>
+
+<!-- Lesson 4: PyTorch for Training -->
+<section>
+    <h2>Lesson 4: PyTorch for Training is Pragmatic</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph LR
+    A[Training Data] --> B[PyTorch Training]
+    B --> C[Checkpoint .pt]
+    C --> D[export_checkpoint_to_c.py]
+    D --> E[Binary Weights .bin]
+    E --> F[C Inference Engine]
+    F --> G[Fast Inference]
+
+    style B fill:#4ade80
+    style F fill:#60a5fa
+        </div>
+    </div>
+    <div class="lesson-box">
+        <strong>Realization:</strong> PyTorch handles training perfectly (mature optimizers, no bugs).
+        C handles inference perfectly (optimized, validated). Don't need C backprop for inference!
+    </div>
+    <p class="highlight-green" style="margin-top: 20px;">
+        ✓ Working pipeline documented, battle-tested
+    </p>
+    <aside class="notes">
+        This was a liberating realization. I don't NEED C training to deploy on drones.
+        Train in PyTorch (easy, bug-free), export weights, infer in C (fast, optimized).
+    </aside>
+</section>
+
+<!-- Lesson 5: Patterns Emerged -->
+<section>
+    <h2>Lesson 5: I Started Seeing Patterns</h2>
+    <div class="two-column">
+        <div>
+            <h4 class="highlight-purple">Every Layer Had:</h4>
+            <ul style="font-size: 0.9em;">
+                <li>Forward function</li>
+                <li>Backward function</li>
+                <li>Memory allocation</li>
+                <li>Validation script</li>
+                <li>Unit test</li>
+                <li>Numerical precision handling</li>
+            </ul>
+        </div>
+        <div>
+            <h4 class="highlight-purple">Every Model Needed:</h4>
+            <ul style="font-size: 0.9em;">
+                <li>Graph structure (DAG)</li>
+                <li>Memory planning</li>
+                <li>Kernel fusion opportunities</li>
+                <li>Debugging tools</li>
+                <li>Performance profiling</li>
+                <li>Multi-architecture support</li>
+            </ul>
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 30px;">
+        <strong>💡 Insight:</strong> These patterns suggest a <span class="highlight-blue">kernel-based DSL architecture</span>.
+        Don't write the same boilerplate for every component. Build it once, compose models from kernels.
+    </div>
+    <aside class="notes">
+        After 10 weeks, I could see the recurring patterns. Every layer was the same structure.
+        This suggested a better architecture: kernels + DSL for composition.
+    </aside>
+</section>
+
+<!-- Repository Statistics -->
+<section>
+    <h2>By the Numbers</h2>
+    <div class="chart-container">
+        <canvas id="repoStats"></canvas>
+    </div>
+    <div style="margin-top: 20px; text-align: left;">
+        <ul>
+            <li><strong>Duration:</strong> 10 weeks (September - November 2025)</li>
+            <li><strong>Lines of C code:</strong> ~15,000</li>
+            <li><strong>Validation scripts:</strong> 12 Python files</li>
+            <li><strong>Bugs found:</strong> 23 | <strong>Bugs fixed:</strong> 22 ✅ | <strong>Bugs remaining:</strong> 1 ⚠️</li>
+        </ul>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('repoStats').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['C Code', 'Python Validation', 'Documentation', 'Tests'],
+                    datasets: [{
+                        data: [15000, 3000, 2000, 1500],
+                        backgroundColor: [
+                            'rgba(96, 165, 250, 0.7)',
+                            'rgba(74, 222, 128, 0.7)',
+                            'rgba(251, 191, 36, 0.7)',
+                            'rgba(139, 92, 246, 0.7)'
+                        ],
+                        borderColor: [
+                            '#60a5fa',
+                            '#4ade80',
+                            '#fbbf24',
+                            '#8b5cf6'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#fff', padding: 15 }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+    <aside class="notes">
+        21,500 total lines of code. 70% C implementation, 14% Python validation, 9% docs, 7% tests.
+        23 bugs found, 22 fixed. The 1 remaining bug makes training unusable.
+    </aside>
+</section>
+
+<!-- Decision: Archive -->
+<section>
+    <h2>The Decision: Archive</h2>
+    <div class="two-column">
+        <div class="status-box status-bad">
+            <h4 class="highlight-red">Why Not Fix It?</h4>
+            <ul>
+                <li>15k line monolith too complex</li>
+                <li>Bug could be anywhere</li>
+                <li>Printf debugging inefficient</li>
+                <li>Debug paths diverge from prod</li>
+                <li>Would take weeks to isolate</li>
+            </ul>
+        </div>
+        <div class="status-box status-good">
+            <h4 class="highlight-green">Why Start Fresh?</h4>
+            <ul>
+                <li>Learnings are complete</li>
+                <li>Patterns are clear</li>
+                <li>Better architecture ready</li>
+                <li>Inference already works</li>
+                <li>Can build 10x faster now</li>
+            </ul>
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 30px;">
+        <strong>Key Realization:</strong> "The best code is the code you delete."<br>
+        This is not a failure - it's successful learning. The next iteration will be 10x better because of this experience.
+    </div>
+    <aside class="notes">
+        Debugging 15k lines could take weeks with no guarantee of success. But I already have
+        everything I need: working inference, lessons learned, and a better architecture in mind.
+    </aside>
+</section>
+
+<!-- What's Next: C-Kernel-Engine -->
+<section>
+    <h2>What's Next: C-Kernel-Engine</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph TB
+    subgraph "Kernel Layer"
+        K1[rmsnorm.c<br/>200 lines]
+        K2[rope.c<br/>250 lines]
+        K3[matmul.c<br/>400 lines]
+        K4[softmax.c<br/>150 lines]
+        K5[gqa.c<br/>500 lines]
+        K6[swiglu.c<br/>180 lines]
+    end
+
+    subgraph "DSL Layer"
+        D1[graph_builder.c]
+        D2[graph_executor.c]
+        D3[graph_optimizer.c]
+    end
+
+    subgraph "Model Layer"
+        M1[qwen.c]
+        M2[llama.c]
+        M3[gpt2.c]
+    end
+
+    K1 --> D1
+    K2 --> D1
+    K3 --> D1
+    K4 --> D1
+    K5 --> D1
+    K6 --> D1
+
+    D1 --> D2
+    D2 --> D3
+
+    D3 --> M1
+    D3 --> M2
+    D3 --> M3
+
+    style K1 fill:#4ade80
+    style K2 fill:#4ade80
+    style K3 fill:#4ade80
+    style K4 fill:#4ade80
+    style K5 fill:#4ade80
+    style K6 fill:#4ade80
+    style D1 fill:#60a5fa
+    style D2 fill:#60a5fa
+    style D3 fill:#60a5fa
+    style M1 fill:#8b5cf6
+    style M2 fill:#8b5cf6
+    style M3 fill:#8b5cf6
+        </div>
+    </div>
+    <aside class="notes">
+        Three clear layers: Kernels (operations), DSL (graph management), Models (composition).
+        Each kernel is self-contained. DSL handles memory and optimization. Models are declarative.
+    </aside>
+</section>
+
+<!-- New Architecture Principles -->
+<section>
+    <h2>New Architecture Principles</h2>
+    <div style="text-align: left;">
+        <div class="status-box status-good">
+            <h4>1. Kernel-First Design</h4>
+            <ul>
+                <li>Each kernel: single file, 200-500 lines</li>
+                <li>Contains: forward + backward + validation + tests</li>
+                <li>Proven correct BEFORE integration</li>
+            </ul>
+        </div>
+        <div class="status-box status-good" style="margin-top: 15px;">
+            <h4>2. Immediate Validation</h4>
+            <pre><code class="language-c">// Workflow:
+1. Write rmsnorm_forward()
+2. Write rmsnorm_backward()
+3. Write test_rmsnorm.py (vs PyTorch)
+4. Validate: diff < 1e-5 (forward), < 1e-3 (backward)
+5. ONLY after passing: move to next kernel
+</code></pre>
+        </div>
+        <div class="status-box status-good" style="margin-top: 15px;">
+            <h4>3. Separation of Concerns</h4>
+            <ul>
+                <li><strong>Kernels:</strong> Low-level operations (no graph knowledge)</li>
+                <li><strong>DSL:</strong> High-level computation flow (no kernel details)</li>
+                <li><strong>Models:</strong> Composition of kernels (declarative)</li>
+            </ul>
+        </div>
+    </div>
+    <aside class="notes">
+        Three principles to prevent the monolith: kernel-first (small files), immediate validation
+        (never more than 1 unknown), separation of concerns (clear boundaries).
+    </aside>
+</section>
+
+<!-- Comparison: Old vs New -->
+<section>
+    <h2>Old vs New: Side-by-Side</h2>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Aspect</th>
+                <th class="highlight-red">C-Transformer (archived)</th>
+                <th class="highlight-green">C-Kernel-Engine (new)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>File Structure</strong></td>
+                <td>Monolithic 15k line main.c</td>
+                <td>Modular kernels (~200 lines each)</td>
+            </tr>
+            <tr>
+                <td><strong>Development</strong></td>
+                <td>Forward first, backward later</td>
+                <td>Forward + backward together</td>
+            </tr>
+            <tr>
+                <td><strong>Memory</strong></td>
+                <td>Manual management</td>
+                <td>DSL with graph building</td>
+            </tr>
+            <tr>
+                <td><strong>Models</strong></td>
+                <td>GPT-2 only</td>
+                <td>Multi-model (GPT, Qwen, LLaMA)</td>
+            </tr>
+            <tr>
+                <td><strong>Debugging</strong></td>
+                <td>Printf in 15k lines</td>
+                <td>Built-in debug tools per kernel</td>
+            </tr>
+            <tr>
+                <td><strong>Validation</strong></td>
+                <td>After building large sections</td>
+                <td>Immediately after each kernel</td>
+            </tr>
+            <tr>
+                <td><strong>Testing</strong></td>
+                <td>Component tests only</td>
+                <td>Component + integration + gradient check</td>
+            </tr>
+        </tbody>
+    </table>
+    <aside class="notes">
+        Every aspect is redesigned based on lessons learned. The new architecture prevents all
+        the problems that plagued C-Transformer.
+    </aside>
+</section>
+
+<!-- Multi-Architecture Support -->
+<section>
+    <h2>One Kernel Set, Multiple Models</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph LR
+    subgraph "Shared Kernels"
+        K1[RMSNorm]
+        K2[RoPE]
+        K3[MatMul]
+        K4[GQA]
+        K5[SwiGLU]
+    end
+
+    subgraph "GPT-2"
+        G1[LayerNorm] --> G2[MHA] --> G3[MLP]
+    end
+
+    subgraph "Qwen-2.5"
+        Q1[RMSNorm] --> Q2[GQA] --> Q3[SwiGLU]
+    end
+
+    subgraph "LLaMA-3"
+        L1[RMSNorm + RoPE] --> L2[GQA] --> L3[SwiGLU]
+    end
+
+    K1 -.-> Q1
+    K1 -.-> L1
+    K2 -.-> L1
+    K3 -.-> G2
+    K3 -.-> Q2
+    K3 -.-> L2
+    K4 -.-> Q2
+    K4 -.-> L2
+    K5 -.-> Q3
+    K5 -.-> L3
+
+    style K1 fill:#4ade80
+    style K2 fill:#4ade80
+    style K3 fill:#4ade80
+    style K4 fill:#4ade80
+    style K5 fill:#4ade80
+        </div>
+    </div>
+    <p class="highlight-blue" style="margin-top: 20px;">
+        Build kernels once, compose into any transformer architecture
+    </p>
+    <aside class="notes">
+        Same kernels work for GPT, Qwen, LLaMA. Just compose them differently via DSL.
+        Reduces duplication, each kernel proven correct once and reused.
+    </aside>
+</section>
+
+<!-- Built-in Debugging Tools -->
+<section>
+    <h2>Built-in Debugging Tools</h2>
+    <div class="two-column">
+        <div>
+            <h4 class="highlight-green">Graph Visualization</h4>
+            <pre><code class="language-c">// Export graph to Graphviz
+graph_export_dot(graph,
+                 "model.dot");
+
+// Renders to:
+// [Input] -> [RMSNorm]
+//         -> [Attention]
+//         -> [MLP]
+//         -> [Output]
+</code></pre>
+        </div>
+        <div>
+            <h4 class="highlight-green">Gradient Checking</h4>
+            <pre><code class="language-c">// Automatic numerical gradient
+graph_enable_gradient_check(
+    graph,
+    /* epsilon= */ 1e-4,
+    /* tolerance= */ 1e-3
+);
+
+// Runs numerical differentiation
+// Compares to analytical gradients
+// Asserts if diff > tolerance
+</code></pre>
+        </div>
+    </div>
+    <div class="two-column" style="margin-top: 20px;">
+        <div>
+            <h4 class="highlight-green">Per-Kernel Profiling</h4>
+            <pre><code class="language-c">// Enable profiling
+graph_enable_profiling(graph);
+
+// After execution:
+graph_print_profile(graph);
+
+// Outputs:
+// RMSNorm: 0.5ms (2.3 GFLOPS)
+// Attention: 12ms (450 GFLOPS)
+// MLP: 8ms (380 GFLOPS)
+</code></pre>
+        </div>
+        <div>
+            <h4 class="highlight-green">Memory Layout Visualization</h4>
+            <pre><code class="language-c">// Show memory allocation
+graph_print_memory_layout(graph);
+
+// Outputs:
+// 0x00000000: input (512×768)
+// 0x00180000: rmsnorm_out
+// 0x00300000: attn_out
+// 0x00480000: mlp_out
+// Total: 12.5 MB
+</code></pre>
+        </div>
+    </div>
+    <aside class="notes">
+        All debugging tools built-in from day one. Graph visualization, gradient checking,
+        profiling, memory layout. Never debug blind again.
+    </aside>
+</section>
+
+<!-- Timeline for New Project -->
+<section>
+    <h2>Development Timeline</h2>
+    <div class="timeline">
+        <div class="timeline-item">
+            <strong>Week 1:</strong> Repository structure, build system, first kernel (RMSNorm)
+        </div>
+        <div class="timeline-item">
+            <strong>Weeks 2-4:</strong> Core kernels (RoPE, MatMul, Softmax)
+        </div>
+        <div class="timeline-item">
+            <strong>Weeks 5-6:</strong> Attention kernel (GQA)
+        </div>
+        <div class="timeline-item">
+            <strong>Weeks 7-8:</strong> MLP kernels (SwiGLU, GELU)
+        </div>
+        <div class="timeline-item">
+            <strong>Weeks 9-10:</strong> DSL graph builder + executor
+        </div>
+        <div class="timeline-item">
+            <strong>Weeks 11-12:</strong> First model (Qwen-2.5), validation
+        </div>
+        <div class="timeline-item">
+            <strong>Weeks 13-16:</strong> Optimization, multi-model support
+        </div>
+    </div>
+    <p class="highlight-blue" style="margin-top: 20px;">
+        Estimate: 4 months to full Qwen-2.5 inference with validation
+    </p>
+    <aside class="notes">
+        With lessons learned, I can build 2-3x faster. Component-by-component approach means
+        steady, predictable progress. No surprises at the end.
+    </aside>
+</section>
+
+<!-- Key Takeaways -->
+<section>
+    <h2>Key Takeaways</h2>
+    <div style="text-align: left;">
+        <div class="lesson-box">
+            <strong>1. Validation is not optional</strong><br>
+            Component-by-component validation catches bugs immediately, before they compound.
+        </div>
+        <div class="lesson-box">
+            <strong>2. Code complexity is the enemy</strong><br>
+            Keep files small (200-500 lines). Monoliths become undebuggable.
+        </div>
+        <div class="lesson-box">
+            <strong>3. Forward + backward together</strong><br>
+            Don't separate forward and backward implementations. Build both, validate both, move on.
+        </div>
+        <div class="lesson-box">
+            <strong>4. PyTorch for training is smart</strong><br>
+            Don't reinvent the wheel. Train in PyTorch, infer in C. Focus your effort on inference optimization.
+        </div>
+        <div class="lesson-box">
+            <strong>5. Patterns suggest better architecture</strong><br>
+            After seeing patterns repeat, build abstractions. Kernel-based DSL prevents code duplication.
+        </div>
+    </div>
+    <aside class="notes">
+        Five lessons that will guide every project going forward. These aren't just about transformers -
+        they apply to any complex systems programming.
+    </aside>
+</section>
+
+<!-- This Is Not a Failure -->
+<section>
+    <h2>This Is Not a Failure</h2>
+    <div class="emoji-large">🏛️ ✅</div>
+    <div class="status-box status-good">
+        <h4>What I Accomplished</h4>
+        <ul>
+            <li>Built a working transformer inference engine from scratch</li>
+            <li>Validated every component against PyTorch (< 1e-5)</li>
+            <li>Optimized with AVX-512 and OpenMP (8-10x speedup)</li>
+            <li>Learned numerical precision in deep learning</li>
+            <li>Built comprehensive validation infrastructure</li>
+            <li>Discovered patterns for better architecture</li>
+        </ul>
+    </div>
+    <p class="highlight-green" style="margin-top: 30px; font-size: 1.2em;">
+        <strong>This is successful learning.</strong>
+    </p>
+    <p style="margin-top: 20px;">
+        The inference engine works perfectly. The training bugs are not worth debugging in bloated code.<br>
+        The right move is to <span class="highlight-blue">start fresh</span> with better architecture.
+    </p>
+    <aside class="notes">
+        Every bug found, every validation technique developed, every optimization learned -
+        all of this makes the next implementation 10x better. This was a success.
+    </aside>
+</section>
+
+<!-- For the YouTube Video -->
+<section>
+    <h2>For the YouTube Video</h2>
+    <div class="two-column">
+        <div>
+            <h4 class="highlight-purple">Show</h4>
+            <ul style="font-size: 0.85em;">
+                <li>Live demo of working inference</li>
+                <li>Validation script running</li>
+                <li>PyTorch training → C export</li>
+                <li>Show the 15k line main.c</li>
+                <li>Debugging session (printf hell)</li>
+                <li>Architecture diagram of new design</li>
+            </ul>
+        </div>
+        <div>
+            <h4 class="highlight-purple">Emphasize</h4>
+            <ul style="font-size: 0.85em;">
+                <li>Learning > finishing a broken project</li>
+                <li>Inference works (deploy on drones!)</li>
+                <li>Validation saved 100+ hours</li>
+                <li>Patterns emerged → better design</li>
+                <li>Next iteration will be 10x better</li>
+                <li>This is how you grow as an engineer</li>
+            </ul>
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 30px;">
+        <strong>Narrative:</strong> "I spent 10 weeks building a transformer from scratch in C. The training
+        has a bug I can't find. But that's okay - because the real value was the lessons learned.
+        And now I'm building something even better: C-Kernel-Engine."
+    </div>
+    <aside class="notes">
+        For YouTube, focus on the journey and growth. Show the messy reality of systems programming.
+        Most people only show polished results - show the learning process, the dead ends, the pivots.
+    </aside>
+</section>
+
+<!-- Call to Action -->
+<section>
+    <h2>Join the Journey</h2>
+    <div class="architecture-diagram">
+        <h3 class="highlight-blue">C-Transformer (Archived) → C-Kernel-Engine (Active)</h3>
+    </div>
+    <div style="margin-top: 30px; text-align: left;">
+        <p><strong>Follow along:</strong></p>
+        <ul>
+            <li>📺 YouTube: ANTSHIV ROBOTICS</li>
+            <li>💻 GitHub: @antshiv/C-Kernel-Engine (coming soon)</li>
+            <li>📚 Blog: Weekly progress updates</li>
+        </ul>
+    </div>
+    <div class="status-box status-good" style="margin-top: 30px;">
+        <p><strong>Next video:</strong> Building the first kernel (RMSNorm)</p>
+        <p>I'll show the entire process: forward → backward → validation → integration</p>
+    </div>
+    <p class="emoji-large">🚀</p>
+    <aside class="notes">
+        Invite viewers to follow the new project. Promise to document everything - the wins,
+        the bugs, the lessons. Make it educational, not just showcase.
+    </aside>
+</section>
+
+<!-- Final Slide -->
+<section>
+    <h2>Thank You</h2>
+    <p class="emoji-large">🏛️ → 🚀</p>
+    <div style="margin-top: 40px;">
+        <p class="highlight-green" style="font-size: 1.3em;">
+            <strong>From C-Transformer to C-Kernel-Engine</strong>
+        </p>
+        <p style="margin-top: 20px; font-size: 1.1em;">
+            Every bug is a lesson.<br>
+            Every failure is progress.<br>
+            Every project makes the next one better.
+        </p>
+    </div>
+    <p style="margin-top: 60px; opacity: 0.7;">
+        Questions? Comments? Let's discuss in the comments!
+    </p>
+    <aside class="notes">
+        End on a positive, growth-oriented note. This presentation shows maturity - knowing when
+        to pivot, when to start fresh, how to extract maximum learning from every project.
+    </aside>
+</section>
+
+</div>
+</div>
+
+<script src="../reveal.js/dist/reveal.js"></script>
+<script src="../reveal.js/plugin/notes/notes.js"></script>
+<script src="../reveal.js/plugin/markdown/markdown.js"></script>
+<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+<script>
+    Reveal.initialize({
+        hash: true,
+        slideNumber: true,
+        transition: 'slide',
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ],
+        width: 1280,
+        height: 720,
+        margin: 0.04,
+        minScale: 0.2,
+        maxScale: 2.0
+    });
+
+    // Initialize Mermaid after Reveal.js is ready
+    Reveal.on('ready', function() {
+        if (typeof mermaid !== 'undefined') {
+            mermaid.run();
+        }
+    });
+
+    // Re-render Mermaid on slide change
+    Reveal.on('slidechanged', function(event) {
+        if (typeof mermaid !== 'undefined') {
+            const currentSlide = event.currentSlide;
+            const mermaidDivs = currentSlide.querySelectorAll('.mermaid');
+            if (mermaidDivs.length > 0) {
+                mermaid.run();
+            }
+        }
+    });
+</script>
+</body>
+</html>
