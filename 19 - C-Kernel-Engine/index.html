@@ -1,0 +1,756 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>C-Kernel-Engine: Kernel-First Transformer Engine in C</title>
+
+    <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+    <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+    <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#60a5fa',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#3b82f6',
+                lineColor: '#888',
+                secondaryColor: '#8b5cf6',
+                tertiaryColor: '#34d399',
+                background: '#1a1a1a',
+                mainBkg: '#2d333b',
+                secondBkg: '#1e1e1e',
+                textColor: '#f0f0f0',
+                fontSize: '14px'
+            }
+        });
+    </script>
+
+    <style>
+        :root { --r-main-font-size: 28px; }
+        .reveal .slides section { font-size: 1em; text-align: center;}
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 { text-transform: none; text-align: center;}
+        .reveal p { text-align: center; }
+        .reveal ul { text-align: left; }
+        .reveal pre { margin: 20px auto; }
+        .reveal code { font-size: 0.75em; line-height: 1.4; }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .side-by-side {
+            display: flex;
+            justify-content: space-around;
+            align-items: start;
+            gap: 20px;
+        }
+
+        .status-box {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .status-good {
+            background: rgba(74, 222, 128, 0.2);
+            border-left: 4px solid #4ade80;
+        }
+
+        .status-warning {
+            background: rgba(251, 191, 36, 0.2);
+            border-left: 4px solid #fbbf24;
+        }
+
+        .status-bad {
+            background: rgba(239, 68, 68, 0.2);
+            border-left: 4px solid #ef4444;
+        }
+
+        .lesson-box {
+            background: rgba(139, 92, 246, 0.15);
+            border-left: 4px solid #8b5cf6;
+            padding: 20px;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #4ade80, #fbbf24, #ef4444);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+            padding-left: 30px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -35px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+
+        .timeline-item.warning::before {
+            background: #fbbf24;
+        }
+
+        .timeline-item.error::before {
+            background: #ef4444;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px auto;
+        }
+
+        .comparison-table {
+            width: 100%;
+            text-align: left;
+            font-size: 0.85em;
+        }
+
+        .comparison-table th {
+            background: rgba(74, 222, 128, 0.2);
+            padding: 10px;
+        }
+
+        .comparison-table td {
+            padding: 10px;
+            border-bottom: 1px solid #444;
+        }
+
+        .highlight-green { color: #4ade80; font-weight: bold; }
+        .highlight-yellow { color: #fbbf24; font-weight: bold; }
+        .highlight-red { color: #ef4444; font-weight: bold; }
+        .highlight-blue { color: #60a5fa; font-weight: bold; }
+        .highlight-purple { color: #8b5cf6; font-weight: bold; }
+
+        .architecture-diagram {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .emoji-large {
+            font-size: 3em;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- Title Slide -->
+<section>
+    <h1>C-Kernel-Engine</h1>
+    <h3>Kernel-First Transformer Engine in C</h3>
+    <p style="margin-top: 50px; font-size: 0.8em; opacity: 0.7;">
+        From 15k-Line Monoliths to Small, Verified Kernels
+    </p>
+    <p class="emoji-large">🏛️ → 🧩 → 🚀</p>
+    <aside class="notes">
+        Open with the story: C-Transformer was a 15k-line C codebase with a hidden training bug; C-Kernel-Engine is the clean reboot that keeps what worked and fixes what didn’t.
+        Emphasize the shift from “one giant training file” to “many small, validated kernels plus a DSL,” and set the expectation that this talk is about engineering lessons, not just model hype.
+        Transition: tell them this first section explains why a new engine was necessary at all.
+    </aside>
+</section>
+
+<!-- Why a New Engine -->
+<section>
+    <h2>Why C-Kernel-Engine?</h2>
+    <div class="two-column">
+        <div class="status-box status-bad">
+            <h4 class="highlight-red">Problems in C-Transformer</h4>
+            <ul>
+                <li>15k-line monolithic <code>main.c</code></li>
+                <li>Training bug hidden in huge codebase</li>
+                <li>Forward / backward split across files and flags</li>
+                <li>Debug builds diverged from production paths</li>
+            </ul>
+        </div>
+        <div class="status-box status-good">
+            <h4 class="highlight-green">What Worked Well</h4>
+            <ul>
+                <li>Inference validated against PyTorch (&lt; 1e-5)</li>
+                <li>AVX-512 + OpenMP speedups</li>
+                <li>Strong validation tooling in Python</li>
+                <li>Clear patterns across layers and models</li>
+            </ul>
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 20px;">
+        <strong>Goal:</strong> Keep everything that worked (inference, validation, performance) and
+        redesign the architecture so training and debugging stay tractable.
+    </div>
+    <aside class="notes">
+        Frame this slide as “what I refuse to give up” (PyTorch-validated inference, performance work, Python tooling) versus “what I never want again” (monolith, hidden training bug).
+        Key takeaway: this is not a rage-rewrite; it’s a deliberate redesign to make training and debugging boring and predictable.
+        Transition: next, show the explicit design goals that fall out of these good/bad lists.
+    </aside>
+</section>
+
+<!-- Design Goals -->
+<section>
+    <h2>Design Goals</h2>
+    <div class="two-column">
+        <div class="status-box status-good">
+            <h4 class="highlight-blue">Architecture</h4>
+            <ul>
+                <li>Small, composable kernels (200–500 lines)</li>
+                <li>Graph-based DSL for model composition</li>
+                <li>Clear separation: Kernels / DSL / Models</li>
+                <li>Shared kernel set across GPT, Qwen, LLaMA</li>
+            </ul>
+        </div>
+        <div class="status-box status-good">
+            <h4 class="highlight-purple">Engineering Practice</h4>
+            <ul>
+                <li>Forward + backward implemented together</li>
+                <li>Immediate validation vs PyTorch per kernel</li>
+                <li>Built-in debug modes per kernel, not global</li>
+                <li>End-to-end training checks at every milestone</li>
+            </ul>
+        </div>
+    </div>
+    <aside class="notes">
+        Call out the two columns explicitly: architecture choices (kernels, DSL, shared across models) and engineering process (forward+backward together, immediate validation, proper end-to-end tests).
+        In plain English: “We’re designing so bugs are local and obvious instead of global and mysterious.”
+        Transition: now that goals are clear, show how they map to a three-layer architecture.
+    </aside>
+</section>
+
+<!-- Architecture Overview -->
+<section>
+    <h2>Architecture Overview</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph TB
+    subgraph "Kernel Layer"
+        K1[RMSNorm]
+        K2[RoPE]
+        K3[MatMul]
+        K4[Softmax]
+        K5[GQA]
+        K6[SwiGLU]
+    end
+
+    subgraph "DSL Layer"
+        D1[Graph Builder]
+        D2[Graph Executor]
+        D3[Graph Optimizer]
+    end
+
+    subgraph "Model Layer"
+        M1[GPT-2]
+        M2[Qwen-2.5]
+        M3[LLaMA-3]
+    end
+
+    K1 --> D1
+    K2 --> D1
+    K3 --> D1
+    K4 --> D1
+    K5 --> D1
+    K6 --> D1
+
+    D1 --> D2
+    D2 --> D3
+
+    D3 --> M1
+    D3 --> M2
+    D3 --> M3
+        </div>
+    </div>
+    <p class="highlight-blue">
+        Kernels know math and memory; DSL knows graphs and execution; models are just declarations.
+    </p>
+    <aside class="notes">
+        Walk top to bottom: kernels implement low-level math, the DSL builds and runs graphs, and models become thin configuration on top.
+        Emphasize that most work and complexity now lives in the bottom two layers, so adding a new model is “just wiring up a graph.”
+        Transition: from this high-level picture, zoom into what a single kernel is responsible for.
+    </aside>
+</section>
+
+<!-- Kernel Design -->
+<section>
+    <h2>Kernel Design</h2>
+    <div class="two-column">
+        <div class="status-box status-good">
+            <h4 class="highlight-green">Per-Kernel Responsibilities</h4>
+            <ul>
+                <li>Forward and backward functions</li>
+                <li>Shape and type checks</li>
+                <li>Memory access pattern documented</li>
+                <li>Numerical stability (epsilon, scaling)</li>
+            </ul>
+        </div>
+        <div class="status-box status-good">
+            <h4 class="highlight-purple">Per-Kernel Tooling</h4>
+            <ul>
+                <li>Unit tests vs PyTorch reference</li>
+                <li>Debug mode with extra asserts</li>
+                <li>Small benchmarks (throughput, latency)</li>
+                <li>Optional AVX/OpenMP specializations</li>
+            </ul>
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 20px;">
+        <strong>Rule:</strong> Never promote a kernel to "stable" until it passes forward + backward validation and basic perf checks.
+    </div>
+    <aside class="notes">
+        Contrast directly with the old approach: before, large subsystems were written before validation; now each kernel has a clear contract, tests, and benchmarks before it’s “real.”
+        Key idea to say out loud: “If a bug appears, it must be in one kernel or in the graph, never in a 15k-line soup.”
+        Transition: with that in mind, show a concrete example kernel: RMSNorm.
+    </aside>
+</section>
+
+<!-- RMSNorm Forward -->
+<section>
+    <h2>RMSNorm: Forward Pass</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph LR
+    X[Input x] --> SQ[Square]
+    SQ --> MEAN[Mean]
+    MEAN --> RSQ[Inv sqrt]
+    RSQ --> NORM[Normalize]
+    NORM --> SCALE[Scale gamma]
+    SCALE --> Y[Output y]
+        </div>
+    </div>
+    <p class="highlight-blue">
+        One pass over activations, simple horizontal dataflow, perfect for FMA and vectorization.
+    </p>
+    <aside class="notes">
+        Explain RMSNorm in human terms: we look at the average energy of the vector (mean of squares), normalize, then scale with gamma, all in a single left-to-right sweep.
+        Emphasize that this straight-line structure is exactly what C-Kernel-Engine likes: one kernel, one pass, ideal for SIMD/FMA and easy to debug.
+        Transition: on the next slide, show how the backward pass is just this graph “unwound” into chained gradients.
+    </aside>
+</section>
+
+<!-- RMSNorm Backward -->
+<section>
+    <h2>RMSNorm: Backward Pass</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph LR
+    DY[grad_y] --> DG[grad_gamma]
+    DY --> DN[grad_norm]
+    DN --> DRSQ[grad_rsqrt]
+    DRSQ --> DMEAN[grad_mean_x2]
+    DMEAN --> DX2[grad_x2]
+    DX2 --> DX[grad_x]
+        </div>
+    </div>
+    <p class="highlight-green">
+        Backward is expressed as a chain of simple ops we can validate numerically against PyTorch.
+    </p>
+    <aside class="notes">
+        Make it clear that nobody in the audience needs to memorize these gradient names; what matters is the shape: a short chain where each step has a small, testable formula.
+        Connect this back to your validation philosophy: you can numerically check each step against PyTorch or finite differences, so there’s never a mystery gradient.
+        Transition: now that they’ve seen one kernel in detail, move up to a more complex structure: multi-head attention.
+    </aside>
+</section>
+
+<!-- Attention Forward -->
+<section>
+    <h2>Multi-Head Attention: Forward</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph LR
+    X[Input] --> PROJ[Linear to Q K V]
+    PROJ --> Q[Q]
+    PROJ --> K[K]
+    PROJ --> V[V]
+    Q --> SCORES[Scores]
+    K --> SCORES
+    SCORES --> MASK[Mask]
+    MASK --> P[Softmax]
+    P --> WEIGHTED[Weighted V]
+    V --> WEIGHTED
+    WEIGHTED --> OUT[Output proj]
+        </div>
+    </div>
+    <aside class="notes">
+        Describe attention structurally: project once to get Q/K/V, compute scores, apply masks, softmax, then mix values back together and pass through an output projection.
+        Stress that the DSL sees exactly this graph, which means attention becomes “just another composition of kernels,” not a special hard-coded block.
+        Transition: highlight that even nonlinear bits like GELU and SwiGLU are treated the same way—simple graphs over kernels.
+    </aside>
+</section>
+
+<!-- GELU & SwiGLU -->
+<section>
+    <h2>Activation Kernels</h2>
+    <div class="two-column">
+        <div class="architecture-diagram">
+            <h4 class="highlight-blue">GELU Forward</h4>
+            <div class="mermaid">
+graph LR
+    X[Input] --> SCALE[Scale]
+    SCALE --> ERF[Erf]
+    ERF --> COMB[Combine]
+    COMB --> Y[Output]
+            </div>
+        </div>
+        <div class="architecture-diagram">
+            <h4 class="highlight-purple">SwiGLU Forward</h4>
+            <div class="mermaid">
+graph LR
+    X[Input] --> SPLIT[Split]
+    SPLIT --> A[Gate part]
+    SPLIT --> B[Value part]
+    A --> SW[Swish]
+    SW --> PROD[Gate * value]
+    B --> PROD
+    PROD --> Y[Output]
+            </div>
+        </div>
+    </div>
+    <aside class="notes">
+        Use this slide to demystify the activations: on paper GELU and SwiGLU look fancy, but in the engine they’re just a few nodes—scale, erf, combine, split, swish, multiply.
+        Call out that this makes it obvious where to fuse work (e.g., combine activation with surrounding matmuls) and that the backward pass is just local derivatives plus the chain rule through this tiny graph.
+        Transition: from individual kernels and tiny graphs, move back up to how the DSL manages full-model graphs.
+    </aside>
+</section>
+
+<!-- DSL & Graph Execution -->
+<section>
+    <h2>DSL & Graph Execution</h2>
+    <div class="side-by-side">
+        <div class="status-box status-good" style="flex: 1;">
+            <h4 class="highlight-blue">Graph Builder</h4>
+            <ul>
+                <li>Declarative API to connect kernels</li>
+                <li>Handles tensor lifetimes and aliases</li>
+                <li>Records shapes and strides</li>
+                <li>Exports graph for visualization (Mermaid, DOT)</li>
+            </ul>
+        </div>
+        <div class="status-box status-good" style="flex: 1;">
+            <h4 class="highlight-blue">Executor & Optimizer</h4>
+            <ul>
+                <li>Topological scheduling with minimal buffers</li>
+                <li>Kernel fusion opportunities (e.g., RMSNorm + MatMul)</li>
+                <li>Backend-aware (AVX, plain C, embedded)</li>
+                <li>Tracing hooks for debugging and profiling</li>
+            </ul>
+        </div>
+    </div>
+    <aside class="notes">
+        Explain that the graph builder is how you write “what happens” in the model: add nodes, wire tensors, record shapes—nothing about threads or AVX here.
+        Then the executor/optimizer decide “how it runs”: scheduling, memory reuse, fusion, and backend choice, with hooks so you can trace any subgraph.
+        Transition: now you can compare life before and after this architecture to show why it will behave better than the original C-Transformer.
+    </aside>
+</section>
+
+<!-- How This Fixes Old Pain -->
+<section>
+    <h2>How We Solve It Better</h2>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Aspect</th>
+                <th class="highlight-red">Before</th>
+                <th class="highlight-green">With C-Kernel-Engine</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>File Structure</strong></td>
+                <td>Single huge training file</td>
+                <td>Many small, focused kernels</td>
+            </tr>
+            <tr>
+                <td><strong>Validation</strong></td>
+                <td>After big chunks of work</td>
+                <td>Immediate per-kernel + per-graph</td>
+            </tr>
+            <tr>
+                <td><strong>Debugging</strong></td>
+                <td>Printf scattered everywhere</td>
+                <td>Debug hooks at kernel and graph level</td>
+            </tr>
+            <tr>
+                <td><strong>Training Bugs</strong></td>
+                <td>Hidden in integration code</td>
+                <td>Isolated to one kernel or subgraph</td>
+            </tr>
+            <tr>
+                <td><strong>Model Support</strong></td>
+                <td>GPT-2 only</td>
+                <td>GPT/Qwen/LLaMA with shared kernels</td>
+            </tr>
+        </tbody>
+    </table>
+    <aside class="notes">
+        Treat this as the “why it will work this time” slide: every row is an answer to a specific pain from C-Transformer (monoliths, late validation, printf-debugging, GPT-2-only).
+        Say explicitly: “If something breaks now, it breaks in one kernel or one subgraph, not in a giant `main.c` file.”
+        Transition: now talk about how we’ll handle fusions and backends without losing track of what we’ve optimized.
+    </aside>
+</section>
+
+<!-- Fused Kernels & oneDNN Lessons -->
+<section>
+    <h2>Fused Kernels & oneDNN Lessons</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph LR
+    SPEC[Op spec] --> PLAN[Kernel plan]
+    PLAN --> IMPL1[Plain C]
+    PLAN --> IMPL2[Vectorized]
+    PLAN --> IMPL3[Embedded]
+    PLAN --> NOTES[Perf notes]
+    NOTES --> REG[Kernel registry]
+        </div>
+    </div>
+    <p class="highlight-blue">
+        We borrow ideas (not code) from oneDNN: describe kernels once, specialize per backend, track what is fused.
+    </p>
+    <aside class="notes">
+        Clarify that the “kernel plan” is where you describe tiling, layouts and FMA usage once, then generate or hand-write different implementations for plain C, SIMD, or embedded.
+        Mention that the registry acts like a directory of kernels and fusions: you can see exactly which operations are optimized on which CPUs, instead of rediscovering the same ideas.
+        Transition: with that infrastructure in place, show what concrete demos you want to build on top.
+    </aside>
+</section>
+
+<!-- Demos & Progress -->
+<section>
+    <h2>Demos: Where We Are & Going</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph LR
+    K[Core kernels] --> B[Block demo]
+    B --> G2[GPT-2 demo]
+    G2 --> QW[Qwen demo]
+    QW --> LL[LLaMA demo]
+    LL --> APP[On-device]
+        </div>
+    </div>
+    <p class="highlight-green">
+        Every demo is built on the same kernels and DSL, so improvements propagate automatically.
+    </p>
+    <aside class="notes">
+        Use this to anchor the roadmap in real artifacts: kernel tests, a single decoder block demo, GPT-2 inference, Qwen/LLaMA variants, and finally an on-device example.
+        Important line: “Every step reuses the same kernels and DSL, so once a kernel is fast and correct, all higher-level demos benefit automatically.”
+        Transition: next, walk through how you’ll systematically make those kernels and graphs faster.
+    </aside>
+</section>
+
+<!-- Performance Roadmap -->
+<section>
+    <h2>Performance Plan</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph LR
+    BASE[Baseline] --> VEC[Vectorize]
+    VEC --> FUSE[Fuse kernels]
+    FUSE --> MEM[Better layouts]
+    MEM --> DIST[Multi-core]
+    DIST --> HW[Embedded]
+        </div>
+    </div>
+    <p class="highlight-purple">
+        The idea: always have a correct baseline, then layer optimizations step by step with benchmarks.
+    </p>
+    <aside class="notes">
+        Emphasize the staircase: baseline correctness first, then vectorization, then fusions, then better layouts, then multi-core, then hardware-specific tweaks.
+        Make the point that each step is gated by tests and microbenchmarks; you never “optimize blind” and reintroduce the kind of bug that killed C-Transformer’s training.
+        Transition: with performance strategy clear, cover how you’re thinking about precision, quantization, and storage.
+    </aside>
+</section>
+
+<!-- Numerical Precision & Quantization -->
+<section>
+    <h2>Numerical Precision & Storage</h2>
+    <div class="architecture-diagram">
+        <div class="mermaid">
+graph LR
+    WQ[Quant weights] --> DEQ[Dequant to f32]
+    DEQ --> MATMUL[Matmul f32]
+    MATMUL --> ACT[Activations f32]
+    ACT --> NORM[Norm]
+    NORM --> OUT[Outputs]
+        </div>
+    </div>
+    <p class="highlight-blue">
+        Plan: start with f32 everywhere, then introduce quantized weights while keeping f32 activations and clear error budgets.
+    </p>
+    <aside class="notes">
+        Say explicitly that step one is “boring but safe”: pure f32 everywhere, with clear validation against PyTorch, before any quantization.
+        Then explain that you’ll introduce quantized weights gradually, keeping activations in f32 and tracking choices like int8 vs int4 and per-channel vs per-tensor scales in the graph metadata.
+        Transition: finally, zoom back out to the high-level roadmap and risks so people see the whole journey.
+    </aside>
+</section>
+
+<!-- Roadmap -->
+<section>
+    <h2>Roadmap & Milestones</h2>
+    <div class="timeline">
+        <div class="timeline-item">
+            <strong>Phase 1:</strong> Core kernels (RMSNorm, RoPE, MatMul, Softmax)
+        </div>
+        <div class="timeline-item">
+            <strong>Phase 2:</strong> Graph builder + executor prototype
+        </div>
+        <div class="timeline-item">
+            <strong>Phase 3:</strong> GPT-2 inference via DSL (no training)
+        </div>
+        <div class="timeline-item warning">
+            <strong>Phase 4:</strong> Step-by-step training loop vs PyTorch
+        </div>
+        <div class="timeline-item">
+            <strong>Phase 5:</strong> Qwen-2.5 and LLaMA integration
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 20px;">
+        <strong>Constraint:</strong> Never start the next phase until the current one passes validation (numerical + perf).
+    </div>
+    <aside class="notes">
+        Highlight that progress is staged and verifiable. No more "big bang" integration at the end.
+    </aside>
+</section>
+
+<!-- Risks & Open Questions -->
+<section>
+    <h2>Risks & Open Questions</h2>
+    <div class="two-column">
+        <div class="status-box status-warning">
+            <h4 class="highlight-yellow">Technical Risks</h4>
+            <ul>
+                <li>Keeping DSL simple enough for C</li>
+                <li>Managing complex memory lifetimes safely</li>
+                <li>Balancing portability vs AVX-level tuning</li>
+            </ul>
+        </div>
+        <div class="status-box status-warning">
+            <h4 class="highlight-yellow">Product Risks</h4>
+            <ul>
+                <li>Scope creep on supported models</li>
+                <li>Time spent on tooling vs core kernels</li>
+                <li>Maintaining good documentation as we move fast</li>
+            </ul>
+        </div>
+    </div>
+    <div class="lesson-box" style="margin-top: 20px;">
+        <strong>Plan:</strong> Keep a narrow, high-value core (Qwen-2.5 inference) and treat everything else as optional extensions.
+    </div>
+    <aside class="notes">
+        Be honest about uncertainty. Show that risk is recognized and managed, not ignored.
+    </aside>
+</section>
+
+<!-- Call to Action -->
+<section>
+    <h2>Next Steps</h2>
+    <div class="status-box status-good">
+        <h4>What Happens Right After This Talk</h4>
+        <ul>
+            <li>Finalize kernel API and naming conventions</li>
+            <li>Implement and validate RMSNorm kernel</li>
+            <li>Wire up first graph: single decoder block</li>
+            <li>Record a live-coding / debugging session for YouTube</li>
+        </ul>
+    </div>
+    <p class="highlight-blue" style="margin-top: 30px;">
+        The goal is a transparent, reproducible engineering journey, not just a finished artifact.
+    </p>
+    <aside class="notes">
+        Close with concrete, near-term actions that make progress visible to the audience and to yourself.
+    </aside>
+</section>
+
+<!-- Final Slide -->
+<section>
+    <h2>From Monoliths to Kernels</h2>
+    <p class="emoji-large">🏛️ → 🧩 → 🚀</p>
+    <div style="margin-top: 40px;">
+        <p class="highlight-green" style="font-size: 1.3em;">
+            <strong>C-Kernel-Engine is how we build transformers in C the right way.</strong>
+        </p>
+        <p style="margin-top: 20px; font-size: 1.1em;">
+            Small, validated kernels.<br>
+            Clear graphs and tooling.<br>
+            Models as compositions, not special cases.
+        </p>
+    </div>
+    <p style="margin-top: 60px; opacity: 0.7;">
+        Questions? Ideas? Let's iterate on the design together.
+    </p>
+    <aside class="notes">
+        End on the core idea: the kernel-first mindset is the main upgrade.
+        Everything else (models, optimizations, tooling) builds on that foundation.
+    </aside>
+</section>
+
+</div>
+</div>
+
+<script src="../reveal.js/dist/reveal.js"></script>
+<script src="../reveal.js/plugin/notes/notes.js"></script>
+<script src="../reveal.js/plugin/markdown/markdown.js"></script>
+<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+<script>
+    Reveal.initialize({
+        hash: true,
+        slideNumber: true,
+        transition: 'slide',
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ],
+        width: 1280,
+        height: 720,
+        margin: 0.04,
+        minScale: 0.2,
+        maxScale: 2.0
+    });
+
+    // Initialize Mermaid after Reveal.js is ready
+    Reveal.on('ready', function() {
+        if (typeof mermaid !== 'undefined') {
+            mermaid.run();
+        }
+    });
+
+    // Re-render Mermaid on slide change
+    Reveal.on('slidechanged', function(event) {
+        if (typeof mermaid !== 'undefined') {
+            const currentSlide = event.currentSlide;
+            const mermaidDivs = currentSlide.querySelectorAll('.mermaid');
+            if (mermaidDivs.length > 0) {
+                mermaid.run();
+            }
+        }
+    });
+</script>
+</body>
+</html>
