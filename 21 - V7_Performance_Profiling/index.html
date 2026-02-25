@@ -1,0 +1,2277 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>How to Profile LLM Inference on CPU on Linux - perf, FlameGraph, VTune, Advisor (CPU LLM Season 2)</title>
+
+    <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+    <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+    <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+    <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+    <link rel="stylesheet" href="../css/styles.css">
+
+    <style>
+        /* ═══════════════════════════════════════
+           VARIABLES
+        ═══════════════════════════════════════ */
+        :root {
+            --r-main-font-size: 24px;
+            --bg-card: rgba(255, 255, 255, 0.06);
+            --accent-blue:   #60a5fa;
+            --accent-green:  #4ade80;
+            --accent-yellow: #fbbf24;
+            --accent-red:    #ef4444;
+            --accent-purple: #8b5cf6;
+            --muted: #94a3b8;
+        }
+
+        /* ═══════════════════════════════════════
+           SLIDE BASE
+        ═══════════════════════════════════════ */
+        .reveal .slides section {
+            font-size: 1em;
+            text-align: center;
+            padding: 18px !important;
+            /* Very faint grid texture on every slide */
+            background-image:
+                linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+            background-size: 44px 44px;
+        }
+
+        /* Title slide — radial glow behind content */
+        .reveal .slides .title-slide {
+            background-image:
+                radial-gradient(ellipse 65% 65% at 50% 50%, rgba(96,165,250,0.07) 0%, transparent 70%),
+                radial-gradient(ellipse 35% 35% at 22% 78%, rgba(139,92,246,0.05) 0%, transparent 60%),
+                radial-gradient(ellipse 28% 28% at 78% 22%, rgba(74,222,128,0.05) 0%, transparent 60%),
+                linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+            background-size: auto, auto, auto, 44px 44px, 44px 44px;
+        }
+
+        /* ═══════════════════════════════════════
+           ANIMATED GRADIENT TITLE
+        ═══════════════════════════════════════ */
+        .gradient {
+            background: linear-gradient(135deg,
+                #60a5fa 0%, #8b5cf6 30%, #4ade80 65%, #2dd4bf 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            background-size: 300% 300%;
+            animation: gradient-pan 8s ease-in-out infinite;
+        }
+
+        @keyframes gradient-pan {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Title slide decorative rule + badges */
+        .title-divider {
+            width: 110px;
+            height: 2px;
+            background: linear-gradient(90deg, #60a5fa, #8b5cf6, #4ade80);
+            margin: 10px auto 18px;
+            border-radius: 2px;
+            opacity: 0.85;
+        }
+
+        .title-badges {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .title-badge {
+            padding: 5px 16px;
+            border-radius: 999px;
+            font-size: 0.62em;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .title-badge.blue   { background: rgba(96,165,250,0.12);  color: #60a5fa;  border: 1px solid rgba(96,165,250,0.30); }
+        .title-badge.yellow { background: rgba(251,191,36,0.12);  color: #fbbf24;  border: 1px solid rgba(251,191,36,0.30); }
+        .title-badge.green  { background: rgba(74,222,128,0.12);  color: #4ade80;  border: 1px solid rgba(74,222,128,0.30); }
+
+        /* ═══════════════════════════════════════
+           HEADINGS
+        ═══════════════════════════════════════ */
+        .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+            text-transform: none;
+            text-align: center;
+            margin-bottom: 0.35em;
+        }
+
+        /* h2 — subtle gradient underline accent */
+        .reveal h2 {
+            position: relative;
+            padding-bottom: 0.42em;
+        }
+
+        .reveal h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 56px;
+            height: 2px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #60a5fa, #4ade80);
+            opacity: 0.65;
+        }
+
+        .reveal p {
+            text-align: center;
+            margin: 0.25em 0;
+        }
+
+        .reveal ul, .reveal ol {
+            text-align: left;
+            display: inline-block;
+            margin: 0.2em auto;
+        }
+
+        /* ═══════════════════════════════════════
+           CODE BLOCKS — terminal chrome header
+        ═══════════════════════════════════════ */
+        .reveal pre {
+            width: 94%;
+            margin: 12px auto;
+            font-size: 0.66em;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.10);
+            box-shadow: 0 6px 28px rgba(0,0,0,0.45);
+            overflow: hidden;
+        }
+
+        /* macOS-style three-dot chrome above each code block */
+        .reveal pre::before {
+            content: '';
+            display: block;
+            height: 28px;
+            background:
+                radial-gradient(circle 4.5px at 14px 14px, #ef4444 100%, transparent 0),
+                radial-gradient(circle 4.5px at 28px 14px, #fbbf24 100%, transparent 0),
+                radial-gradient(circle 4.5px at 42px 14px, #4ade80 100%, transparent 0),
+                rgba(255,255,255,0.045);
+            border-bottom: 1px solid rgba(255,255,255,0.09);
+        }
+
+        .reveal code { line-height: 1.2; }
+
+        /* ═══════════════════════════════════════
+           TYPOGRAPHY UTILS
+        ═══════════════════════════════════════ */
+        .muted         { color: var(--muted); }
+        .small         { font-size: 0.72em; }
+        .accent-blue   { color: var(--accent-blue);   font-weight: 700; }
+        .accent-green  { color: var(--accent-green);  font-weight: 700; }
+        .accent-yellow { color: var(--accent-yellow); font-weight: 700; }
+        .accent-red    { color: var(--accent-red);    font-weight: 700; }
+        .accent-purple { color: var(--accent-purple); font-weight: 700; }
+
+        /* Shell-setup label above code block */
+        .cmd-title {
+            display: inline-block;
+            margin-top: 8px;
+            margin-bottom: 0;
+            font-size: 0.70em;
+            color: var(--accent-blue);
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            padding: 2px 12px;
+            background: rgba(96,165,250,0.08);
+            border: 1px solid rgba(96,165,250,0.22);
+            border-radius: 999px;
+        }
+
+        /* ═══════════════════════════════════════
+           LAYOUT GRIDS
+        ═══════════════════════════════════════ */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: stretch;
+            margin-top: 12px;
+        }
+
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            align-items: stretch;
+            margin-top: 10px;
+        }
+
+        /* ═══════════════════════════════════════
+           CARDS
+        ═══════════════════════════════════════ */
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-left: 4px solid #4b5563;
+            border-radius: 10px;
+            padding: 12px 14px;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+            /* Shimmer line at top */
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+
+        /* Per-type tinted gradient backgrounds */
+        .card.good   {
+            border-left-color: var(--accent-green);
+            background: linear-gradient(135deg, rgba(74,222,128,0.10) 0%, rgba(74,222,128,0.03) 100%);
+        }
+        .card.warn   {
+            border-left-color: var(--accent-yellow);
+            background: linear-gradient(135deg, rgba(251,191,36,0.10) 0%, rgba(251,191,36,0.03) 100%);
+        }
+        .card.bad    {
+            border-left-color: var(--accent-red);
+            background: linear-gradient(135deg, rgba(239,68,68,0.10) 0%, rgba(239,68,68,0.03) 100%);
+        }
+        .card.info   {
+            border-left-color: var(--accent-blue);
+            background: linear-gradient(135deg, rgba(96,165,250,0.10) 0%, rgba(96,165,250,0.03) 100%);
+        }
+        .card.purple {
+            border-left-color: var(--accent-purple);
+            background: linear-gradient(135deg, rgba(139,92,246,0.10) 0%, rgba(139,92,246,0.03) 100%);
+        }
+
+        /* Accent dot in top-right corner of each card */
+        .card.good::after   { content:''; position:absolute; top:9px; right:10px; width:5px; height:5px; border-radius:50%; background:var(--accent-green);  opacity:0.7; }
+        .card.warn::after   { content:''; position:absolute; top:9px; right:10px; width:5px; height:5px; border-radius:50%; background:var(--accent-yellow); opacity:0.7; }
+        .card.bad::after    { content:''; position:absolute; top:9px; right:10px; width:5px; height:5px; border-radius:50%; background:var(--accent-red);    opacity:0.7; }
+        .card.info::after   { content:''; position:absolute; top:9px; right:10px; width:5px; height:5px; border-radius:50%; background:var(--accent-blue);   opacity:0.7; }
+        .card.purple::after { content:''; position:absolute; top:9px; right:10px; width:5px; height:5px; border-radius:50%; background:var(--accent-purple); opacity:0.7; }
+
+        .card h4 {
+            text-align: left;
+            margin: 0 0 8px 0;
+            font-size: 0.9em;
+        }
+
+        /* ═══════════════════════════════════════
+           TOOL GRID
+        ═══════════════════════════════════════ */
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-top: 10px;
+        }
+
+        .tool {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-left: 3px solid rgba(255,255,255,0.22);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: left;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+
+        .tool h4 {
+            margin: 0 0 6px 0;
+            text-align: left;
+            font-size: 0.92em;
+        }
+
+        /* ═══════════════════════════════════════
+           KPI STRIP
+        ═══════════════════════════════════════ */
+        .kpi-strip {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .kpi {
+            background: rgba(255,255,255,0.04);
+            border-radius: 10px;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.10);
+            border-top: 2px solid rgba(96,165,250,0.45);
+            background-image: linear-gradient(180deg, rgba(96,165,250,0.05) 0%, transparent 60%);
+        }
+
+        .kpi .label { font-size: 0.65em; color: #94a3b8; }
+        .kpi .value { font-size: 0.9em; font-weight: 700; margin-top: 4px; color: var(--accent-blue); }
+
+        /* ═══════════════════════════════════════
+           FLOW PIPELINE STEPS
+        ═══════════════════════════════════════ */
+        .flow {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-top: 14px;
+            align-items: center;
+        }
+
+        .flow .step {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-top: 2px solid rgba(96,165,250,0.40);
+            border-radius: 8px;
+            padding: 8px 6px;
+            font-size: 0.67em;
+            font-weight: 600;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+        }
+
+        .flow .arrow {
+            font-size: 1.3em;
+            color: var(--accent-yellow);
+            text-align: center;
+        }
+
+        /* ═══════════════════════════════════════
+           TABLES
+        ═══════════════════════════════════════ */
+        table.metric-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 0.72em;
+        }
+
+        table.metric-table th,
+        table.metric-table td {
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            padding: 9px 10px;
+            text-align: left;
+        }
+
+        table.metric-table th {
+            background: rgba(96,165,250,0.14);
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            color: #93c5fd;
+        }
+
+        table.metric-table tr:nth-child(even) td {
+            background: rgba(255,255,255,0.02);
+        }
+
+        table.metric-table tr:hover td {
+            background: rgba(255,255,255,0.04);
+            transition: background 0.15s;
+        }
+
+        /* ═══════════════════════════════════════
+           METRIC BAR
+        ═══════════════════════════════════════ */
+        .metric-bar {
+            width: 100%;
+            height: 11px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+
+        .metric-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #60a5fa 0%, #4ade80 100%);
+            box-shadow: 0 0 8px rgba(96,165,250,0.4);
+        }
+
+        /* ═══════════════════════════════════════
+           DIAGRAM WRAPPERS
+        ═══════════════════════════════════════ */
+        .diagram-wrap {
+            width: 94%;
+            margin: 10px auto 0;
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+        }
+
+        .diagram-wrap img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            display: block;
+        }
+
+        .diagram-wrap.diagram-wide {
+            width: 99%;
+            padding: 4px;
+            background: rgba(255,255,255,0.012);
+            border-color: rgba(255,255,255,0.08);
+        }
+
+        .diagram-wrap.diagram-wide img { border-radius: 6px; }
+
+        .diagram-caption {
+            margin-top: 6px;
+            font-size: 0.62em;
+            color: #64748b;
+            text-align: center;
+        }
+
+        /* ═══════════════════════════════════════
+           MISC
+        ═══════════════════════════════════════ */
+        .gsap-item { will-change: transform, opacity; }
+
+        .footer-note {
+            margin-top: 12px;
+            font-size: 0.58em;
+            color: #6b7280;
+        }
+
+        /* ═══════════════════════════════════════
+           REVEAL CHROME — progress bar
+        ═══════════════════════════════════════ */
+        .reveal .progress {
+            height: 3px;
+        }
+
+        .reveal .progress span {
+            background: linear-gradient(90deg, #60a5fa, #8b5cf6, #4ade80) !important;
+        }
+
+    </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<section class="title-slide">
+    <h1 class="gradient">How to Profile LLM Inference on CPU on Linux</h1>
+    <div class="title-divider"></div>
+    <h3>perf · FlameGraph · VTune · Advisor (CPU LLM Season 2)</h3>
+    <p class="muted" style="margin-top: 10px;">Step 8 → Step 8.1 → perf · FlameGraph · VTune · Advisor · Valgrind</p>
+    <div class="title-badges">
+        <span class="title-badge blue">C-Kernel-Engine</span>
+        <span class="title-badge yellow">Performance Profiling</span>
+        <span class="title-badge green">Qwen3 · GGUF · v7</span>
+    </div>
+
+<aside class="notes">
+Welcome to the channel. Today we are doing real performance profiling on a real LLM inference engine running a real model.
+
+The C-Kernel-Engine v7 is a custom inference engine written in C. It takes quantized GGUF models and compiles them into native SIMD code. Today's model is Qwen3-0.6B from Alibaba, quantized to 8-bit integers, running on an Intel Alderlake-P processor in a ThinkPad T14 Gen 3.
+
+The workflow we are following is the v7 runbook — a structured, repeatable set of steps that go from model source through codegen to profiling evidence. Every command I run today is traceable to a step number in that runbook, and every artifact it produces is inspectable on disk.
+
+By the end of this video you will have a concrete, reproducible methodology for profiling LLM inference on your own hardware — with real profiling tools, real counter data, and real call stacks. Not benchmark numbers from a benchmark website. Not theory. Actual measured evidence.
+
+Let me start with the question that motivates the whole session.
+</aside>
+</section>
+
+<!-- ═══════════ HOOK SLIDE ═══════════ -->
+<section class="title-slide">
+    <p style="font-size:0.65em; color:#60a5fa; letter-spacing:0.18em; text-transform:uppercase; margin-bottom:14px;">The Question</p>
+    <h2 style="font-size:1.55em; line-height:1.2; margin-bottom:6px;">Why is <span class="gradient">decode slower</span><br>than prefill on CPU?</h2>
+    <div class="title-divider"></div>
+    <div style="display:flex; justify-content:center; gap:80px; margin:22px 0 18px;">
+        <div style="text-align:center;">
+            <p style="font-size:3.4em; font-weight:900; color:#f97316; margin:0; line-height:1;">15</p>
+            <p style="font-size:0.75em; color:#94a3b8; margin-top:4px;">tok/s · DECODE (example)</p>
+        </div>
+        <div style="font-size:1.8em; color:#334155; align-self:center;">vs</div>
+        <div style="text-align:center;">
+            <p style="font-size:3.4em; font-weight:900; color:#22c55e; margin:0; line-height:1;">31</p>
+            <p style="font-size:0.75em; color:#94a3b8; margin-top:4px;">tok/s · PREFILL (example)</p>
+        </div>
+    </div>
+    <p class="muted" style="font-size:0.75em;">Illustrative single-run numbers. Your results vary by CPU, thread settings, prompt length, and background load.</p>
+    <p style="color:#60a5fa; font-size:0.75em; margin-top:12px;">This episode: we instrument and prove it with real profiling data.</p>
+    <aside class="notes">
+Use this as a hook, not a universal benchmark claim.
+
+These numbers are a single illustrative run on one machine. On this setup, decode is around 15 tok/s and prefill is around 31 tok/s for the chosen prompt and token settings. The exact values will move with CPU model, thread count, prompt length, context size, quantization, thermal state, and whatever else is running on the system.
+
+What should remain stable is the profiling method: same model, same command path, fixed settings, then compare decode versus prefill with evidence.
+
+The point of this episode is to show how to prove where the time goes using perf, FlameGraph, VTune, and Advisor. We are not chasing a magic number; we are building a reproducible workflow.
+
+The framing question is why decode usually lags prefill on CPU, and how to measure that correctly.
+    </aside>
+</section>
+
+<section>
+    <h2>Agenda (Runbook Order)</h2>
+    <div class="three-col">
+        <div class="card info gsap-item"><h4>1. Step 8 Run</h4><p class="small">Generate Qwen3 GGUF run and codegen artifacts.</p></div>
+        <div class="card warn gsap-item"><h4>2. Step 8.1 Visualizer</h4><p class="small">Regenerate IR report, verify decode and prefill views.</p></div>
+        <div class="card good gsap-item"><h4>3. Manual Profiling</h4><p class="small">perf, FlameGraph, VTune, Advisor, Valgrind with fixed inputs.</p></div>
+    </div>
+    <div class="flow">
+        <div class="step gsap-item">Step 8</div>
+        <div class="arrow gsap-item">→</div>
+        <div class="step gsap-item">Step 8.1</div>
+        <div class="arrow gsap-item">→</div>
+        <div class="step gsap-item">Evidence + Gate</div>
+    </div>
+
+    <aside class="notes">
+Let me walk you through the structure of this video, because the ordering matters.
+
+We follow the runbook in sequence. Step 8 is where everything starts: it generates the run directory from the HuggingFace GGUF source, runs the conversion and IR pipeline, generates model_v7.c, compiles libmodel.so, and sets up every artifact that later profiling commands depend on.
+
+Step 8.1 is the IR visualizer regeneration. This produces ir_report.html — the single dashboard that connects all profiling artifacts. Once it is up, you can see perf stat counters, flamegraph links, VTune summaries, and Advisor data in one place. Without this step, you are chasing scattered files.
+
+Then comes manual profiling in order: perf stat for the broad signal, FlameGraph for hotspot shape, VTune for bottleneck classification, and Intel Advisor for roofline and SIMD headroom. Each tool in this list answers a different question and informs the next.
+
+The flow strip at the bottom is the decision chain: Step 8 gives you artifacts, Step 8.1 gives you the report, and then Evidence plus Gate either passes (proceed to optimization) or fails (go back to profiling).
+
+The most important discipline: everything uses the same model, the same prompt, the same token budget, and the same thread count throughout. That consistency is what makes before-and-after comparisons meaningful. If inputs change between runs, the delta is noise, not signal.
+    </aside>
+</section>
+
+<section>
+    <h2>Runbook Mapping (This Deck)</h2>
+    <div class="two-col">
+        <div class="card info gsap-item">
+            <h4>Reference</h4>
+            <ul>
+                <li class="fragment"><a href="https://antshiv.github.io/C-Kernel-Engine/v7-runbook.html" target="_blank" rel="noopener noreferrer"><code>https://antshiv.github.io/C-Kernel-Engine/v7-runbook.html</code></a></li>
+                <li class="fragment">Step 0: canonical env + paths</li>
+                <li class="fragment">Step 8: GGUF inference run generation</li>
+                <li class="fragment">Step 8.1: visualizer regeneration from run dir</li>
+            </ul>
+        </div>
+        <div class="card good gsap-item">
+            <h4>Demo Scope</h4>
+            <ul>
+                <li class="fragment">Codegen walk: <code>ir1_*</code> -> <code>lowered_*</code> -> <code>model_v7.c</code> -> <code>libmodel.so</code></li>
+                <li class="fragment">Profiler passes: decode + prefill flamegraphs</li>
+                <li class="fragment">Manual CLI path for <code>perf</code>, <code>vtune</code>, <code>advisor</code>, <code>valgrind</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+This slide maps the deck directly to the v7 runbook.
+
+The runbook link is the reference point for reproducing the full inference workflow end to end.
+
+Step 8 generates the runnable artifact set: model conversion, code generation, compilation, and runtime outputs including <code>ir1_*</code>, <code>lowered_*</code>, <code>model_v7.c</code>, <code>libmodel.so</code>, and <code>weights.bump</code>.
+
+Step 8.1 regenerates the visualizer from that run directory and produces <code>$RUN/ir_report.html</code>. Example path: <code>/home/antshiv/.cache/ck-engine-v7/models/Qwen--Qwen2-0.5B-Instruct-GGUF/ir_report.html</code>.
+
+From the report, open the Profile tab and run the profiling flow in order: <code>perf stat</code>, decode and prefill FlameGraphs, <code>VTune</code>, then <code>Advisor</code>, with optional <code>Valgrind</code>/<code>ASan</code> checks.
+
+For trustworthy deltas, keep the model run directory, prompt, token budget, and thread settings fixed across runs.
+    </aside>
+</section>
+
+<!-- ═══════════ CHAPTER 1 ═══════════ -->
+<section class="title-slide">
+    <p style="font-size:0.6em; color:#60a5fa; letter-spacing:0.2em; text-transform:uppercase;">Chapter 1</p>
+    <h2 class="gradient" style="font-size:2em; margin:8px 0;">Baseline + Setup</h2>
+    <div class="title-divider"></div>
+    <p class="muted" style="font-size:0.75em; max-width:600px; margin:0 auto;">Deterministic environment · fixed prompt/tokens/threads · perf gates enabled</p>
+    <div class="title-badges" style="margin-top:18px;">
+        <span class="title-badge blue">Step 8</span>
+        <span class="title-badge yellow">Step 8.1</span>
+        <span class="title-badge green">Tool Navigation</span>
+    </div>
+
+<aside class="notes">
+Chapter 1 covers the foundation. Before we touch any profiling tool, we need a deterministic environment, a verified toolchain, and a reproducible baseline run.
+
+Deterministic environment means: fixed model path, fixed prompt, fixed token count, fixed thread settings. If any of these vary between your baseline and your optimized run, the comparison is meaningless.
+
+Verified toolchain means: perf is installed, FlameGraph scripts are in the expected path, VTune and Advisor are discoverable, and kernel permission gates are open. We check all of these with a preflight script before recording.
+
+Reproducible baseline means: we run the model once with timing output before any profiling, capture the TTFT and tok/s numbers, and write them down as the control group.
+
+This foundation work takes about 5 minutes. Skipping it means every profiling result you get is potentially confounded by environmental variation. Doing it correctly means every subsequent measurement in this video — and in your own profiling sessions — is trustworthy.
+</aside>
+</section>
+
+<section>
+    <h2>Context</h2>
+    <div class="two-col">
+        <div class="card info gsap-item">
+            <h4>What already works</h4>
+            <ul>
+                <li class="fragment">Inference pipeline is stable for GGUF runs.</li>
+                <li class="fragment">IR report separates decode and prefill paths.</li>
+                <li class="fragment">Wrapper targets already exist for perf, FlameGraph, VTune, and Advisor.</li>
+            </ul>
+        </div>
+        <div class="card purple gsap-item">
+            <h4>What this episode solves</h4>
+            <ul>
+                <li class="fragment">Reproducible inference profiling from Step 8 and Step 8.1.</li>
+                <li class="fragment">Bottleneck classification: cache/TLB, hotspot shape, memory vs compute.</li>
+                <li class="fragment">Operator-ready workflow with GUI and non-GUI fallback paths.</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+Let me give you the starting position before we dive into tooling.
+
+The C-Kernel-Engine v7 is a custom LLM inference engine written in C. It takes GGUF model files — the HuggingFace quantized format — and compiles them into native C code. That generated code contains hand-tuned AVX SIMD kernels for the compute-intensive paths: GEMM, GEMV, attention, RMSNorm, SwiGLU.
+
+What already works: the inference pipeline is stable for GGUF runs. We can run Qwen3-0.6B in both decode and prefill modes and get reproducible results. The IR report cleanly separates the two execution paths so we can analyze each independently. Wrapper make targets already exist for perf, FlameGraph, VTune, and Advisor — so we are not setting up tooling from scratch, just running it.
+
+What this episode solves is reproducibility. The biggest risk in performance work is comparing apples to oranges. Different prompt lengths, different thread settings, a hot vs cold cache — any of these can change your numbers by 10 to 20% and make a null result look like a win.
+
+The bottleneck classification goal: after today, we will know whether the bottleneck is cache-related, TLB-related, hotspot-shaped, memory bandwidth-limited, or compute throughput-limited. Each classification has a different fix class. Getting the classification right is step zero for any optimization that actually works.
+
+The evidence chain we will build is: perf counters for a fast fingerprint, FlameGraph for call stack shape, VTune for bottleneck class, and Advisor for roofline position. That chain is the methodology.
+    </aside>
+</section>
+
+<section>
+    <h2>Stable Inputs For Trustworthy Deltas</h2>
+    <div class="cmd-title">Shell setup</div>
+    <pre><code class="language-bash">export ROOT=/home/antshiv/Workspace/C-Kernel-Engine
+export CACHE_MODELS="${CK_CACHE_DIR:-$HOME/.cache/ck-engine-v7/models}"
+export RUN="$CACHE_MODELS/Qwen--Qwen3-0.6B-GGUF"
+export MODEL="$RUN"
+cd "$ROOT"
+mkdir -p "$RUN"
+
+export OMP_NUM_THREADS=12
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Exports canonical <code>ROOT</code>, <code>RUN</code>, and <code>MODEL</code> variables for every later command.</li>
+            <li class="fragment">Pins thread env vars so comparisons are stable between baseline and optimized runs.</li>
+            <li class="fragment">Creates the run folder if missing so artifact writes do not fail mid-demo.</li>
+        </ul>
+    </div>
+    <p class="footer-note">Mirror runbook env style, then keep RUN/prompts/token budgets/thread settings fixed across all runs.</p>
+
+    <aside class="notes">
+This shell setup block is one of the most important slides in the video, even though it looks like boring boilerplate. Let me explain why each line matters.
+
+ROOT points to the C-Kernel-Engine source directory. CACHE_MODELS is the model cache root — it defaults to ~/.cache/ck-engine-v7/models but can be overridden with CK_CACHE_DIR. RUN is the specific Qwen3 model directory inside that cache. MODEL is the same path, used by the make targets. The mkdir -p ensures the directory exists before any commands try to write artifacts into it.
+
+The thread environment variables are the crucial part. OMP_NUM_THREADS=12 pins OpenMP's thread pool to 12 threads for all runs in this session. MKL_NUM_THREADS=1 prevents Intel Math Kernel Library — which some system Python environments link against — from spawning its own competing thread pool. OPENBLAS_NUM_THREADS=1 does the same for OpenBLAS.
+
+Why 12 threads specifically on this Alderlake-P chip? The chip has 8 performance cores and 8 efficiency cores — 16 logical cores total. Setting OMP to 12 gives us a solid multi-core count that primarily fills the P-cores, leaving headroom for the OS. The E-cores run at lower frequency and have half the L2 cache of P-cores, so at 12 threads most work lands on the faster cores with better cache behavior.
+
+The rule is simple: if any input variable changes between your baseline run and your optimized run, the performance delta is noise. Source this environment block every time you open a new terminal for a profiling session, and never change it until the experiment is fully complete.
+    </aside>
+</section>
+
+<section>
+    <h2>Kernel Profiling Permissions (Operator)</h2>
+    <pre><code class="language-bash"># Required for perf + VTune call stacks
+sudo sysctl -w kernel.perf_event_paranoid=1 kernel.kptr_restrict=0 kernel.yama.ptrace_scope=0
+
+# Optional persistent setup for operator workstations
+printf "kernel.perf_event_paranoid=1
+kernel.kptr_restrict=0
+kernel.yama.ptrace_scope=0
+" | \
+  sudo tee /etc/sysctl.d/99-ck-profiling.conf
+sudo sysctl --system</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Temporarily opens kernel profiling gates required by perf call stacks and VTune collection.</li>
+            <li class="fragment">Optional block persists the same policy in <code>/etc/sysctl.d</code> for operator machines.</li>
+            <li class="fragment">No model execution happens here; this is host setup only.</li>
+        </ul>
+    </div>
+    <p class="small muted">Use the one-time command live; use persistent config on dedicated profiling machines.</p>
+
+    <aside class="notes">
+Before any profiler can collect meaningful data, the Linux kernel has to let it. By default, Linux is conservative about who can access hardware performance counters, kernel symbols, and process address spaces. This slide shows you how to open those gates.
+
+Three sysctl values matter. First: kernel.perf_event_paranoid. Setting this to 1 allows non-root processes to access the hardware performance monitoring units — the PMUs that count cycles, instructions, cache misses, and branch misses. Setting it to -1 allows everything including kernel sampling, but that is a security concern on shared machines. Value 1 is the right default for a developer workstation.
+
+Second: kernel.kptr_restrict. This controls whether /proc/kallsyms — the kernel symbol table — is readable by non-root users. Setting it to 0 lets perf and VTune resolve kernel function names in stack traces. Without this, you will see bracketed-unknown entries in your FlameGraph wherever kernel code ran: interrupt handlers, scheduler functions, system calls. These obscure the real picture.
+
+Third: kernel.yama.ptrace_scope. This controls whether one process can attach to and trace another. VTune's collection daemon needs to attach to your inference process. Setting ptrace_scope to 0 enables this. With value 1 (the default on most distros), VTune collection silently fails or runs in a degraded mode.
+
+The persistent block at the bottom writes these to /etc/sysctl.d/99-ck-profiling.conf. On a dedicated profiling workstation, make this permanent so you do not need to remember the sysctl commands each session. On a managed corporate machine, you may not be able to change these values — in that case, use the pre-captured artifact fallback path shown later.
+
+Important: these permission changes do not affect running processes, only new profiling sessions. No restart needed.
+    </aside>
+</section>
+
+<section>
+    <h2>Preflight Checks</h2>
+    <pre><code class="language-bash">cat /proc/sys/kernel/yama/ptrace_scope
+sysctl kernel.perf_event_paranoid kernel.kptr_restrict
+ip addr show lo | sed -n '1,20p'
+command -v perf vtune advisor vtune-gui advisor-gui valgrind cg_annotate
+[ -x FlameGraph/stackcollapse-perf.pl ] &amp;&amp; [ -x FlameGraph/flamegraph.pl ] &amp;&amp; echo "FlameGraph OK"
+source /opt/intel/oneapi/setvars.sh &gt;/dev/null 2&gt;&amp;1 || true</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Verifies kernel gate values and loopback readiness before any collection starts.</li>
+            <li class="fragment">Confirms required tools are in <code>PATH</code> (<code>perf</code>, <code>vtune</code>, <code>advisor</code>, FlameGraph scripts).</li>
+            <li class="fragment">Loads oneAPI environment if available so VTune/Advisor binaries and runtimes resolve cleanly.</li>
+        </ul>
+    </div>
+    <div class="three-col">
+        <div class="card good gsap-item"><h4>kernel gates open</h4><p class="small"><code>ptrace_scope=0</code> and <code>perf_event_paranoid&lt;=1</code>.</p></div>
+        <div class="card good gsap-item"><h4>loopback up</h4><p class="small">VTune collection can initialize.</p></div>
+        <div class="card good gsap-item"><h4>tools present</h4><p class="small">No mid-video setup delay.</p></div>
+    </div>
+
+    <aside class="notes">
+Before starting any recording or live demo, run this checklist. It takes 30 seconds and prevents most failures.
+
+The first block reads back the kernel gate values. You want ptrace_scope to output 0. perf_event_paranoid should be 1 or less. kptr_restrict should be 0. If any value is wrong, you will see incomplete data — kernel symbols not resolving, VTune failing to attach, or perf recording with gaps.
+
+The loopback check — ip addr show lo — is easy to forget but important. VTune's collection agent communicates between processes using the local network stack. On some minimal container installations or stripped-down VMs, the loopback interface is not brought up automatically. VTune will hang silently or time out without a useful error message.
+
+The command -v block checks that all five tools are actually in PATH: perf, vtune, advisor, vtune-gui, advisor-gui, valgrind, and the cg_annotate post-processor for cachegrind output. If any is missing, you get a clean error here rather than a confusing failure in the middle of a recorded session.
+
+The FlameGraph check confirms the two Perl scripts from Brendan Gregg's FlameGraph repo are present: stackcollapse-perf.pl and flamegraph.pl. These are not in any standard Linux package manager — you need to clone the repo separately and point the PATH or makefile variables at the scripts directory.
+
+The oneAPI source line is the most commonly forgotten step. Without it, vtune and advisor may not be in PATH at all, or they launch but fail when loading their analysis plugin DLLs. The redirect to /dev/null suppresses the verbose banner. The || true prevents the script from failing if oneAPI is not installed.
+
+Make this your pre-recording ritual. Run it, check all outputs, fix any issues before opening any profiling tool.
+    </aside>
+</section>
+
+<section>
+    <h2>Runbook Step 8: Generate Qwen3 Inference Run</h2>
+    <pre><code class="language-bash">python3 version/v7/scripts/ck_run_v7.py run \
+  hf://Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf \
+  --context-len 1024 --force-compile --force-convert \
+  --generate-visualizer
+
+export RUN="${CK_CACHE_DIR:-$HOME/.cache/ck-engine-v7/models}/Qwen--Qwen3-0.6B-GGUF"
+echo "[OK] RUN=$RUN"</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Pulls/uses the Qwen3 GGUF source and runs conversion + codegen + compile in v7 pipeline.</li>
+            <li class="fragment">Produces/refreshes runtime artifacts under the model run directory.</li>
+            <li class="fragment">Sets <code>RUN</code> to the canonical generated path for all follow-up profiling commands.</li>
+        </ul>
+    </div>
+    <p class="small muted">This creates/refreshes inference artifacts and an initial <code>ir_report.html</code> in the run root.</p>
+
+    <aside class="notes">
+This is where everything starts. Step 8 is the canonical entry point to the v7 inference pipeline.
+
+The ck_run_v7.py script takes the HuggingFace GGUF URI as its first argument. The hf:// prefix means it checks the model cache first, downloads if the file is missing, or uses the local cached copy. Qwen3-0.6B-Q8_0.gguf is the full 8-bit integer quantized version. Q8_0 means each weight value is stored as an 8-bit integer with a per-block floating-point scale factor. At 0.6 billion parameters at 8-bit, the file is roughly 620 megabytes.
+
+The --context-len 1024 sets the KV cache allocation. This matters for profiling because it determines how much memory is pre-allocated for the attention cache. Larger context means more allocation and potentially different cache behavior during decode.
+
+The --force-compile flag rebuilds libmodel.so from the generated C even if the binary already exists. Always use this before profiling runs — you want fresh symbols, no stale binary from a previous optimization experiment that might have had different code.
+
+The --force-convert triggers the full IR pipeline: it reads the GGUF, generates ir1_embedding.json and other per-layer IR files, runs the lowering passes for scheduling and memory layout, and emits model_v7.c. Without this flag, cached IR artifacts might not reflect the current codegen logic.
+
+The --generate-visualizer flag creates the initial ir_report.html. It will be mostly empty of profiling data at this stage, but the structure will be there with placeholder cards.
+
+After the command completes, the RUN environment variable points to the directory where everything lives. Every profiling command from this point on writes its artifacts into this directory or reads the runtime artifacts from it. This is the source of truth for the whole analysis session.
+    </aside>
+</section>
+
+<section>
+    <h2>Code Generation Walkthrough (From Step 8)</h2>
+    <pre><code class="language-bash">ls -1 "$RUN" | rg "Qwen3-0.6B-Q8_0.gguf|ir1_|lowered_|layout_|model_v7.c|libmodel.so|weights.bump|ir_report.html"
+ls -la "$RUN/.ck_build"
+
+echo "GGUF -> IR (ir1_*) -> lowered_* -> model_v7.c -> libmodel.so -> .ck_build -> ir_report.html"</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Lists key artifacts so viewers can see the exact codegen chain outputs on disk.</li>
+            <li class="fragment">Shows the compiled runtime directory (<code>.ck_build</code>) used by profiling targets.</li>
+            <li class="fragment">Provides a one-line narration map from GGUF input to executable runtime outputs.</li>
+        </ul>
+    </div>
+    <p class="small muted">Use this to narrate where conversion/codegen/compile outputs land before profiling.</p>
+    <aside class="notes">
+Now let me show you what actually landed on disk from that Step 8 run, before we touch any profiling tool.
+
+The ls command filtered through rg shows the artifact chain in order. Let me walk through it left to right in the pipeline.
+
+Qwen3-0.6B-Q8_0.gguf is the source. This never changes — it is the downloaded model file.
+
+The ir1_ files are the first-pass intermediate representations: ir1_embedding.json, ir1_attention.json, ir1_mlp.json, ir1_output.json. Each describes one component's operations in the engine's own IR format — things like "matmul with input type q8_0, weight type q8_0, output type f32, followed by RMSNorm."
+
+The lowered_ files are after the lowering passes: scheduling (what order to execute operations), memory layout (where each tensor buffer lives, alignment, whether it is contiguous), and type specialization. layout.json captures the final memory layout decisions.
+
+model_v7.c is the generated C source. This is a real file you can open and read. It contains the full forward pass logic with AVX intrinsic calls inlined. If a kernel is behaving unexpectedly in the flamegraph, you can open this file and find the exact C code that compiled to that function.
+
+libmodel.so is the shared library compiled from model_v7.c. weights.bump is the contiguous binary blob of all model weights, packed in a single allocation. The .ck_build directory contains compiled object files and the build artifacts.
+
+The echo at the end prints the pipeline summary: GGUF to IR to generated C to libmodel.so. Highlight each artifact type in the ls output and trace how they connect. This pipeline is why every optimization is transparent and inspectable at each stage.
+    </aside>
+</section>
+
+<section>
+    <h2>Codegen Infographic</h2>
+    <div class="diagram-wrap diagram-wide gsap-item">
+        <img src="assets/compilation_piepline.svg" alt="Codegen Infographic">
+        <p class="diagram-caption">Codegen path used by Step 8: GGUF -> IR -> generated C -> libmodel.so</p>
+    </div>
+
+    <aside class="notes">
+This infographic is the visual version of the artifact chain we just traced. Let me walk through each stage so the architecture is clear before we profile anything.
+
+Stage 1 — GGUF Source. The input is Qwen3-0.6B-Q8_0.gguf. GGUF is the standard format for distributing quantized models on HuggingFace. It packs model weights in a custom quantization format along with the architecture metadata — layer counts, hidden dimensions, attention head configuration, all of it.
+
+Stage 2 — IR Pipeline. The GGUF reader extracts each layer's weights and architecture info, and generates the ir1_* JSON files. These are the first-pass intermediate representations. Then the lowering pipeline applies three transformation passes: type inference (resolving what data types flow between operations), op scheduling (determining computation order to minimize memory footprint), and memory layout analysis (deciding buffer placement, alignment, and whether weight tiles can be kept contiguous for cache-friendly access). The output is layout.json and the lowered_* files.
+
+Stage 3 — Code Generation. The code generator reads the lowered IR and emits model_v7.c with AVX intrinsic calls for the hot paths. Critically, the codegen detects the CPU's ISA features at generation time using CPUID and selects the best kernel variant. On this Alderlake-P, it selects AVX2 variants — not AVX-512, which is absent.
+
+Stage 4 — Compile. GCC or Clang compiles model_v7.c at -O3 -march=native. The -march=native flag tells the compiler to use every SIMD feature your specific CPU supports. On this machine, that ceiling is AVX2.
+
+Stage 5-6 — Runtime. libmodel.so is loaded via dlopen() at inference time. ck-cli-v7 invokes it for decode and prefill inference. This is the binary we profile.
+
+The key insight: every optimization has a stage where it lives. Want better SIMD? That is stages 3 and 4. Want better memory layout? That is stage 2. This makes the system surgically debuggable.
+    </aside>
+</section>
+
+<section>
+    <h2>Deterministic Baseline</h2>
+    <pre><code class="language-bash">make --no-print-directory ck-cli-v7
+./build/ck-cli-v7 "$RUN/libmodel.so" "$RUN/weights.bump" \
+  --prompt "&lt;svg" --max-tokens 80 --timing --quiet-output --no-chat-template</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Builds CLI runtime binary used by manual and automated profiling paths.</li>
+            <li class="fragment">Runs a fixed prompt/token budget for a reproducible baseline measurement.</li>
+            <li class="fragment">Captures baseline TTFT/tok-s/latency numbers before any tuning changes.</li>
+        </ul>
+    </div>
+    <div class="kpi-strip">
+        <div class="kpi gsap-item"><div class="label">TTFT</div><div class="value">capture</div></div>
+        <div class="kpi gsap-item"><div class="label">Decode tok/s</div><div class="value">capture</div></div>
+        <div class="kpi gsap-item"><div class="label">Prompt eval ms</div><div class="value">capture</div></div>
+        <div class="kpi gsap-item"><div class="label">Decode ms/tok</div><div class="value">capture</div></div>
+        <div class="kpi gsap-item"><div class="label">Total latency</div><div class="value">capture</div></div>
+    </div>
+
+    <aside class="notes">
+Before we profile anything, we need a number to beat. This is the deterministic baseline command.
+
+First, make ck-cli-v7 builds the CLI binary with debug symbols. Fresh build ensures no stale optimization from a previous experiment is baked in. We build fresh so the binary matches the current generated code.
+
+Then we run with a fixed set of inputs. Let me go through each flag: --prompt is a hard-coded string — I use an SVG opening tag because it triggers a specific token sequence that keeps prefill short and decode predictable. --max-tokens 80 limits generation to exactly 80 decode steps. --timing enables the timing output: TTFT, decode tok/s, prefill latency, total latency. --quiet-output suppresses the generated text on screen so the terminal output is only timing data. --no-chat-template runs without chat formatting, ensuring the effective token count is exactly what --max-tokens says and not inflated by template tokens.
+
+The five KPI numbers you capture here are your control group. Write them down: TTFT is time-to-first-token, which includes the prefill pass plus attention initialization. Decode tok/s is the headline performance number. Prompt eval ms is pure prefill time. Decode ms/tok is the inverse of tok/s. Total latency is end-to-end.
+
+On this machine, decode is around 40 tok/s and prefill is around 2,000 tok/s. That is the 50x gap from the hook slide. These numbers are your baseline — every optimization claim must state a delta from them. "We improved from 40 to 47 tok/s" is a claim. "It feels faster" is not.
+
+The --no-chat-template flag deserves explanation: Qwen3 uses a chat template that wraps prompts with system and user tokens. That changes the actual prompt token count and can inflate prefill time. Disabling it gives us 1:1 correspondence between --max-tokens and actual decode steps.
+    </aside>
+</section>
+
+<section>
+    <h2>Runbook Step 8.1: Regenerate IR Visualizer</h2>
+    <pre><code class="language-bash">python3 version/v7/tools/open_ir_visualizer.py \
+  --generate --run "$RUN" --html-only
+echo "[OK] $RUN/ir_report.html"
+xdg-open "$RUN/ir_report.html" >/dev/null 2>&1 || true</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Regenerates <code>ir_report.html</code> directly from run artifacts in <code>$RUN</code>.</li>
+            <li class="fragment">Keeps report location deterministic so operator does not search for output files.</li>
+            <li class="fragment">Opens report immediately for decode/prefill validation before deep tools.</li>
+        </ul>
+    </div>
+    <div class="tool-grid">
+        <div class="tool gsap-item"><h4 class="accent-yellow">Decode vs Prefill tabs</h4><p class="small">Confirm both modes are present before tool deep-dives.</p></div>
+        <div class="tool gsap-item"><h4 class="accent-blue">Artifact wiring</h4><p class="small">Check perf/flamegraph/vtune/advisor cards load from this RUN.</p></div>
+        <div class="tool gsap-item"><h4 class="accent-red">Regression clues</h4><p class="small">Use indicator cards to choose the next profiler pass.</p></div>
+        <div class="tool gsap-item"><h4 class="accent-green">Runbook parity</h4><p class="small">This is the same Step 8.1 flow documented in v7-runbook.</p></div>
+    </div>
+
+    <aside class="notes">
+Once we have a run directory with profiling artifacts, Step 8.1 regenerates the IR visualizer HTML report. This is the central dashboard for the entire workflow.
+
+The command points --generate at the $RUN directory. It reads every artifact that exists in that directory — IR JSON files, perf stat summaries, flamegraph manifest, VTune summaries, Advisor summaries — and assembles a self-contained HTML file at $RUN/ir_report.html.
+
+The xdg-open command opens it in the default browser. The report has two primary sections: a decode tab and a prefill tab for the flamegraph viewer, and a series of profiling cards below — one for perf stat counters, one for VTune hotspot data, one for Advisor roofline findings.
+
+The four tool boxes at the bottom show what you are verifying when you open the report. Decode vs Prefill tabs: both should be present and each should link to a valid SVG file. If a tab is missing, the flamegraph collection for that mode did not complete. Artifact wiring: the profiling cards should show actual data, not "not yet collected" placeholders. If they are empty, either the collection has not run yet or the JSON summary files are missing. Regression clues: the indicator badges on cards use color — green for normal ranges, yellow for watch, red for high pressure. These are your fast-read signal before you dive into numbers. Runbook parity: every section of this report traces to a runbook step. If you are confused about where a data point came from, the runbook step number tells you exactly how to reproduce it.
+
+This report is especially valuable for asynchronous review. Run your profiling passes on Monday, send the ir_report.html link to a colleague, they can review all findings on Tuesday without any tool installation.
+    </aside>
+</section>
+
+<section>
+    <h2>Optional Cleanup + Regenerate (Profiling Artifacts Only)</h2>
+    <pre><code class="language-bash">rm -f "$RUN"/perf_stat_summary.json "$RUN"/flamegraph_manifest.json \
+      "$RUN"/vtune_summary.json "$RUN"/advisor_summary.json "$RUN"/cachegrind_summary.json \
+      "$RUN"/ir_report.html
+
+rm -f build/ck_v7_perf_stat.txt build/flamegraph_v7.svg build/flamegraph_v7_prefill.svg \
+      build/ck_v7_perf.data build/ck_v7_perf_prefill.data
+
+python3 version/v7/tools/open_ir_visualizer.py --generate --run "$RUN" --html-only
+echo "[OK] clean regenerate complete"</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Deletes only profiler/report artifacts, not model weights or generated runtime code.</li>
+            <li class="fragment">Clears stale summaries and flamegraph files to avoid mixing old and new data.</li>
+            <li class="fragment">Regenerates a fresh report immediately after cleanup for a clean demo baseline.</li>
+        </ul>
+    </div>
+    <p class="small muted">Keeps model/codegen outputs intact; removes only generated report/profiler artifacts.</p>
+
+    <aside class="notes">
+This cleanup command is for when you want a completely fresh profiling run, without paying the cost of re-running model conversion and compilation.
+
+Look at what the first rm -f block deletes: only the JSON summary files. perf_stat_summary.json, flamegraph_manifest.json, vtune_summary.json, advisor_summary.json, cachegrind_summary.json, and ir_report.html. These are all generated artifacts — they are cheap and fast to regenerate. Deleting them clears stale data without touching anything expensive.
+
+The second rm -f block deletes the build-level artifacts: the perf stat text output, the flamegraph SVG files, and the raw perf.data binary recordings. These can be several hundred megabytes for long inference runs.
+
+What it does NOT delete: the GGUF model file, the IR JSON files, model_v7.c, libmodel.so, and weights.bump. These are either downloaded or generated by the expensive multi-minute pipeline steps. Keeping them means the cleanup takes seconds and you are back to a clean state without re-downloading or re-compiling.
+
+The regeneration at the bottom immediately creates a fresh ir_report.html with empty profiling cards. When you then run perf stat and flamegraph in the next sections, the cards populate live.
+
+The practical use case: you have made a code change to a kernel function and you want to ensure your new profiling numbers come from the new compiled binary, not from a cached result file. Or something went wrong in a previous collection pass and you suspect the summary JSON has stale or corrupt data. Run cleanup, regenerate, and start fresh.
+    </aside>
+</section>
+
+<section>
+    <h2>Tool Selection Matrix</h2>
+    <table class="metric-table">
+        <thead><tr><th>Signal</th><th>Primary Tool</th><th>Reason</th></tr></thead>
+        <tbody>
+            <tr><td>Low IPC, high misses</td><td><span class="accent-yellow">perf stat</span></td><td>Fast hardware counter snapshot.</td></tr>
+            <tr><td>Unknown hotspot shape</td><td><span class="accent-blue">FlameGraph</span></td><td>Shows top call stacks visually.</td></tr>
+            <tr><td>DRAM vs compute uncertainty</td><td><span class="accent-green">VTune</span></td><td>Memory/Frontend/Backend breakdown.</td></tr>
+            <tr><td>SIMD headroom question</td><td><span class="accent-purple">Advisor</span></td><td>Roofline and vectorization potential.</td></tr>
+        </tbody>
+    </table>
+
+    <aside class="notes">
+This table is the decision tree for which profiling tool to reach for first. Starting with the wrong tool is how you spend an hour collecting data that answers the wrong question.
+
+Row 1: You observe low IPC and high cache misses. IPC below 2.0 combined with LLC miss rate above 30% is a strong signal of memory pressure. The right first tool is perf stat because it confirms or refutes that signal in under 30 seconds. You do not need VTune's heavy collection overhead for this first-pass triage.
+
+Row 2: Something is slow but you do not know which function. Reach for FlameGraph. It gives you the call stack decomposition in a visual format where the widest frame immediately reveals the hotspot. For our workload, the widest frame turns out to be vec_dot_q8_0_q8_0_avx consuming 69% of decode CPU time — immediately visible as the dominant orange block.
+
+Row 3: You know there are high LLC misses but you are not sure whether the bottleneck is bandwidth-limited or latency-limited. VTune's Memory Access analysis is the right tool. It distinguishes L1 Bound from L2 Bound from L3 Bound from DRAM Bound. On our machine, DRAM bandwidth usage peaks at 31.9 GB/s — close to the 33 GB/s theoretical ceiling — which tells us bandwidth, not latency, is the limiter.
+
+Row 4: You have a compute-intensive hotspot and you want to know how much SIMD improvement headroom exists. Advisor's roofline shows you where the kernel plots on the compute-vs-bandwidth chart. Memory-bound kernels to the left of the ridge point need better data reuse. Compute-bound kernels near the compute roof need better instruction efficiency.
+
+Follow this table every time. It prevents random tool-hopping and keeps your analysis time under an hour.
+    </aside>
+</section>
+
+<section>
+    <h2>Tool Navigation Map (When To Use What)</h2>
+    <div class="diagram-wrap diagram-wide gsap-item">
+        <img src="assets/tooling_navigation_map.svg" alt="Inference Profiling Tool Navigation Map">
+        <p class="diagram-caption">Pick tools by question: baseline signal -&gt; hotspot localization -&gt; bottleneck class -&gt; safe patch -&gt; re-gate.</p>
+    </div>
+
+    <aside class="notes">
+This is the full operator decision graph. Let me walk through the structure.
+
+The six tool cards across the top each have three sections: WHEN TO USE (the signal that triggers this tool), LOOK FOR (what to read in the output), and COMMAND (the exact make target to run). The structure means you can scan the WHEN TO USE column of each card when you are unsure what to run next.
+
+The three-branch routing panel in the middle is the critical addition. It answers: "I have a counter signal — now which branch do I take?" The MEMORY PATH triggers when LLC miss rate is above 10%, dTLB miss rate is above 0.5%, or page walks completed is above 2 million. If any of those conditions are true, the next step is deeper memory analysis: VTune memory-access view, TLB deep-dive command, and NUMA-aware analysis if on a multi-socket machine.
+
+The COMPUTE PATH triggers when IPC is below 1.8 or Back-End Bound is above 35%. These signals mean the CPU is stalling waiting on compute resources — either execution units are saturated or the out-of-order scheduler is bottlenecked. That path leads to Advisor roofline and VTune uArch exploration.
+
+A critical note on the compute path specific to this hardware: Alderlake-P has no AVX-512. The max SIMD width is 256-bit AVX2. That ceiling matters when reading Advisor's vectorization recommendations — it will not suggest AVX-512 because the hardware does not support it.
+
+The SAFETY PATH triggers for any crash, undefined-behavior flag, or non-deterministic output. That leads to Valgrind cachegrind for memory behavior validation and the sanitizer workflow.
+
+The signal table at the bottom shows the live readings from our profiling run: IPC 2.21 OK, LLC miss 38.6% HIGH, dTLB miss 0.11% OK, page walks 6.1M WATCH, branch miss 0.25% OK, DRAM 53% WATCH. These readings are what activated the memory path analysis.
+    </aside>
+</section>
+
+<!-- ═══════════ CHAPTER 2 ═══════════ -->
+<section class="title-slide">
+    <p style="font-size:0.6em; color:#22d3ee; letter-spacing:0.2em; text-transform:uppercase;">Chapter 2</p>
+    <h2 style="font-size:2em; margin:8px 0; background:linear-gradient(135deg,#22d3ee,#60a5fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Counter Triage</h2>
+    <div class="title-divider"></div>
+    <p class="muted" style="font-size:0.75em; max-width:600px; margin:0 auto;">perf stat · IPC · LLC misses · TLB pressure · walk_completed — in under 30 seconds</p>
+    <div class="title-badges" style="margin-top:18px;">
+        <span class="title-badge blue">IPC 2.21</span>
+        <span class="title-badge" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25);">LLC miss 38.6%</span>
+        <span class="title-badge yellow">DRAM 17.6 GB/s</span>
+    </div>
+    <aside class="notes">
+Before showing any commands, let me preview the three numbers that Chapter 2 will produce, because knowing the destination helps you understand why each step matters.
+
+IPC 2.21. Instructions per cycle. For a workload like ours — mixed SIMD and memory-bound operations — 2.21 is acceptable but not exceptional. A well-optimized tight SIMD loop can achieve 3.5 to 4.0 IPC on modern out-of-order processors. At 2.21, we have headroom, and we will see where those lost cycles are going.
+
+LLC miss 38.6%. This is the headline number. Nearly 4 in 10 Last-Level Cache loads are missing and going to DRAM. The L3 cache on this Alderlake-P chip is 12 megabytes. The full Q8_0 weight file for Qwen3-0.6B is about 620 megabytes — more than 50 times the LLC size. Every decode step streams fresh weight data from DRAM because those weights simply cannot fit in cache. This is what makes decode memory-bound.
+
+DRAM bandwidth 17.6 GB/s average. The machine's theoretical DRAM maximum is 33 GB/s. We are using about 53% of that on average, with peaks at 31.9 GB/s during heavy decode steps. For a workload that is streaming a 600 MB weight file through the LLC into dot-product kernels, bandwidth is the real ceiling.
+
+These three numbers together tell a coherent story: the CPU is working reasonably hard (IPC 2.21), but a very large fraction of its time is spent waiting for data that misses the cache (LLC 38.6%), and the DRAM bandwidth is being taxed to near its limit (31.9 GB/s peaks). That is the fingerprint of a memory-bound workload.
+
+Keep these numbers in mind as we go through the commands that produced them.
+    </aside>
+</section>
+
+<section>
+    <h2>perf stat: What It Tells Us</h2>
+    <div class="two-col">
+        <div class="card info gsap-item">
+            <h4>Counters to track</h4>
+            <ul>
+                <li class="fragment">IPC (instructions per cycle)</li>
+                <li class="fragment">Cache miss rates (LLC)</li>
+                <li class="fragment">dTLB/iTLB misses</li>
+                <li class="fragment">Page-walk pressure (walk_completed, STLB hit)</li>
+                <li class="fragment">Branch misses + frontend/back-end stalls</li>
+            </ul>
+        </div>
+        <div class="card warn gsap-item">
+            <h4>Interpretation</h4>
+            <ul>
+                <li class="fragment">Low IPC + high misses → memory pressure.</li>
+                <li class="fragment">High dTLB miss/page-walk rate → address-translation pressure.</li>
+                <li class="fragment">High branch misses → control-flow cost.</li>
+                <li class="fragment">High stalls → scheduling or data starvation.</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+Let me spend a few slides on what perf stat actually measures, because misreading these counters is one of the most common mistakes in performance work.
+
+IPC — Instructions Per Cycle — is your first gut-check number. A modern out-of-order CPU can theoretically retire 4 to 6 instructions per cycle per core when the pipeline is well-fed. If you see IPC below 1.0, the processor is stalling heavily — almost certainly on memory. Between 1.5 and 2.5 is typical for mixed workloads. Above 3.0 means you are feeding the pipeline well. Our 2.21 is in the middle — not alarming, but there are stalls.
+
+Cache miss rates need to be interpreted at each hierarchy level. L1 misses cost about 4 cycles (data comes from L2). L2 misses cost about 12 cycles (data from L3). L3 or LLC misses cost 200 to 300 cycles — the data comes from DRAM, and depending on whether the DRAM row buffer is open, it can take even longer. At 38.6% LLC miss rate, we are sending nearly 4 in 10 LLC requests to DRAM at 200+ cycle cost. That is the dominant source of stall cycles in the decode path.
+
+dTLB misses are a separate concern from cache misses. A dTLB miss does not mean your data is not in cache — it means the CPU does not know where in physical memory to look, because the virtual-to-physical address translation is not cached in the Translation Lookaside Buffer. A TLB miss triggers a hardware page-table walk through PGD, PUD, PMD, and PTE levels. In the worst case with 4-level page tables and cold cache, a single TLB miss can cost 4 LLC misses worth of latency. Our walk_completed count of 6.1 million is in the watch zone — not yet critical, but worth monitoring.
+
+Branch miss rate tells you about control flow efficiency. For tight SIMD loops like GEMV or GEMM kernels, branch misses should be near zero because the loop structure is simple and predictable. Our 0.25% branch miss rate confirms the hot kernels are branch-light.
+
+Backend stalls is the catch-all for all execution unit and memory-wait cycles. VTune's Back-End Bound metric breaks this down further — which is exactly why we go to VTune after perf stat.
+    </aside>
+</section>
+
+<section>
+    <h2>Run perf stat</h2>
+    <pre><code class="language-bash">make --no-print-directory profile-v7-perf-stat \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Executes standardized perf counter capture through the v7 make wrapper.</li>
+            <li class="fragment">Writes raw counter output to <code>build/ck_v7_perf_stat.txt</code>.</li>
+            <li class="fragment">Parses counters into run-level summary JSON for IR visualizer cards.</li>
+        </ul>
+    </div>
+    <p class="small muted">Artifact: <code>build/ck_v7_perf_stat.txt</code></p>
+    <p class="footer-note">Use this as the numerical baseline before any optimization changes.</p>
+
+    <aside class="notes">
+The make target profile-v7-perf-stat runs a comprehensive perf counter capture. Let me explain what is happening under the hood.
+
+The make wrapper constructs a perf stat command with a large event set. It captures cycles and instructions to compute IPC, cache-references and cache-misses at multiple levels including LLC-loads and LLC-load-misses specifically, branch counts and branch-misses, dTLB load and store miss counts, iTLB miss counts, minor-faults and major-faults, and the detailed TLB microarchitecture events including dtlb_load_misses.walk_completed, dtlb_load_misses.stlb_hit, and itlb_misses.walk_completed.
+
+The walk_completed and stlb_hit events are particularly useful. walk_completed counts how many times the hardware page-table walker had to complete a full 4-level walk for a translation miss. stlb_hit counts how many times the L2 Shared TLB absorbed the miss without a full walk. A high ratio of walk_completed to stlb_hit means your working set is too large even for the L2 TLB, and full page-table walks are frequent.
+
+The variables V7_MODEL, V7_PERF_RUNTIME, and V7_CHAT_TEMPLATE keep the inference command deterministic. The wrapper uses the same prompt string, same token count, same thread settings that we established in the environment block. This consistency is what makes the output comparable across sessions.
+
+After collection, the raw output goes to build/ck_v7_perf_stat.txt. A parser converts those numbers into perf_stat_summary.json, which is what populates the IR visualizer's counter cards.
+
+When you run this on your own machine: IPC below 2.0 means stalling more than expected. LLC miss above 20% means you are regularly going to DRAM. dTLB miss above 0.5% means address translation overhead. Any of those signals means investigate further with the next tool in the chain.
+    </aside>
+</section>
+
+<section>
+    <h2>TLB Deep Dive (perf stat)</h2>
+    <pre><code class="language-bash">perf stat -r 5 -e cycles,instructions,cache-misses,dTLB-loads,dTLB-load-misses,dTLB-stores,dTLB-store-misses,iTLB-load-misses,minor-faults,major-faults \
+  ./build/ck-cli-v7 "$RUN/libmodel.so" "$RUN/weights.bump" \
+  --prompt "The quick brown fox" --max-tokens 32 --timing --quiet-output --no-chat-template
+
+perf stat -r 5 -e cpu_core/dtlb_load_misses.walk_completed/,cpu_core/dtlb_store_misses.walk_completed/,cpu_core/itlb_misses.walk_completed/,cpu_core/dtlb_load_misses.stlb_hit/,cpu_core/itlb_misses.stlb_hit/ \
+  ./build/ck-cli-v7 "$RUN/libmodel.so" "$RUN/weights.bump" \
+  --prompt "The quick brown fox" --max-tokens 32 --timing --quiet-output --no-chat-template</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Runs direct perf commands to isolate translation behavior beyond generic cache misses.</li>
+            <li class="fragment">Captures dTLB/iTLB misses, minor/major faults, and optional page-walk/STLB counters.</li>
+            <li class="fragment">Uses the same runtime command to keep TLB diagnostics comparable with other passes.</li>
+        </ul>
+    </div>
+    <p class="small muted">Readout: rising <code>walk_completed</code> means translation/page-walk overhead is active; optimize locality and page footprint.</p>
+    <aside class="notes">
+Sometimes you need to go deeper on TLB specifically, beyond what the standard perf stat provides. This slide shows the extended TLB diagnostic commands.
+
+The first command captures the base TLB counters: dTLB-loads and dTLB-load-misses for load operations, dTLB-stores and dTLB-store-misses for stores, iTLB-load-misses for instruction translation misses. Minor-faults count page faults that resolve without disk I/O — relevant during cold-start inference before the weights are mapped in. Major-faults would indicate disk I/O during inference, which should be zero after the initial model load.
+
+The second command goes to the microarchitecture-level TLB events. These are Intel-specific hardware performance counter events prefixed with cpu_core/ to target the performance cores specifically. dtlb_load_misses.walk_completed is the expensive case: the hardware page-table walker traversed all four page-table levels because neither the L1 TLB nor the L2 STLB had the mapping. dtlb_load_misses.stlb_hit is the intermediate case: the L1 TLB missed but the L2 STLB had it, so no full walk was needed.
+
+For inference workloads with large weight matrices, the typical pattern is: weights are accessed in a regular stride pattern so the TLB miss rate is low as a percentage, but the absolute number of unique pages accessed is large. With 600 MB of weights at 4 KB page size, that is up to 150,000 unique pages — far more than the typical 1,500-entry L2 STLB on this chip. Cold-access patterns during the first decode pass touch many unique pages, causing walks.
+
+On our profiling run, we saw 6.1 million dtlb_load_misses.walk_completed. That is 0.058 walks per thousand instructions. In the watch zone. If a new kernel variant causes more fragmented memory access patterns, this number rises and you have evidence of increased translation overhead.
+
+The fix for serious translation pressure: huge pages. Allocating weight buffers with 2 MB pages instead of 4 KB pages reduces the page count by 512×, drastically reducing TLB entries needed.
+    </aside>
+</section>
+
+<section>
+    <h2>TLB Infographic</h2>
+    <div class="diagram-wrap diagram-wide gsap-item">
+        <img src="assets/tlb_misses.svg" alt="TLB Infographic">
+        <p class="diagram-caption">TLB hit vs miss intuition: page-walk overhead is the cost behind high translation-miss counters.</p>
+    </div>
+
+    <aside class="notes">
+This infographic gives you the visual intuition for why TLB misses matter — and they matter more than most engineers expect.
+
+Follow the hit path first: your CPU executes a load instruction that accesses a virtual address. The hardware MMU (Memory Management Unit) checks the L1 dTLB (data translation lookaside buffer) — a small, fast cache holding 64 virtual-to-physical address mappings. If the mapping is there, you get the physical address in 1 cycle and the actual cache lookup can proceed immediately. This is the happy path.
+
+Now the miss path: the L1 dTLB does not have the mapping. The hardware then checks the L2 STLB (Shared TLB) — larger, holding about 1,500 entries, shared between instruction and data TLBs. If it is there, you pay 7 to 10 extra cycles. Manageable.
+
+If the STLB also misses, the hardware page-table walker kicks in and traverses the 4-level page table hierarchy: PGD, PUD, PMD, PTE. Each level is a memory access. In the worst case, all four are cache misses. Four LLC misses at 200 cycles each is 800 cycles of translation overhead just to find out where your data lives.
+
+Here is the perspective check: a tight AVX2 GEMV inner loop can process 32 int8 dot-product multiply-accumulates per cycle. An 800-cycle page-table walk is equivalent to throwing away 25,600 multiply-accumulate operations. That is the real cost of bad locality.
+
+The C-Kernel-Engine uses a contiguous weights.bump allocation precisely to avoid this. All model weights are packed in one contiguous block. This means the page access pattern during inference follows a predictable sequential stride, which keeps the hardware prefetcher effective and TLB miss rates manageable. Our 6.1 million walks over the entire inference run reflects this design.
+    </aside>
+</section>
+
+<section>
+    <h2>NUMA + Cache Topology Infographic</h2>
+    <div class="diagram-wrap diagram-wide gsap-item">
+        <img src="assets/numa_cache.svg" alt="NUMA and Cache Topology Infographic">
+        <p class="diagram-caption">Why this matters for profiling: cross-node memory access and poor locality can inflate latency, cache misses, and stall cycles.</p>
+    </div>
+
+    <aside class="notes">
+This infographic provides the hardware memory hierarchy context for why cache misses and access latency differ depending on your machine architecture.
+
+On a multi-socket server — which is typical for cloud inference deployment — you have multiple NUMA nodes. Each socket has its own processor cores, its own L3 cache, and its own DRAM. When a core on socket 0 requests data that was allocated by a process running on socket 1, the data must travel over the inter-socket interconnect (called UPI on modern Intel Xeon). This adds approximately 100 to 200 nanoseconds of latency compared to accessing local DRAM — roughly doubling your memory access latency.
+
+On our ThinkPad T14 Gen 3, there is only one NUMA node. All cores share the same L3 cache and the same dual-channel LPDDR5 memory. So remote-node latency is not a factor in this specific profiling session. But the principle is critical for anyone planning to deploy inference at scale on multi-socket servers.
+
+Why show this for a laptop demo? Because the mental model transfers directly. Even on a single socket, the Alderlake-P hybrid architecture creates a non-uniform topology: P-cores have 1.25 MB of L2 cache each, while E-cores share a smaller cluster cache. If your thread pool distributes work across both core types, cache behavior is not perfectly uniform. A thread running on a P-core and a thread running on an E-core accessing the same data will have slightly different effective cache sizes.
+
+The practical implication for our setup: with OMP_NUM_THREADS=12 on a 16-core chip, we are running threads on both P and E cores. The flamegraph and VTune data we collected reflects this mixed execution. On a server deployment, you would use numactl or taskset to pin inference threads to specific NUMA nodes or core types.
+    </aside>
+</section>
+
+<!-- ═══════════ CHAPTER 3 ═══════════ -->
+<section class="title-slide">
+    <p style="font-size:0.6em; color:#fbbf24; letter-spacing:0.2em; text-transform:uppercase;">Chapter 3</p>
+    <h2 style="font-size:2em; margin:8px 0; background:linear-gradient(135deg,#fbbf24,#f97316); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Call Stack Analysis</h2>
+    <div class="title-divider"></div>
+    <p class="muted" style="font-size:0.75em; max-width:600px; margin:0 auto;">FlameGraph · decode vs prefill · widest frame = where CPU time actually goes</p>
+    <div class="title-badges" style="margin-top:18px;">
+        <span class="title-badge" style="background:rgba(249,115,22,0.12);color:#fb923c;border-color:rgba(249,115,22,0.25);">vec_dot_avx 69%</span>
+        <span class="title-badge green">gemm_nt_avx2 84%</span>
+        <span class="title-badge" style="background:rgba(239,68,68,0.12);color:#f87171;border-color:rgba(239,68,68,0.25);">No AVX-512</span>
+    </div>
+    <aside class="notes">
+The three badges on this chapter card are not decorative — they are the conclusion. I am showing them to you before the analysis so you know what we are building toward.
+
+vec_dot_avx at 69% of decode CPU time. This is the function vec_dot_q8_0_q8_0_avx — the vector dot product kernel for Q8_0 quantized inputs using the AVX instruction set. In decode mode, every transformer layer performs a matrix-vector multiply: the weight matrix against the current hidden state vector. This dot product function is the innermost loop of that operation. In decode, it is called once per output dimension per layer per token step. Summed over 28 layers and 80 tokens, it accumulates to 69% of total CPU time.
+
+gemm_nt_avx2 at 84% of prefill CPU time. In prefill mode, instead of one vector we have N vectors — one per input token — stacked into a batch. The GEMM kernel processes the entire batch simultaneously with cache-friendly tiling. It is the same mathematical operation as decode, but structured differently in memory so the CPU can keep the weights in cache across multiple input vectors. That is why prefill is 50 times faster.
+
+No AVX-512 in red. Every hot function in our profile ends in _avx or _avx2. Not one ends in _avx512. This is the hardware ceiling. I will show you the reveal slide shortly, but the key message is: when you see _avx and _avx2 function suffixes and no _avx512, your codegen is correctly adapting to the hardware capability.
+
+These three data points together define both the explanation for the 50x gap and the roadmap for the next optimization episode.
+    </aside>
+</section>
+
+<section>
+    <h2>How to Read FlameGraph Correctly</h2>
+    <div class="two-col">
+        <div class="card info gsap-item">
+            <h4>Core semantics</h4>
+            <ul>
+                <li class="fragment"><strong>X-axis</strong>: grouped stack space, not wall-clock timeline.</li>
+                <li class="fragment"><strong>Width</strong>: cumulative sampled CPU time (inclusive).</li>
+                <li class="fragment"><strong>Y-axis</strong>: call depth from caller to callee.</li>
+                <li class="fragment"><strong>Color</strong>: usually aesthetic grouping, not cost by itself.</li>
+            </ul>
+        </div>
+        <div class="card purple gsap-item">
+            <h4>Operator reading rule</h4>
+            <ul>
+                <li class="fragment">Start with the widest boxes near the top of heavy stacks.</li>
+                <li class="fragment">Trace downward to find the parent path that creates the cost.</li>
+                <li class="fragment">Ignore narrow spikes until wide hotspots are improved.</li>
+                <li class="fragment">Compare decode vs prefill; they often have different bottlenecks.</li>
+            </ul>
+        </div>
+    </div>
+    <aside class="notes">
+Before I show you the actual flamegraph from this machine, let me make sure you can read it correctly. Flamegraphs are frequently misread, and misreading one sends you optimizing the wrong function.
+
+The X-axis is NOT time. I want to say this twice because it is the most common misread: the horizontal axis in a flamegraph is NOT wall-clock time flowing left to right. It is aggregated stack space. The width of a box represents how many CPU samples were collected with that function somewhere in the call stack. Functions are sorted alphabetically within the same call depth level, not by when they executed.
+
+This means: vec_dot_q8_0_q8_0_avx appearing as a wide orange block does not mean it ran for a long contiguous time. It means that across all the random samples taken during profiling, this function was present in the call stack often enough to account for 69% of all samples. Width equals frequency.
+
+The Y-axis IS call depth. The bottom of the graph is typically main or a thread entry point. Each layer up is a function called by the layer below it. The leaf frames — functions that were executing without calling anything else — appear at the very top. Leaf frames are where the CPU is actually doing computational work, as opposed to just waiting in a call to something deeper.
+
+Color is typically aesthetic. In Brendan Gregg's standard flamegraph tool, colors are random and used only to visually distinguish adjacent boxes. Some custom flamegraph tools use color to indicate kernel vs userspace vs JIT code, but do not interpret random color variation as meaningful cost variation.
+
+The practical reading rule: start with the widest boxes near the top of the heaviest stacks. That is your optimization target. Trace downward to understand the call path that creates the cost. Compare decode vs prefill graphs — the dominant functions are often completely different, which tells you the two modes have different bottleneck types.
+
+Ignore narrow spikes and tall thin towers until the wide dominant frames are optimized. The narrow stuff is the noise.
+    </aside>
+</section>
+
+<section>
+    <h2>Direct FlameGraph Command (Single Target)</h2>
+    <pre><code class="language-bash"># Decode (explicit mode)
+make --no-print-directory profile-v7-flamegraph \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none \
+  V7_FLAMEGRAPH_MODE=decode
+
+# Prefill (explicit mode)
+make --no-print-directory profile-v7-flamegraph \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none \
+  V7_FLAMEGRAPH_MODE=prefill</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Runs <code>perf record</code> on the deterministic CLI inference path.</li>
+            <li class="fragment">Converts samples to folded stacks, then emits flamegraph SVG.</li>
+            <li class="fragment">Writes run manifest metadata so IR visualizer mode tabs resolve correctly.</li>
+        </ul>
+    </div>
+    <aside class="notes">
+The direct mode command gives you explicit control and is easier to debug than the wrapper. Let me walk through what it does.
+
+When you run profile-v7-flamegraph with V7_FLAMEGRAPH_MODE=decode, the target runs: perf record -g -F 997 on the inference binary. The -g flag enables call graph recording — without it, you only see leaf frames and have no call stack depth. The -F 997 sets the sampling frequency to 997 Hz, just below 1000 to avoid common rate limit triggers on some kernel configurations.
+
+The inference command inside perf record uses the fixed prompt and token settings from our environment, configured for the decode path. The decode mode runs the inference with --max-tokens set to produce a substantial decode loop, so the profiling window captures a representative sample of decode operation.
+
+After perf record completes, it writes a ck_v7_perf.data binary file — this can be several hundred megabytes for a long run. Then stackcollapse-perf.pl reads the perf output and converts it to the folded stack format: one text line per stack sample, with function names separated by semicolons. Then flamegraph.pl reads the folded stacks and renders the SVG flamegraph.
+
+For prefill mode, the same pipeline runs but the inference command is configured with a longer input prompt so the prefill processing loop dominates the profiling window rather than the decode loop.
+
+Both mode-specific SVGs are written to build/ and the flamegraph manifest JSON records which SVG corresponds to which mode, along with the top symbols and their sample counts. The manifest is what the IR visualizer reads to populate its flamegraph tabs and top-symbols table.
+
+This explicit mode separation is important: a mixed recording where decode and prefill both run in the same perf session produces a blended flamegraph where the two hotspot patterns overlap and the individual mode characteristics become harder to read.
+    </aside>
+</section>
+
+<section>
+    <h2>Run FlameGraph (Decode + Prefill)</h2>
+    <pre><code class="language-bash"># Wrapper shortcuts (equivalent to direct mode commands)
+make --no-print-directory profile-v7-flamegraph-decode \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none
+
+make --no-print-directory profile-v7-flamegraph-prefill \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Captures separate perf records for decode and prefill execution modes.</li>
+            <li class="fragment">Generates folded stacks plus SVG flamegraphs for both modes.</li>
+            <li class="fragment">Updates run manifest so IR visualizer tabs map to the correct mode-specific SVG.</li>
+        </ul>
+    </div>
+    <p class="small muted">Artifacts: <code>build/flamegraph_v7.svg</code>, <code>build/flamegraph_v7_prefill.svg</code>, <code>build/ck_v7_perf.data</code>, <code>build/ck_v7_perf_prefill.data</code></p>
+    <aside class="notes">
+The wrapper shortcuts — profile-v7-flamegraph-decode and profile-v7-flamegraph-prefill — are exactly equivalent to the direct mode commands. They exist so you do not need to remember the V7_FLAMEGRAPH_MODE variable during a live session.
+
+Let me focus on the output artifacts and what to look for after the commands complete.
+
+build/flamegraph_v7.svg is the decode flamegraph. Open it in a browser. You should see a dominant wide frame near the top labeled vec_dot_q8_0_q8_0_avx or similar. On the actual profiling data from this machine, that block is approximately 69% of the total SVG width — meaning nearly 7 out of 10 profiling samples captured that function in the call stack.
+
+build/flamegraph_v7_prefill.svg is the prefill flamegraph. The dominant block here is gemm_nt_q8_0_q8_0_avx2 at approximately 84% of the width. The prefill graph looks qualitatively different from decode: where decode shows a wide vec_dot block with narrow supporting stacks, prefill shows one massive GEMM block with almost nothing else visible.
+
+build/ck_v7_perf.data and build/ck_v7_perf_prefill.data are the raw perf recordings. If you want to reanalyze them with different visualization options — for example, restricting to a specific thread or filtering to kernel events only — you can run stackcollapse and flamegraph manually against these files without recollecting.
+
+The manifest JSON records the absolute sample counts. From the actual profiling data: for decode, vec_dot_q8_0_q8_0_avx had 7.4 billion samples, and worker_main had 1.5 billion. The worker_main samples represent threads waiting in the thread pool between dispatch operations — not active computation. For prefill, gemm_nt_q8_0_q8_0_avx2 had 2.5 billion samples and everything else was an order of magnitude smaller.
+
+When presenting these SVGs: hover over the dominant frame to read its percentage. That number is the one to lead with in your analysis.
+    </aside>
+</section>
+
+<section>
+    <h2>Decode vs Prefill Shape Infographic</h2>
+    <div class="diagram-wrap diagram-wide gsap-item">
+        <img src="assets/decode_previll_flamegrph.svg" alt="Decode vs Prefill Shape Infographic">
+        <p class="diagram-caption">Visual cue: prefill tends to show wider compute blocks, decode often shows more fragmented latency stacks.</p>
+    </div>
+
+    <aside class="notes">
+This infographic gives you the visual intuition for why decode and prefill produce such different flamegraph shapes.
+
+The decode shape: many narrow towers with a wide block at the top of each. Each narrow tower represents one token's decode step — attention, GEMV, normalization, residual connections. The wide block at the top of each tower is the vec_dot kernel. It is called many times per step — once per output dimension, across all layers — and because it is the innermost loop, it accumulates the most samples. The towers look like fence posts with wide caps.
+
+The prefill shape: one dominant wide block with relatively shallow surrounding stacks. This is the GEMM kernel processing all prompt tokens simultaneously. In a batch of N input tokens, the GEMM takes the N×hidden_dim input matrix and multiplies it against the hidden_dim×ffn_dim weight matrix. The result is computed once with tiled cache-friendly access, rather than N times as in decode. The flamegraph reflects this: one wide sustained computation block instead of repeated narrow per-token stacks.
+
+The fundamental difference comes down to data reuse. In decode, you read the weight matrix once per token step to produce one output vector — that is very low arithmetic intensity, roughly 1 multiply per byte read. In prefill, you read each weight tile once but compute against N input vectors — that is N× higher arithmetic intensity, meaning the data you read from DRAM does much more work before being evicted.
+
+This is the GEMV-versus-GEMM distinction that explains the 50× gap. Matrix-vector multiply is inherently memory-bound on large models because the weight matrix dwarfs the cache. Matrix-matrix multiply with a large enough batch has enough reuse that it becomes compute-bound — the ALUs can be kept busy.
+
+The next optimization question: can we restructure decode to look more like prefill? Techniques like speculative decoding, continuous batching, and grouped query attention all aim at exactly this — increasing the effective batch size to amortize weight loading cost.
+    </aside>
+</section>
+
+<!-- ═══════════ NO AVX-512 REVEAL ═══════════ -->
+<section class="title-slide" style="background-image: radial-gradient(ellipse 55% 55% at 50% 50%, rgba(239,68,68,0.06) 0%, transparent 70%), linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px); background-size:auto,44px 44px,44px 44px;">
+    <p style="font-size:0.65em; color:#f87171; letter-spacing:0.18em; text-transform:uppercase; margin-bottom:10px;">⚠ Hardware Reality Check</p>
+    <h2 style="font-size:1.7em; color:#f87171; margin:0 0 6px;">This machine has <strong>no AVX-512.</strong></h2>
+    <div class="title-divider" style="background:linear-gradient(90deg,#ef4444,#f97316,#fbbf24);"></div>
+    <p class="muted" style="font-size:0.72em; margin:8px 0;">Every function in the profile ends in <code style="color:#fbbf24;">_avx</code> or <code style="color:#fbbf24;">_avx2</code> — max width is 256-bit.</p>
+    <div style="display:flex; justify-content:center; gap:16px; margin:18px 0 16px; flex-wrap:wrap;">
+        <code style="background:rgba(249,115,22,0.12); border:1px solid rgba(249,115,22,0.3); color:#fb923c; padding:6px 14px; border-radius:6px; font-size:0.8em;">vec_dot_q8_0_q8_0_<strong>avx</strong></code>
+        <code style="background:rgba(34,197,94,0.10); border:1px solid rgba(34,197,94,0.25); color:#4ade80; padding:6px 14px; border-radius:6px; font-size:0.8em;">gemm_nt_q8_0_q8_0_<strong>avx2</strong></code>
+        <code style="background:rgba(34,197,94,0.10); border:1px solid rgba(34,197,94,0.25); color:#4ade80; padding:6px 14px; border-radius:6px; font-size:0.8em;">attention_flash_query_causal_<strong>avx2</strong></code>
+    </div>
+    <p style="color:#94a3b8; font-size:0.7em;">The previous slide showed what AVX-512 <em>would</em> look like. This is what <em>actually runs</em>.</p>
+    <p style="color:#60a5fa; font-size:0.72em; margin-top:10px;">Alderlake-P (ThinkPad T14 Gen 3) · Intel microarch code named Alderlake-P · No AVX-512 path</p>
+    <aside class="notes">
+This is the pivot point of the episode. Pause here and let it land.
+
+Look at the three function names on screen: vec_dot_q8_0_q8_0_avx, gemm_nt_q8_0_q8_0_avx2, attention_flash_query_causal_avx2. Every suffix ends in _avx or _avx2. Not one ends in _avx512. This is not an oversight in the codegen. This machine — an Intel Alderlake-P — does not have the AVX-512 EVEX extension enabled.
+
+What would AVX-512 give you? It doubles the SIMD register width from 256 bits to 512 bits. For 8-bit integer operations like our Q8_0 dot products, AVX-512 processes 64 int8 values per instruction instead of 32. For the vec_dot inner loop, that is a theoretical 2× throughput increase on the SIMD computation alone, before any other optimization.
+
+But AVX-512 is not universally available. On Alderlake specifically, Intel disabled AVX-512 on the hybrid P+E core configuration because the efficiency cores do not support it. Enabling AVX-512 on P-cores while E-cores are active in the same thread pool creates a situation where different threads have different ISA capability, which complicates the dispatch logic and can cause correctness issues if the OS migrates a thread from a P-core to an E-core mid-execution.
+
+VTune's uArch analysis confirmed this definitively: FP Vector uOps = 0.0%. Zero floating-point vector operations at the 512-bit level. The most we have is 256-bit AVX2 integer SIMD.
+
+Say exactly this: "If you were expecting AVX-512 function names in the flamegraph — they are not there. This machine does not have it. Every kernel path tops out at AVX2. That is the ceiling we are working within. The next slide shows the actual measured flamegraph. Let's see what it looks like with that ceiling in mind."
+    </aside>
+</section>
+
+<section>
+    <h2>Actual Flamegraph — Qwen3-0.6B on This Machine</h2>
+    <div class="diagram-wrap diagram-wide gsap-item">
+        <img src="assets/flamegraph_actual_qwen3_avx2.svg" alt="Actual CPU Flamegraph Qwen3-0.6B Alderlake-P AVX2">
+        <p class="diagram-caption">Real perf + VTune data · Intel Alderlake-P · <strong>No AVX-512</strong> · vec_dot_avx dominates decode (69%) · gemm_nt_avx2 dominates prefill (84%)</p>
+    </div>
+    <aside class="notes">
+This is the real measured data. Not a conceptual illustration — this is what perf and VTune actually captured on this machine, running this model, on the 24th of February 2026.
+
+Look at the left panel — decode. The dominant orange block near the top is vec_dot_q8_0_q8_0_avx. The orange glow is intentional: it marks the hotspot. In VTune terms, this function consumed 6.89 seconds of attributed CPU time. That represents 69% of the total decode measurement window.
+
+Trace the call stack downward: vec_dot is called by work_gemv_q8_0_q8_0, which is the per-layer GEMV work item. Above that is the layer forward pass. Above that is the decode loop. At the root are worker_main threads — these are the thread pool worker threads that pick up work items and execute the layer kernels. The width of the vec_dot bar means that virtually every active thread in the pool is spending most of its time in this function.
+
+Now look at the right panel — prefill. The dominant green block is gemm_nt_q8_0_q8_0_avx2. At 84% of total prefill samples, it is even more concentrated than decode. The tiled GEMM kernel is essentially the entirety of prefill computation. Everything else — tokenization, sampling, attention soft-max, normalization — is in the narrow bands below and beside it.
+
+The contrast panel in the middle tells the story explicitly: decode runs GEMV, which is memory-bound because weight data streams from DRAM on every token. Prefill runs GEMM, which is compute-bound because weight tiles are reused across the full token batch before being evicted.
+
+The machine info strip at the bottom grounds this in hardware: Alderlake-P, 33 GB/s max DRAM bandwidth, IPC 2.21, Back-End Bound 45.4%. That 45.4% back-end bound is the smoking gun — nearly half of all potential CPU cycles are being wasted waiting on memory or compute resources.
+
+When you look at your own flamegraph on your hardware: the widest frame in the decode graph is your optimization target.
+    </aside>
+</section>
+
+<!-- ═══════════ CHAPTER 4 ═══════════ -->
+<section class="title-slide">
+    <p style="font-size:0.6em; color:#2dd4bf; letter-spacing:0.2em; text-transform:uppercase;">Chapter 4</p>
+    <h2 style="font-size:2em; margin:8px 0; background:linear-gradient(135deg,#2dd4bf,#4ade80); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Root Cause</h2>
+    <div class="title-divider"></div>
+    <p class="muted" style="font-size:0.75em; max-width:620px; margin:0 auto;">VTune · Advisor · uArch breakdown · roofline · memory-bound vs compute-bound</p>
+    <div class="title-badges" style="margin-top:18px;">
+        <span class="title-badge green">Back-End Bound 45%</span>
+        <span class="title-badge blue">Mem Bound 21%</span>
+        <span class="title-badge yellow">Core Bound 24%</span>
+    </div>
+    <aside class="notes">
+We know WHERE the CPU time goes. Chapter 4 answers WHY that function is slow, and what kind of slowness it is.
+
+Back-End Bound 45.4%. In Intel's Top-Down Microarchitecture Analysis methodology, the pipeline is divided into the front-end (fetch, decode, branch prediction, instruction dispatch) and the back-end (execution units, memory system, retirement). Back-End Bound means the front-end is successfully producing work, but the back-end cannot keep up with it. 45% of potential cycles are wasted waiting. The front-end is not the problem — the back-end is.
+
+That 45% breaks into two sub-categories: Memory Bound at 21.2% and Core Bound at 24.2%. Memory Bound means the back-end stalls are from data access — loads that missed cache and had to wait for DRAM responses. Core Bound means the stalls are from execution unit pressure — too many instructions competing for the same arithmetic port, or long-latency instructions blocking the retirement window.
+
+This split is exactly what we would predict from the flamegraph: decode is memory-bound (vec_dot loading fresh weights from DRAM every token step), while prefill is core-bound (gemm_nt saturating the SIMD execution units during matrix tiling).
+
+Retiring at 40.1% is the positive number: this is the fraction of cycles where the CPU is actually doing useful work — retiring valid instructions. 40% means 60% of cycles are wasted. An optimized kernel should reach 60 to 70% retiring. So there is real headroom.
+
+The FP Vector confirmation — zero — from VTune closes the loop on the no-AVX-512 slide. Not only does the function name tell us it is AVX2, the uArch counter confirms it: no 512-bit vector floating-point operations are executing anywhere in the profiling window.
+    </aside>
+</section>
+
+<section>
+    <h2>VTune: Bottleneck Confirmation</h2>
+    <div class="tool-grid">
+        <div class="tool gsap-item"><h4 class="accent-green">Hotspots</h4><p class="small">Top functions and CPU time attribution.</p></div>
+        <div class="tool gsap-item"><h4 class="accent-yellow">Memory Access</h4><p class="small">Bandwidth bound vs latency bound clues.</p></div>
+        <div class="tool gsap-item"><h4 class="accent-blue">uArch Exploration</h4><p class="small">Frontend/backend pressure and port utilization.</p></div>
+        <div class="tool gsap-item"><h4 class="accent-purple">Threading view</h4><p class="small">Detect imbalance and idle core time.</p></div>
+    </div>
+
+    <aside class="notes">
+VTune provides four complementary views of the same workload. Each answers a different question, and together they give you a complete bottleneck picture.
+
+The Hotspots view is like a flamegraph but with hardware counter attribution attached. It shows which functions consume the most CPU time, and for each function you can see related hardware events: LLC miss rate, memory access stalls, and vectorization utilization. For our workload, vec_dot_q8_0_q8_0_avx shows 6.89 seconds and is flagged as L3 Bound. gemm_nt_q8_0_q8_0_avx2 shows 1.57 seconds. The hotspots view alone confirms the flamegraph finding with attribution in wall-clock seconds.
+
+The Memory Access view answers the bandwidth vs latency question. It breaks memory stalls into L1 Bound, L2 Bound, L3 Bound, and DRAM Bound. It also shows bandwidth utilization with a timeline chart. On our deep pass, we see DRAM bandwidth average at 17.6 GB/s with peaks at 31.9 GB/s. Those peaks occur during the heaviest decode steps — when the thread pool has fully loaded the pipeline with GEMV work items and all threads are simultaneously streaming weight data.
+
+The uArch Exploration view gives you the Top-Down analysis. This is where the Back-End Bound 45.4%, Memory Bound 21.2%, Core Bound 24.2%, and Retiring 40.1% numbers come from. This view also shows the FP Vector utilization — which confirmed 0.0% for our workload, definitively establishing no AVX-512 usage.
+
+The Threading view shows CPU utilization per thread over time. For decode, you expect the thread pool workers to all be active during the inference window. Idle time in worker threads indicates synchronization overhead. The ck_threadpool_dispatch function appearing in the flamegraph at 1.5% reflects real thread dispatch cost — acceptable overhead.
+
+Use all four views together: hotspots tells you what, memory access tells you which memory tier, uArch tells you the macro category, and threading tells you whether parallelism is efficient.
+    </aside>
+</section>
+
+<section>
+    <h2>Run VTune</h2>
+    <pre><code class="language-bash"># Fast live pass
+make --no-print-directory profile-v7-vtune \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none \
+  V7_WITH_VTUNE=1 V7_VTUNE_DEEP=0
+
+# Deep pass (includes memory-access + uarch-exploration)
+make --no-print-directory profile-v7-vtune \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none \
+  V7_WITH_VTUNE=1 V7_VTUNE_DEEP=1</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Runs VTune hotspots collection on deterministic CLI inference path.</li>
+            <li class="fragment">Fast mode (<code>V7_VTUNE_DEEP=0</code>) captures hotspots only for live reliability.</li>
+            <li class="fragment">Deep mode adds memory-access and uarch analyses, then writes <code>vtune_summary.json</code>.</li>
+        </ul>
+    </div>
+    <p class="small muted">Deep pass is where VTune gives richer MemoryTLB/page-walk style evidence in uarch/memory analyses.</p>
+    <div class="card warn gsap-item" style="margin-top: 8px;">
+        <h4>Common blockers (and live safety)</h4>
+        <ul>
+            <li class="fragment"><code>ptrace_scope != 0</code></li>
+            <li class="fragment">loopback interface unavailable</li>
+            <li class="fragment">missing oneAPI environment</li>
+            <li class="fragment">Use <code>V7_VTUNE_DEEP=0</code> live; run <code>V7_VTUNE_DEEP=1</code> when timing allows.</li>
+        </ul>
+    </div>
+
+    <aside class="notes">
+The make target runs VTune in one of two modes depending on your session goal. Let me explain when to use each.
+
+The fast pass — V7_VTUNE_DEEP=0 — runs only the hotspots analysis. This is the recommended mode for any live recording or first-pass analysis. Hotspots collection uses statistical sampling (PEBS — Processor Event-Based Sampling) with low overhead, typically adding 10 to 20% to the total run time. For an 80-token inference that normally takes 2-3 seconds, the overhead is modest. The output is: top function attribution with CPU time in seconds, basic call stacks, and a CPU utilization timeline. That is sufficient to confirm flamegraph findings and add precise timing attribution.
+
+The deep pass — V7_VTUNE_DEEP=1 — runs three analyses in sequence: hotspots, memory-access, and uarch-exploration. Memory-access uses more aggressive PEBS sampling on memory-specific events to build the bandwidth and latency breakdown. uarch-exploration uses the Top-Down counter hierarchy, which requires multiplexing across multiple PMU counter groups because one PMU typically cannot measure all events simultaneously. Total collection time is 3 to 5 times longer than the fast pass.
+
+Why use V7_VTUNE_DEEP=0 for live recording? Because deep collection occasionally hangs or produces incomplete data. The common failure modes: ptrace_scope not set to 0 (VTune daemon cannot attach), loopback interface down (agent communication fails), oneAPI environment not loaded in the current shell (analysis plugins fail to load). During recording, you want reliability, not completeness.
+
+My workflow: I ran the deep pass offline the night before recording. The vtune_summary.json from that deep run was already in the run directory when I recorded. The live segment shows the fast pass so viewers see VTune actually running. The pre-captured deep data feeds the analysis slides. This is the correct way to produce a reliable technical YouTube video about profiling.
+    </aside>
+</section>
+
+<section>
+    <h2>VTune Pipeline (Inference)</h2>
+    <div class="flow">
+        <div class="step gsap-item">Gate Check</div>
+        <div class="arrow gsap-item">→</div>
+        <div class="step gsap-item">Resolve Runtime</div>
+        <div class="arrow gsap-item">→</div>
+        <div class="step gsap-item">Collect</div>
+        <div class="arrow gsap-item">→</div>
+        <div class="step gsap-item">Summarize</div>
+    </div>
+    <div class="two-col" style="margin-top: 10px;">
+        <div class="card info gsap-item">
+            <h4>Collection logic</h4>
+            <ul>
+                <li class="fragment">Checks <code>V7_WITH_VTUNE=1</code>, <code>vtune</code> install, and <code>ptrace_scope=0</code>.</li>
+                <li class="fragment">Uses <code>$RUN/.ck_build</code> runtime when present; regenerates only if needed.</li>
+                <li class="fragment">Fast mode: hotspots only. Deep mode: + memory-access + uarch-exploration.</li>
+            </ul>
+        </div>
+        <div class="card good gsap-item">
+            <h4>Outputs to show</h4>
+            <ul>
+                <li class="fragment"><code>build/ck_v7_vtune_hotspots_&lt;timestamp&gt;/</code></li>
+                <li class="fragment"><code>build/ck_v7_vtune_hotspots.txt</code> + <code>.csv</code></li>
+                <li class="fragment"><code>$RUN/vtune_summary.json</code> (IR visualizer integration)</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+This pipeline diagram shows what the make target actually executes, step by step. Understanding the pipeline helps you debug when something breaks.
+
+Gate Check: The target first verifies V7_WITH_VTUNE=1 is set in the make invocation, that the vtune binary resolves in PATH (which requires setvars.sh to have been sourced), and that kernel.yama.ptrace_scope reads 0. These are necessary conditions, not suggestions. If any gate fails, the target exits with a descriptive error message before touching any inference binary. This prevents the frustrating situation of running a collection for 3 minutes, only to discover at the end that the result directory has no useful data because ptrace was blocked.
+
+Resolve Runtime: Checks if $RUN/.ck_build already contains a compiled inference runtime. If yes, uses that to avoid unnecessary recompilation. If the build is missing or stale — for example, after a code change — it triggers a fresh compile with debug symbols. Debug symbols are important for VTune because without them, function names in the hotspot attribution appear as addresses rather than readable names.
+
+Collect: The vtune command runs with the specified analysis type. For fast mode: one hotspots collection with the deterministic inference command. For deep mode: three separate collections — hotspots, memory-access, uarch-exploration — each in its own timestamped result directory.
+
+Summarize: After collection, a parser reads the VTune result directory, extracts the top hotspot functions with CPU time attribution and hardware counter rates, and writes vtune_summary.json. This JSON feeds the IR visualizer cards with the data you see displayed in the report.
+
+The timestamp in the result directory name means multiple runs accumulate. The IR visualizer reads the latest directory sorted by modification time. If you run VTune multiple times, the report always shows the freshest collection.
+    </aside>
+</section>
+
+<section>
+    <h2>VTune Fast vs Deep (When To Use Which)</h2>
+    <table class="metric-table">
+        <thead><tr><th>Mode</th><th>Command Flag</th><th>Captures</th><th>Use During Demo</th></tr></thead>
+        <tbody>
+            <tr><td>Fast pass</td><td><code>V7_VTUNE_DEEP=0</code></td><td>Hotspots only</td><td>Live recording default (least risk)</td></tr>
+            <tr><td>Deep pass</td><td><code>V7_VTUNE_DEEP=1</code></td><td>Hotspots + memory-access + uarch</td><td>Offline segment / appendix</td></tr>
+        </tbody>
+    </table>
+    <p class="small muted">Deep mode is where you explain translation pressure, frontend/backend stalls, and memory bottleneck class with higher confidence.</p>
+
+    <aside class="notes">
+This comparison table should drive your decision at the start of each session. Let me expand on the practical use of each mode.
+
+Fast pass in live recording: Run this when you are recording a video, demonstrating to a colleague, or doing quick triage after a code change. The hotspots analysis takes about 60 to 120 seconds on this hardware for our 80-token workload. It gives you the function attribution — vec_dot at 6.89 seconds, gemm_nt at 1.57 seconds — which is sufficient to confirm the flamegraph findings, add wall-clock timing to the analysis, and show a live VTune session to the audience.
+
+Deep pass for root cause: Run this offline when you need the memory bandwidth breakdown (L3 Bound vs DRAM Bound), the Top-Down uArch hierarchy (Retiring, Front-End Bound, Back-End Bound subdivisions), and the FP Vector confirmation. These details require longer collection and counter multiplexing. Run the deep pass in a quiet terminal session with no background load for best accuracy.
+
+The pre-captured workflow: Collect the deep pass offline, review the results, incorporate the key numbers into your analysis notes, then record the video using the fast pass for live demonstrations. The vtune_summary.json from the deep run stays in the run directory and feeds the IR visualizer's detailed analysis cards. This gives you the best of both: authentic live collection visible to the viewer, and complete deep analysis to draw from for narration.
+
+A practical tip: after running the deep pass, open the vtune_summary.json and note the three numbers you will cite most: the top function CPU time, the DRAM bandwidth average and peak, and the Back-End Bound percentage. Having these memorized means you can narrate them fluently without reading from notes during recording.
+    </aside>
+</section>
+
+<section>
+    <h2>Advisor: Roofline and SIMD Headroom</h2>
+    <div class="two-col">
+        <div class="card info gsap-item">
+            <h4>Why Advisor matters</h4>
+            <ul>
+                <li class="fragment">Arithmetic intensity view.</li>
+                <li class="fragment">Compute roof vs memory roof position.</li>
+                <li class="fragment">Vectorization opportunity visibility.</li>
+            </ul>
+        </div>
+        <div class="card good gsap-item">
+            <h4>Typical actionables</h4>
+            <ul>
+                <li class="fragment">Improve data reuse / blocking.</li>
+                <li class="fragment">Strengthen SIMD utilization.</li>
+                <li class="fragment">Reduce scalar fallback paths.</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+Intel Advisor's roofline model answers a question that perf stat and VTune alone cannot fully answer: even if you fix the immediate bottleneck, how much headroom is there for improvement?
+
+The roofline model plots two things against each other. X-axis: arithmetic intensity, measured in FLOPs or integer operations per byte of data moved from memory. Low arithmetic intensity means you do few calculations per byte — this is the signature of a memory-bound workload. High arithmetic intensity means you do lots of math per byte — this is compute-bound territory.
+
+Y-axis: achieved compute throughput, measured in GFLOPs per second or GOPS per second for integer operations. Higher is better.
+
+Two lines create the roofline boundaries. The memory bandwidth roof has a positive slope from lower-left to upper-right: it equals peak_memory_bandwidth × arithmetic_intensity. Any kernel below this line is memory-bound — it cannot go faster without either increasing arithmetic intensity or increasing memory bandwidth. The compute roof is horizontal: it equals peak_FLOP_rate of the processor. Kernels below the compute roof but above the memory roof are compute-bound.
+
+For our Alderlake-P machine: at 33 GB/s DRAM bandwidth and 8-bit integer operations, the memory roof slope gives a rough ceiling around 264 GOPS per second for memory-bound workloads. The AVX2 compute peak for int8 operations across 8 P-cores is approximately 512 GOPS per second (8 cores × 3.5 GHz × 16 int8 per YMM × 2 for multiply-accumulate). The ratio between compute and memory ceilings is about 2:1 — which means memory-bound kernels have theoretical room to double throughput if arithmetic intensity can be doubled.
+
+For vec_dot in decode: arithmetic intensity is roughly 1 operation per byte — far left of the ridge. Memory-bound. For gemm_nt in prefill with batch reuse: arithmetic intensity is much higher — closer to compute-bound.
+    </aside>
+</section>
+
+<section>
+    <h2>Run Advisor</h2>
+    <pre><code class="language-bash">make --no-print-directory profile-v7-advisor \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none \
+  V7_WITH_ADVISOR=1</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Runs Advisor roofline collection on the same deterministic CLI inference command.</li>
+            <li class="fragment">Exports roofline reports (text/CSV/HTML) into <code>build/</code>.</li>
+            <li class="fragment">Parses results into <code>$RUN/advisor_summary.json</code> for IR visualizer integration.</li>
+        </ul>
+    </div>
+    <p class="small muted">Artifacts: <code>build/ck_v7_advisor_roofline.html</code> + CSV/TXT summaries.</p>
+    <aside class="notes">
+The Advisor command runs the roofline collection. Let me explain what is mechanically different from VTune.
+
+Advisor's roofline collection actually runs your application twice. In the first pass, called the survey pass, Advisor instruments loops to measure their compute throughput and execution time. In the second pass, called the tripcounts pass, it counts the number of loop iterations and memory accesses. Together, these two passes provide the information needed to compute arithmetic intensity (operations per byte) and place each loop on the roofline chart.
+
+The same deterministic CLI inference command is used. The same prompt, the same token count, the same thread settings. This ensures the Advisor measurement corresponds to the same execution context as the perf stat and FlameGraph captures, so the roofline positions are comparable.
+
+Collection overhead: the instrumentation pass adds significant overhead — the instrumented run may be 5 to 10 times slower than the native run. This is expected and normal. A 3-second inference might take 15 to 30 seconds during the Advisor survey pass. Do not be alarmed.
+
+The output includes build/ck_v7_advisor_<timestamp>/ containing the raw collection data, ck_v7_advisor_roofline.html as an interactive self-contained web page, ck_v7_advisor_roofline.txt and .csv as machine-readable exports, and advisor_summary.json for the IR visualizer.
+
+The HTML roofline chart is the most visually impactful output. When you open it in a browser, you see a scatter plot with each measured loop as a dot. Dots in the lower-left corner are severely memory-bound with low throughput. Dots near the top of the memory bandwidth line are memory-bound but efficient. Dots above the ridge point are compute-bound.
+
+If Advisor reports "No loops found" — check that the binary was compiled with -O2 or -O3. Unoptimized binaries often do not produce the loop structure Advisor expects.
+    </aside>
+</section>
+
+<section>
+    <h2>Roofline Infographic</h2>
+    <div class="diagram-wrap diagram-wide gsap-item">
+        <img src="assets/roofline_model.svg" alt="Roofline Infographic">
+        <p class="diagram-caption">Roofline mental model used on Advisor slide: move right (intensity) and up (throughput) toward the compute roof.</p>
+    </div>
+
+    <aside class="notes">
+Let me give you the complete mental model for reading a roofline chart, because it is one of the most powerful tools in HPC performance analysis and it is frequently misread or underused.
+
+Imagine a two-dimensional space. The horizontal axis — arithmetic intensity — describes how efficiently your algorithm reuses data relative to how much data it loads. A simple copy operation has AI of 0 (it loads data and stores it without doing any math). A dense matrix multiply where weights are heavily reused can have AI of 100 or more.
+
+The vertical axis — performance — is how fast your kernel actually runs, in floating-point or integer operations per second. Higher is always better.
+
+Two performance ceilings bound what is achievable. The memory bandwidth ceiling is a diagonal line from lower-left to upper-right: performance = bandwidth × arithmetic_intensity. Below this line, you are memory-bound. Your computation rate is limited by how fast you can fetch data from DRAM. The only way to improve: either increase arithmetic intensity (reuse data more) or move to faster memory.
+
+The compute ceiling is horizontal: performance = peak_FLOP_rate. Below this ceiling but above the memory line, you are compute-bound. Your computation rate is limited by the execution units. The only way to improve: better instruction mix, wider SIMD, reduced overhead.
+
+The ridge point is where the two ceilings meet. It is the sweet spot: here, memory bandwidth and compute throughput are perfectly balanced. The goal of cache-blocking optimizations is to move memory-bound kernels rightward (increase AI by exploiting L2/L3 reuse) until they approach or cross the ridge.
+
+For vec_dot in decode mode: the weight matrix is read once per token, used once, and discarded. That is very low arithmetic intensity — far left. Memory-bound. For gemm_nt in prefill: each weight tile is reused across all N input tokens. Higher arithmetic intensity — further right, closer to the ridge. This roofline view quantifies exactly why decode is slow and prefill is fast.
+    </aside>
+</section>
+
+<section>
+    <h2>Advisor Pipeline (Inference)</h2>
+    <div class="flow">
+        <div class="step gsap-item">Gate Check</div>
+        <div class="arrow gsap-item">→</div>
+        <div class="step gsap-item">Resolve Runtime</div>
+        <div class="arrow gsap-item">→</div>
+        <div class="step gsap-item">Roofline Collect</div>
+        <div class="arrow gsap-item">→</div>
+        <div class="step gsap-item">Summarize</div>
+    </div>
+    <div class="two-col" style="margin-top: 10px;">
+        <div class="card info gsap-item">
+            <h4>Collection logic</h4>
+            <ul>
+                <li class="fragment">Checks <code>V7_WITH_ADVISOR=1</code> and <code>advisor</code> availability.</li>
+                <li class="fragment">Runs <code>advisor --collect=roofline</code> on deterministic inference command.</li>
+                <li class="fragment">Exports text/CSV/HTML reports for operator and CI-style parsing.</li>
+            </ul>
+        </div>
+        <div class="card good gsap-item">
+            <h4>Outputs to show</h4>
+            <ul>
+                <li class="fragment"><code>build/ck_v7_advisor_&lt;timestamp&gt;/</code></li>
+                <li class="fragment"><code>build/ck_v7_advisor_roofline.{txt,csv,html}</code></li>
+                <li class="fragment"><code>$RUN/advisor_summary.json</code> (IR visualizer integration)</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+The Advisor pipeline follows the same gate-check pattern as VTune. Let me cover the Advisor-specific steps.
+
+Gate Check: Verifies V7_WITH_ADVISOR=1 and that the advisor binary is in PATH. Advisor is part of the Intel oneAPI Base Toolkit, so the setvars.sh script must have been sourced. A common mistake: sourcing setvars.sh in one terminal session and running the make target in a different terminal session where setvars.sh was not sourced. The binary check catches this immediately.
+
+Resolve Runtime: Uses the existing .ck_build runtime or triggers a fresh compile. For Advisor specifically, having debug symbols is important: without -g in the compile flags, loop identification and function attribution in the roofline chart fall back to address ranges rather than readable names. The v7 build pipeline includes symbols by default when using the profile preparation target.
+
+Roofline Collect: The advisor --collect=roofline command runs the two instrumentation passes against the deterministic inference command. Both passes write into the same project directory. The collect can take substantially longer than a normal inference run due to instrumentation overhead.
+
+Summarize: The ck_advisor_roofline.py parser reads the Advisor project directory, extracts the loop performance data, and writes advisor_summary.json. This JSON includes: arithmetic intensity and achieved throughput for the top loops, vectorization efficiency metrics, and the roofline position classification (memory-bound or compute-bound) for each.
+
+One gotcha: Advisor project directories accumulate if you run multiple sessions without cleaning up. Old project directories do not auto-delete, and parsing a large collection of old projects can slow down the summary step. Periodically clear build/ck_v7_advisor_* entries that are no longer relevant.
+    </aside>
+</section>
+
+<section>
+    <h2>Manual CLI Path (perf, VTune, Advisor, Valgrind)</h2>
+    <pre><code class="language-bash"># perf
+perf stat -r 5 -e cycles,instructions,cache-misses,dTLB-load-misses,iTLB-load-misses \
+  ./build/ck-cli-v7 "$RUN/libmodel.so" "$RUN/weights.bump" \
+  --prompt "The quick brown fox" --max-tokens 32 --timing --quiet-output --no-chat-template
+
+# vtune hotspots
+source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 || true
+vtune -collect hotspots -result-dir build/vtune_manual -- \
+  ./build/ck-cli-v7 "$RUN/libmodel.so" "$RUN/weights.bump" \
+  --prompt "The quick brown fox" --max-tokens 32 --timing --quiet-output --no-chat-template
+
+# advisor roofline
+advisor --collect=roofline --project-dir build/advisor_manual -- \
+  ./build/ck-cli-v7 "$RUN/libmodel.so" "$RUN/weights.bump" \
+  --prompt "The quick brown fox" --max-tokens 32 --timing --quiet-output --no-chat-template
+
+# valgrind cache simulation
+valgrind --tool=cachegrind --branch-sim=yes --cachegrind-out-file=build/cachegrind_manual.out \
+  ./build/ck-cli-v7 "$RUN/libmodel.so" "$RUN/weights.bump" \
+  --prompt "The quick brown fox" --max-tokens 16 --timing --quiet-output --no-chat-template</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Shows raw tool invocations without make wrappers for educational transparency.</li>
+            <li class="fragment">Lets viewers understand what each wrapper target is doing underneath.</li>
+            <li class="fragment">Useful fallback path when operator wants custom flags or ad-hoc experiments.</li>
+        </ul>
+    </div>
+    <p class="small muted">Use make targets for repeatable artifact names; use manual CLI to teach tool internals live.</p>
+
+    <aside class="notes">
+This slide shows the raw tool invocations that the make wrappers abstract. There are two important reasons to understand and show these.
+
+First, transparency. The make wrappers are convenience aliases that enforce reproducible argument sets and output paths. Showing the underlying CLI commands gives viewers the complete picture of what is executing. If a make target produces unexpected results, you can reproduce the exact invocation manually and add diagnostic flags to investigate.
+
+Second, flexibility. Sometimes you want to profile with custom flags: a different prompt for a specific failure case, more tokens to profile a longer inference sequence, or a completely different build of the inference binary. The raw CLI path does not require editing Makefiles.
+
+Let me walk through each block. The perf stat block uses -r 5 for five repetitions — this reduces counter noise by averaging. The -e list covers the essential metrics. On Alderlake-P, some events need the cpu_atom/ or cpu_core/ prefix because the hybrid architecture exposes separate counter banks per core cluster.
+
+The vtune hotspots block: source setvars.sh first, always. Then vtune -collect hotspots with -result-dir specifying a target directory that does not yet exist (VTune creates it). The -- separator cleanly separates VTune flags from the profiled command.
+
+The advisor roofline block: --collect=roofline, --project-dir for output, then the -- separator and the inference command.
+
+The valgrind cachegrind block: --tool=cachegrind selects the cache simulation tool. --branch-sim=yes adds branch prediction simulation. --cachegrind-out-file names the output binary. Valgrind simulates a single-threaded cache model, so it does not capture full multi-threaded behavior, but it gives exact miss counts rather than sampled estimates — valuable for function-level cache analysis.
+
+The common thread: same inference binary, same prompt, same token count. Always.
+    </aside>
+</section>
+
+<section>
+    <h2>Why Collect First, Then Open GUI</h2>
+    <div class="two-col">
+        <div class="card warn gsap-item">
+            <h4>Collection phase (CLI/make)</h4>
+            <ul>
+                <li class="fragment">Creates deterministic, timestamped result directories.</li>
+                <li class="fragment">Produces machine-readable summaries (<code>vtune_summary.json</code>, <code>advisor_summary.json</code>).</li>
+                <li class="fragment">Works on headless/remote hosts and survives GUI failures.</li>
+            </ul>
+        </div>
+        <div class="card info gsap-item">
+            <h4>GUI phase (exploration)</h4>
+            <ul>
+                <li class="fragment">Interactive drill-down: stacks, threads, microarchitecture views, roofline panes.</li>
+                <li class="fragment">Side-by-side session comparison and screenshot/export for presentation evidence.</li>
+                <li class="fragment">Does not replace collection; it reads already-collected result directories.</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+This slide addresses what looks like an obvious point but is actually a discipline that matters significantly for reproducibility and recording quality.
+
+The collection-first approach creates timestamped, persistent result directories on disk. Once collected, the data is there regardless of what happens to any GUI session. You can rsync the directory to another machine, reopen it tomorrow, or share it with a colleague who has VTune installed. The data is not tied to a GUI state or session.
+
+Machine-readable JSON summaries are generated automatically from CLI collection. These can be parsed by scripts, fed into CI pipelines, or loaded into the IR visualizer without any interactive GUI step. This is critical for automation — if you want to run profiling as part of a CI gate, GUI collection is not an option.
+
+The GUI is then used for what it excels at: interactive drill-down after the data is collected. You open the pre-collected result directory in VTune GUI and immediately have the full visualization — hotspot call stacks, memory bandwidth timeline, thread utilization charts. No waiting. If the GUI crashes, the data is safe on disk and you reopen it.
+
+For YouTube content specifically: I collected all the VTune and Advisor data offline before recording. During recording, I open the pre-collected GUI sessions to show the visualization. The collection commands appear in the recording for educational purposes — viewers can see them and understand what ran — but I am not waiting for live collection during the recording. This prevents the awkward experience of 5 minutes of blank collection progress bars during a video.
+
+The non-GUI fallback is critically important for live sessions: if vtune-gui fails to launch during a demo — and it occasionally does — continue narrating from vtune_summary.json in the terminal. The key numbers are all in that file.
+    </aside>
+</section>
+
+<section>
+    <h2>Operator Setup Checklist (VTune + Advisor)</h2>
+    <pre><code class="language-bash"># 1) oneAPI env in current shell
+source /opt/intel/oneapi/setvars.sh >/dev/null 2>&1 || true
+
+# 2) tool presence
+command -v vtune advisor vtune-gui advisor-gui
+
+# 3) kernel gates (sudo only for sysctl, not GUI)
+sysctl kernel.perf_event_paranoid kernel.kptr_restrict
+cat /proc/sys/kernel/yama/ptrace_scope
+sudo sysctl -w kernel.perf_event_paranoid=1 kernel.kptr_restrict=0 kernel.yama.ptrace_scope=0
+
+# 4) run collection targets (as normal user)
+make --no-print-directory profile-v7-vtune V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none V7_WITH_VTUNE=1 V7_VTUNE_DEEP=0
+make --no-print-directory profile-v7-advisor V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none V7_WITH_ADVISOR=1</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Bootstraps oneAPI environment and confirms tool binaries are discoverable.</li>
+            <li class="fragment">Validates kernel gate prerequisites before collection starts.</li>
+            <li class="fragment">Runs canonical VTune and Advisor collection commands as normal user.</li>
+        </ul>
+    </div>
+    <p class="small muted">Run GUI as normal user. Avoid <code>sudo vtune-gui</code> or <code>sudo advisor-gui</code> to prevent permissions/display issues.</p>
+
+    <aside class="notes">
+This checklist is the pre-flight ritual for VTune and Advisor. Let me go through each step and explain why skipping any one of them leads to failure.
+
+Step 1 — oneAPI environment: source /opt/intel/oneapi/setvars.sh. This sets approximately 30 environment variables including PATH additions for vtune, advisor, vtune-gui, and advisor-gui. It also sets LD_LIBRARY_PATH to include Intel runtime libraries that VTune's analysis modules dlopen at startup. If you skip this, running vtune might give you "command not found" even if the package is installed, or it might launch but fail to load analysis plugins with cryptic error messages.
+
+Step 2 — tool presence: command -v vtune advisor vtune-gui advisor-gui. This outputs four binary paths. If any is missing, stop here and debug. Check that setvars.sh sourced successfully. Check the oneAPI installation path. Check that the correct version was installed — oneAPI version 2023 and later have different binary layouts than older versions.
+
+Step 3 — kernel gates: Read and fix the three sysctl values. perf_event_paranoid should be 1 or less. kptr_restrict should be 0. ptrace_scope should be 0. If any are wrong, run the sudo sysctl commands to fix them. Do not run VTune collection with ptrace_scope=1 — you will get call stacks that terminate at user-kernel boundaries and the hotspot attribution will be incomplete.
+
+Step 4 — run collection as normal user: critically, do NOT prefix the make targets or vtune commands with sudo. Running VTune as root writes result files with root ownership. Then when you run vtune-gui as a normal user, it cannot read those files and the GUI opens to an empty project. The sudo was only for the sysctl commands. Collection and GUI run as your normal user account.
+    </aside>
+</section>
+
+<section>
+    <h2>Open VTune + Advisor GUI (Live)</h2>
+    <pre><code class="language-bash"># Run as normal user (no sudo)
+VTUNE_DIR=$(ls -td build/ck_v7_vtune_hotspots_* | head -n1)
+ADVISOR_DIR=$(ls -td build/ck_v7_advisor_* | head -n1)
+
+vtune-gui "$VTUNE_DIR/$(basename "$VTUNE_DIR").vtune" &amp;
+advisor-gui "$ADVISOR_DIR/$(basename "$ADVISOR_DIR").advixeproj" &amp;</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Finds the newest collected VTune and Advisor result directories.</li>
+            <li class="fragment">Opens interactive GUI views for drill-down without recollecting.</li>
+            <li class="fragment">Keeps CLI artifacts as fallback if GUI is unavailable during live demo.</li>
+        </ul>
+    </div>
+    <p class="small muted">If GUI launch is blocked, continue with <code>vtune_summary.json</code> and <code>advisor_summary.json</code> in the IR report.</p>
+
+    <aside class="notes">
+After collection, opening the GUIs is two commands and takes about 5 seconds.
+
+The first command resolves the latest VTune result directory: ls -td build/ck_v7_vtune_hotspots_* lists all matching directories sorted by modification time newest-first. head -n1 takes the first result. This prevents accidentally opening an analysis from a previous session that might be days old and irrelevant to the current run.
+
+The vtune-gui command opens the .vtune project file inside that directory. The .vtune file is a small XML descriptor that points to the actual collected data. VTune GUI reads it and loads the full analysis. The & runs it in the background so your terminal remains usable.
+
+Same pattern for Advisor: resolve the latest ck_v7_advisor_* directory, find the .advixeproj file, open with advisor-gui.
+
+What to navigate in VTune GUI: start with the Summary tab, which shows the top hotspots as a ranked bar chart. Confirm vec_dot_q8_0_q8_0_avx is the top function. Then switch to the Bottom-up tab and sort by CPU Time: Self. This shows where cycles are actually spent, not counting callees. Click vec_dot in the bottom-up view and the call stack panel on the right shows its callers: work_gemv_q8_0_q8_0 → layer_forward → decode_loop → worker_main.
+
+For the memory-access analysis (deep pass only): the Memory pane shows bandwidth utilization over time. The timeline chart shows bandwidth at each measurement interval. Look for the intervals where bandwidth spikes toward 31.9 GB/s — those are the heavy decode steps.
+
+For Advisor GUI: the Roofline tab shows the scatter plot of all measured loops. Look for the cluster of dots in the lower-left quadrant — those are the memory-bound kernels. Hover over them to identify which function each dot represents.
+    </aside>
+</section>
+
+<section>
+    <h2>Threading Strategy (CPU)</h2>
+    <div class="three-col">
+        <div class="card info gsap-item">
+            <h4>Environment</h4>
+            <ul>
+                <li class="fragment"><code>OMP_NUM_THREADS</code></li>
+                <li class="fragment"><code>MKL_NUM_THREADS</code></li>
+                <li class="fragment"><code>OPENBLAS_NUM_THREADS</code></li>
+            </ul>
+        </div>
+        <div class="card warn gsap-item">
+            <h4>Goal</h4>
+            <p class="small">Avoid oversubscription and thread contention.</p>
+        </div>
+        <div class="card good gsap-item">
+            <h4>Validation</h4>
+            <p class="small">Check VTune thread timeline and CPU utilization.</p>
+        </div>
+    </div>
+
+    <aside class="notes">
+Thread count is a lever that can dominate performance measurement variance if not controlled carefully.
+
+On the Alderlake-P chip with 8 P-cores and 8 E-cores, we set OMP_NUM_THREADS=12 for a deliberate reason. Using all 16 logical cores means E-cores participate in the thread pool. E-cores run at lower maximum frequency and have half the L2 cache of P-cores (512 KB vs 1.25 MB per core). At 12 threads, the thread pool primarily fills the 8 P-cores with room for load balancing. At 16 threads, E-cores contribute to the pool and can introduce timing variance — a decode step where a critical kernel thread lands on an E-core is slower than when it lands on a P-core.
+
+MKL_NUM_THREADS=1 prevents Intel Math Kernel Library from spawning its own internal thread pool. Some system Python environments link NumPy against Intel MKL, and if the Python runner script for the profiling pipeline inadvertently triggers an MKL operation, it will spawn up to 16 threads to handle it — which can saturate the CPU and compete with the OMP pool. Setting MKL to single-threaded makes the Python components non-interfering.
+
+OPENBLAS_NUM_THREADS=1 is the same story for OpenBLAS. These two lines are defensive: they prevent external library thread pools from racing with the controlled OMP pool and causing noise in the profiling results.
+
+To validate threading in VTune: open the Threading view and look at the CPU utilization per thread timeline. You want to see approximately 12 active threads during the inference window, all with similar utilization. If you see 2 to 3 busy threads and 9 idle ones, the thread pool is not distributing work correctly — investigate the dispatch logic. If you see 16 threads competing and high context-switch overhead, reduce the thread count.
+    </aside>
+</section>
+
+<section>
+    <h2>SIMD Checklist</h2>
+    <div class="two-col">
+        <div class="card info gsap-item">
+            <h4>What to verify</h4>
+            <ul>
+                <li class="fragment">Vectorized kernels selected at runtime.</li>
+                <li class="fragment">No accidental scalar fallback.</li>
+                <li class="fragment">Consistent ISA path during benchmark.</li>
+            </ul>
+        </div>
+        <div class="card purple gsap-item">
+            <h4>Evidence sources</h4>
+            <ul>
+                <li class="fragment">FlameGraph stack names.</li>
+                <li class="fragment">Advisor roofline movement.</li>
+                <li class="fragment">Perf IPC trend after changes.</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+SIMD — Single Instruction Multiple Data — is the primary computational lever for the kernels we are profiling. Let me walk through the verification checklist that tells you whether SIMD is being used correctly.
+
+Verify vectorized kernels selected at runtime. The cleanest signal is function name suffixes in the flamegraph. For our run: vec_dot_q8_0_q8_0_avx ends in _avx, gemm_nt_q8_0_q8_0_avx2 ends in _avx2. These suffixes confirm the runtime dispatch table selected the AVX and AVX2 kernel variants respectively. If you saw _fallback or _scalar suffixes in your hot paths, the CPUID detection is not selecting SIMD paths — investigate the dispatch logic or build flags.
+
+No accidental scalar fallback. Even within a function named _avx2, there can be scalar code paths — for example, handling the last few elements of a vector whose length is not a multiple of 32 (the number of int8 values in one 256-bit register). For Qwen3-0.6B with hidden_dim=1024 and intermediate_size=2816: 2816 / 32 = 88 with remainder 0. So the FFN dimensions divide evenly into 32, meaning no scalar tail loop is needed.
+
+Consistent ISA path during benchmark. Do not recompile between baseline and optimized runs during a comparison session. Ensure the binary you are profiling was compiled in the same session as the run you are comparing against. The make workflow enforces this by building once at the start and profiling the resulting artifact throughout.
+
+Evidence sources after a SIMD improvement: the flamegraph hot function name should still be present but with reduced width. IPC should increase — more work per cycle. The Advisor roofline dot for that function should move upward on the chart — higher throughput. If it moves right instead of up, you improved instruction count but not throughput, suggesting a pipeline bottleneck elsewhere.
+    </aside>
+</section>
+
+<section>
+    <h2>DRAM Pressure vs Arithmetic Intensity</h2>
+    <div class="tool-grid">
+        <div class="tool gsap-item"><h4>Memory-bound symptom</h4><p class="small">High LLC misses + backend stalls + low IPC.</p></div>
+        <div class="tool gsap-item"><h4>Compute-bound symptom</h4><p class="small">High IPC, lower miss pressure, ALU/FMA saturated.</p></div>
+        <div class="tool gsap-item"><h4>Fix class A</h4><p class="small">Blocking, layout, prefetch, cache-friendly ordering.</p></div>
+        <div class="tool gsap-item"><h4>Fix class B</h4><p class="small">Kernel fusion, SIMD widening, unroll, reduced overhead.</p></div>
+    </div>
+
+    <aside class="notes">
+This framework unifies everything we have measured into a single conceptual model.
+
+The memory-bound symptoms on our machine align perfectly: LLC miss rate 38.6% is high, indicating data is not being reused from cache. DRAM bandwidth averages 17.6 GB/s with peaks at 31.9 GB/s near the 33 GB/s hardware limit. VTune Back-End Bound is 45.4% with Memory Bound at 21.2%. These all point to the same root cause: the working set of active data during decode — primarily the weight matrix being multiplied by the current hidden state — exceeds the L3 cache capacity and streams from DRAM on every token step.
+
+The vec_dot function has very low arithmetic intensity. For each 32-byte chunk it loads from memory, it performs 32 multiply-accumulate operations. That is 32 integer MACs per 32 bytes loaded, which is 1 operation per byte — extremely low. At 33 GB/s bandwidth limit and 1 op/byte, the theoretical maximum is 33 GOPS per second. In practice, with LLC miss overhead and DRAM latency, we achieve significantly less.
+
+The compute-bound symptoms for prefill: gemm_nt processes each weight byte multiple times across the full token batch. With N=64 input tokens and hidden_dim=1024, the arithmetic intensity per weight byte is 64 multiply-accumulate operations — 64 ops/byte. This is high enough to approach the compute roof, which is why prefill is close to compute-bound.
+
+Fix class A for memory-bound decode: cache blocking, software prefetching, and ultimately increasing the effective batch size (process multiple tokens per step instead of one) to amortize weight loading cost. More arithmetic per byte loaded.
+
+Fix class B for compute-bound prefill: SIMD widening if moving to AVX-512 capable hardware, kernel fusion to reduce intermediate memory writes, and reducing per-layer overhead (sampling, normalization accounting for the remaining 16% of prefill time).
+
+The optimization roadmap is clear: the most impactful near-term work is on decode, in the vec_dot kernel, targeting cache blocking.
+    </aside>
+</section>
+
+<section>
+    <h2>Gate The Result</h2>
+    <pre><code class="language-bash">make --no-print-directory v7-perf-gate \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Runs the full v7 performance gate workflow with standardized tooling sequence.</li>
+            <li class="fragment">Recomputes evidence artifacts and evaluates gate criteria in one command.</li>
+            <li class="fragment">Used as release-quality regression check after optimization changes.</li>
+        </ul>
+    </div>
+    <div class="three-col">
+        <div class="card good gsap-item"><h4>Performance</h4><p class="small">Counter + hotspot evidence persisted.</p></div>
+        <div class="card good gsap-item"><h4>Stability</h4><p class="small">No regression in deterministic outputs.</p></div>
+        <div class="card good gsap-item"><h4>Confidence</h4><p class="small">Ready for targeted optimization patch.</p></div>
+    </div>
+
+    <aside class="notes">
+The performance gate is the enforcement mechanism that prevents optimization theater — changes that look like speedups but are actually measurement noise or regressions disguised as gains.
+
+The problem with informal measurement: you make a change, run once, see a higher tok/s number, and declare victory. But was it the change, or did your laptop fan just kick in and the CPU stopped thermal throttling? Did you run with warm caches the second time? Did the OS schedule something else in background that raised priority between the two runs? Informal measurement cannot distinguish these from real improvements.
+
+The gate command runs the full evidence chain in sequence: rebuild the runtime so the binary matches the current code, capture perf stat to get the counter baseline, capture flamegraph to get the hotspot shape, and compare all results against the stored baseline numbers.
+
+Three requirements for the gate to pass: first, the performance delta must exceed the noise floor — we use a minimum 5% improvement in tok/s for a decode optimization to count. Second, the deterministic output must match — if your kernel change causes the model to produce different tokens on the same prompt, that is a correctness regression, not an optimization. Third, the variance across multiple runs must be low enough for the delta to be statistically meaningful. A 3% improvement with 8% standard deviation is not significant. An 8% improvement with 1.5% standard deviation is.
+
+This gate is the difference between published performance results and informal benchmarks. After this video, the next episode will patch vec_dot to improve cache blocking. The gate will tell us honestly whether that patch delivers — same model, same prompt, same machine, same metrics.
+    </aside>
+</section>
+
+
+
+
+<section>
+    <h2>One-Command Capture Path</h2>
+    <pre><code class="language-bash"># Reliable default: generate report + perf artifacts
+python3 version/v7/tools/open_ir_visualizer.py \
+  --generate --run "$RUN" \
+  --with-profile --perf-runtime cli --chat-template none --force-compile
+
+# Optional deeper capture (if VTune/Advisor are configured)
+# python3 version/v7/tools/open_ir_visualizer.py \
+#   --generate --run "$RUN" \
+#   --with-profile --with-probes --perf-runtime cli --chat-template none --force-compile</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Runs integrated report generation in the same run directory.</li>
+            <li class="fragment">Default path is live-safe; optional path enables deeper probe collection.</li>
+            <li class="fragment">Useful when you need one reproducible command for operators.</li>
+        </ul>
+    </div>
+    <p class="small muted">Start with default path live. Use optional deep path after confirming VTune/Advisor setup.</p>
+
+    <aside class="notes">
+For viewers who want to reproduce this analysis from scratch, this single command is the entry point.
+
+The open_ir_visualizer.py script with --generate and --with-profile does everything in sequence: regenerates the IR report structure from the run directory, runs the perf stat capture with the standardized counter set, runs the flamegraph capture for both decode and prefill modes separately, parses all results into JSON summaries, and updates the HTML report with the populated cards.
+
+The --perf-runtime cli flag specifies we are using the CLI inference binary. The --chat-template none disables the chat template for reproducible prompt handling. The --force-compile ensures the binary is freshly compiled from the current generated code before any profiling capture runs.
+
+This is the command I recommend for first-time viewers who want to try this themselves. You need: the C-Kernel-Engine repository cloned from GitHub, a Python environment, perf installed on your Linux machine, the FlameGraph scripts in the expected path, and the Qwen3 GGUF model either downloaded or accessible. Run Step 8 first to generate the run directory, then this command to populate the profiling cards.
+
+The optional deep path at the bottom adds --with-probes, which enables VTune and Advisor collection on top of the standard perf captures. This requires Intel oneAPI installed and all gate conditions met.
+
+Why is the deep path commented out? Because the standard path works on almost any Linux machine with perf available. The deep path requires Intel oneAPI which is a significant installation. Keeping the default simple maximizes reproducibility across the audience.
+
+If your LLC miss rate differs from 38.6% — you have different hardware. If your top flamegraph function has a different suffix — you have a different ISA. Both of those are interesting. I would genuinely like to see what different hardware shows in the comments.
+    </aside>
+</section>
+
+<section>
+    <h2>Live Demo Fallback Plan</h2>
+    <div class="two-col">
+        <div class="card warn gsap-item">
+            <h4>If VTune or memory fails live</h4>
+            <ul>
+                <li class="fragment">Continue with perf stat + FlameGraph.</li>
+                <li class="fragment">Show pre-captured VTune screenshots.</li>
+                <li class="fragment">Skip VTune GUI and continue with perf + FlameGraph + IR summaries.</li>
+            </ul>
+        </div>
+        <div class="card info gsap-item">
+            <h4>Always preserve</h4>
+            <ul>
+                <li class="fragment">Fixed prompt and token settings.</li>
+                <li class="fragment">Same thread environment.</li>
+                <li class="fragment">Inference evidence table + artifact paths.</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+Planning for failure is professional, not pessimistic. Live technical demos fail. Here is how to handle each common failure mode without losing the narrative.
+
+If VTune collection fails during recording: do not panic. Continue with perf stat and FlameGraph — together they provide IPC, LLC miss rates, and hotspot identification, which covers the essential analysis. Show the pre-captured VTune screenshots from your analysis notes. The key numbers — Back-End Bound 45.4%, Memory Bound 21.2%, DRAM bandwidth 17.6 GB/s average — can all be read from vtune_summary.json and narrated from the terminal without opening the GUI.
+
+If FlameGraph collection fails: the pre-rendered flamegraph SVG in the presentation assets is the actual measured data from the offline profiling session. You can explain and navigate it even without generating a new one live. The educational payload — vec_dot at 69%, gemm_nt at 84% — does not require a fresh SVG.
+
+If the inference binary crashes during profiling: this has happened to me. Profilers add overhead that can expose latent issues. If the crash is reproducible, test the base inference command first without any profiler attached. A crash under Valgrind but not under perf suggests a memory error. A crash only under VTune suggests a timing or synchronization issue exposed by the collection overhead.
+
+The always-preserve column is about maintaining narrative integrity even when tools fail. The fixed prompt and token settings mean any fallback run produces numbers comparable to the planned run. The inference evidence table — TTFT, tok/s, latency — should be capturable with nothing more than the base ck-cli-v7 binary and the --timing flag.
+
+Practical tip: record in two passes. First pass: run everything live, accept that it may be messy. Second pass: narrate over the pre-captured results cleanly. The two-pass approach gives you both authenticity and reliability.
+    </aside>
+</section>
+
+<section>
+    <h2>Live Demo Flow (Inference)</h2>
+    <div class="two-col">
+        <div class="card info gsap-item">
+            <h4>Execution order</h4>
+            <ol>
+                <li class="fragment">Run Step 8 to regenerate the run directory from the HF command.</li>
+                <li class="fragment">Walk codegen outputs in <code>$RUN</code> before profiling.</li>
+                <li class="fragment">Run Step 8.1 to refresh <code>ir_report.html</code> and verify decode/prefill tabs.</li>
+                <li class="fragment">Capture <code>perf stat</code> baseline counters, then decode + prefill FlameGraphs.</li>
+                <li class="fragment">Run VTune/Advisor (or manual CLI variants) for bottleneck class and roofline evidence.</li>
+                <li class="fragment">Apply gate checks and optimize kernels only with measured proof.</li>
+            </ol>
+        </div>
+        <div class="card good gsap-item">
+            <h4>On-screen checkpoints</h4>
+            <ul>
+                <li class="fragment"><code>build/ck_v7_perf_stat.txt</code> (counter baseline)</li>
+                <li class="fragment"><code>build/flamegraph_v7.svg</code> and <code>build/flamegraph_v7_prefill.svg</code></li>
+                <li class="fragment">VTune hotspots + memory-access summaries</li>
+                <li class="fragment">Advisor roofline and vectorization guidance</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="notes">
+This segment follows a fixed flow so the narrative stays stable during live collection.
+
+Start by regenerating the run with Step 8, then verify the codegen outputs in <code>$RUN</code>. Next, regenerate the report in Step 8.1 and open <code>ir_report.html</code>.
+
+From there, move through the profiling chain in order: <code>perf stat</code> for counters, decode and prefill FlameGraphs for hotspot shape, VTune for bottleneck classification, and Advisor for roofline evidence.
+
+Keep the audience anchored to concrete artifacts on screen: perf summary text, both flamegraph SVGs, VTune summaries, and Advisor outputs.
+
+Finish by stating the optimization rule clearly: any kernel change must beat the baseline under the same prompt, token budget, and thread configuration.
+
+If time is constrained, keep the four beats: counters, flamegraphs, bottleneck class, and patch plan.
+    </aside>
+</section>
+
+<section>
+    <h2>C Safety = Tooling + Discipline</h2>
+    <pre><code class="language-bash"># Fresh runtime compile with symbols (deterministic baseline)
+make --no-print-directory profile-v7-prepare-runtime \
+  V7_MODEL="$MODEL" V7_PREP_WITH_PYTHON=1 V7_FORCE_COMPILE=1
+
+# Cache behavior attribution (Valgrind cache simulator)
+make --no-print-directory profile-v7-cachegrind \
+  V7_MODEL="$MODEL" V7_PERF_RUNTIME=cli V7_CHAT_TEMPLATE=none
+
+# Optional sanitizer pass: use your local ASan workflow if available</code></pre>
+    <div class="card info gsap-item" style="margin-top: 10px;">
+        <h4>What this command does</h4>
+        <ul>
+            <li class="fragment">Builds deterministic runtime with symbols for debuggable profiling.</li>
+            <li class="fragment">Uses cache simulation to validate memory-behavior assumptions.</li>
+            <li class="fragment">Keeps inference speedups tied to safety checks and repeatable evidence.</li>
+        </ul>
+    </div>
+    <p class="small muted">C safety in practice: deterministic inputs, instrumentation, and regression gates.</p>
+
+    <aside class="notes">
+Performance optimization in C has a fundamental tension: the same techniques that make code faster — manual memory management, SIMD intrinsics, custom allocators, pointer arithmetic — are also the techniques most likely to introduce memory errors, undefined behavior, and non-deterministic output.
+
+A 5% speedup that ships with an out-of-bounds write or a use-after-free is not an optimization. It is a deferred crash. So the safety tooling layer is not optional — it is what makes performance claims trustworthy.
+
+The first command — profile-v7-prepare-runtime with V7_FORCE_COMPILE=1 — builds the inference runtime with debug symbols (-g flag) and deterministic inputs. We use this build for all profiling so that flamegraph function names are complete and call stacks resolve correctly. A profiling session against a stripped binary is much harder to read.
+
+The second command — profile-v7-cachegrind — runs Valgrind's cache simulator. Valgrind does not run your code natively — it interprets it through a virtual CPU model. This makes it approximately 20 to 50 times slower than native execution. But it has two important capabilities that sampling profilers lack: it counts cache events exactly rather than probabilistically, giving you precise miss counts per function, and it can detect memory errors including reads before writes, invalid address accesses, and heap corruption.
+
+For reduced token workloads like --max-tokens 16, Valgrind becomes practical even at 50x overhead because a short inference is still manageable in absolute time.
+
+The sanitizer pass — AddressSanitizer in particular — is the safety gate before performance testing. ASan instruments every memory access at compile time and reports any out-of-bounds reads or writes immediately with a full stack trace. For optimization patches that modify AVX SIMD hot paths, always run ASan on a small prompt before submitting the change for performance benchmarking.
+
+The principle: C stays safe when every optimization change goes through deterministic inputs, instrumented validation, and regression gates. Safety is not a separate workflow — it is woven into the profiling loop.
+    </aside>
+</section>
+
+<!-- ═══════════ KEY FINDINGS ═══════════ -->
+<section>
+    <h2>What We Measured — Qwen3-0.6B · Alderlake-P</h2>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:16px 0;">
+        <div class="kpi gsap-item" style="text-align:center; padding:18px 10px; background:rgba(249,115,22,0.08); border:1px solid rgba(249,115,22,0.25); border-radius:12px;">
+            <p style="font-size:2.6em; font-weight:900; color:#f97316; margin:0; line-height:1.1;">69%</p>
+            <p style="font-size:0.6em; color:#94a3b8; margin:6px 0 2px;">of decode CPU</p>
+            <p style="font-size:0.62em; color:#fb923c; font-weight:700; font-family:monospace;">vec_dot_q8_0_q8_0_avx</p>
+            <p style="font-size:0.58em; color:#64748b;">GEMV · memory-bound</p>
+        </div>
+        <div class="kpi gsap-item" style="text-align:center; padding:18px 10px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:12px;">
+            <p style="font-size:2.6em; font-weight:900; color:#ef4444; margin:0; line-height:1.1;">38.6%</p>
+            <p style="font-size:0.6em; color:#94a3b8; margin:6px 0 2px;">LLC load miss rate</p>
+            <p style="font-size:0.62em; color:#f87171; font-weight:700;">cpu_core LLC loads</p>
+            <p style="font-size:0.58em; color:#64748b;">weights stream from DRAM</p>
+        </div>
+        <div class="kpi gsap-item" style="text-align:center; padding:18px 10px; background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.25); border-radius:12px;">
+            <p style="font-size:2.6em; font-weight:900; color:#22c55e; margin:0; line-height:1.1;">84%</p>
+            <p style="font-size:0.6em; color:#94a3b8; margin:6px 0 2px;">of prefill CPU</p>
+            <p style="font-size:0.62em; color:#4ade80; font-weight:700; font-family:monospace;">gemm_nt_q8_0_q8_0_avx2</p>
+            <p style="font-size:0.58em; color:#64748b;">GEMM · compute-bound</p>
+        </div>
+        <div class="kpi gsap-item" style="text-align:center; padding:18px 10px; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); border-radius:12px;">
+            <p style="font-size:2.6em; font-weight:900; color:#f87171; margin:0; line-height:1.1;">0</p>
+            <p style="font-size:0.6em; color:#94a3b8; margin:6px 0 2px;">AVX-512 functions</p>
+            <p style="font-size:0.62em; color:#fca5a5; font-weight:700;">Alderlake-P ceiling</p>
+            <p style="font-size:0.58em; color:#64748b;">max width: AVX2 256-bit</p>
+        </div>
+    </div>
+    <div class="two-col" style="margin-top:10px; gap:12px;">
+        <div class="card info gsap-item">
+            <h4>Why decode is slow</h4>
+            <p class="small">Single-token GEMV = weight matrix streamed from DRAM every step. LLC miss 38.6% + DRAM 17.6 GB/s average. Memory-bound, not compute-bound.</p>
+        </div>
+        <div class="card good gsap-item">
+            <h4>Why prefill is fast</h4>
+            <p class="small">Batch-token GEMM = weight matrix read once, reused across all N tokens. Tiled GEMM saturates DRAM (31.9 GB/s peak). Compute-saturating path.</p>
+        </div>
+    </div>
+    <p class="small muted" style="margin-top:8px;">Source: flamegraph_manifest.json + vtune_summary.json + perf_stat_summary.json · Feb 24 2026 · ThinkPad T14 Gen 3</p>
+
+    <aside class="notes">
+These four numbers are the complete summary of what this profiling session measured. Let me give you the full context for each one.
+
+69% — vec_dot_q8_0_q8_0_avx in decode. This is the vector dot-product kernel for Q8_0 quantized inputs. In decode mode, every transformer layer performs a GEMV — a matrix times vector operation. The hidden state vector is the current token's representation. The weight matrix is the layer's projection matrix. The vec_dot function is the innermost loop of that GEMV: it takes a row of the weight matrix and computes its dot product with the input vector. Called once per output dimension per layer per token step, across 28 layers and 80 output tokens, it accumulates to 69% of total decode CPU time. In wall-clock terms from VTune: 6.89 seconds attributed to this single function.
+
+38.6% LLC load miss rate. This is the number that explains WHY vec_dot is slow. The L3 cache on this chip holds 12 megabytes. The full weight tensor for Qwen3-0.6B at Q8_0 precision is approximately 620 megabytes — 50 times larger than LLC. Every decode step requires loading fresh weights from DRAM because the weights cannot fit in cache. Each LLC miss costs 200 to 300 clock cycles. The DRAM bandwidth peaked at 31.9 GB/s — near the 33 GB/s hardware ceiling — during heavy decode phases.
+
+84% — gemm_nt_q8_0_q8_0_avx2 in prefill. This is the tiled GEMM kernel for prefill. In prefill mode, you process all N prompt tokens simultaneously. Instead of one vector, you have N vectors stacked as a matrix. The GEMM kernel processes this efficiently: it loads a tile of the weight matrix into L2 or L3 cache and multiplies it against all N input vectors before moving to the next tile. Each weight byte does N times as much work before being evicted. That reuse is what makes prefill compute-bound and 50 times faster than decode.
+
+0 AVX-512 functions. The hardware ceiling for this machine is AVX2 at 256-bit. A machine with AVX-512 would double the SIMD width for the inner loops — potentially 2× throughput improvement on the arithmetic, assuming the bottleneck shifts from memory bandwidth to compute. That is the next hardware platform question.
+
+The answer to the opening 50× question: GEMV versus GEMM. Memory-bound versus compute-bound. This is the architectural truth that the entire profiling session was building toward.
+    </aside>
+</section>
+
+<section>
+    <h2>What's Next</h2>
+    <h3 class="accent-blue" style="font-size:0.9em; margin-bottom:18px;">We proved the bottleneck. Now we patch it.</h3>
+    <div class="three-col" style="margin-top: 10px;">
+        <div class="card good gsap-item">
+            <h4>This episode — done</h4>
+            <ul>
+                <li class="fragment">Full Qwen3 profiling workflow</li>
+                <li class="fragment">Real data: 69% in vec_dot_avx</li>
+                <li class="fragment">Decode = GEMV · Prefill = GEMM</li>
+                <li class="fragment">LLC miss 38.6% → DRAM pressure</li>
+            </ul>
+        </div>
+        <div class="card purple gsap-item">
+            <h4>Next episode</h4>
+            <ul>
+                <li class="fragment">Patch <code>vec_dot_q8_0_q8_0_avx</code></li>
+                <li class="fragment">Rerun the full evidence chain</li>
+                <li class="fragment">Gate: ≥5% tok/s before merging</li>
+                <li class="fragment">Before / after flamegraph comparison</li>
+            </ul>
+        </div>
+        <div class="card warn gsap-item">
+            <h4>Try it yourself</h4>
+            <ul>
+                <li class="fragment"><code>make profile-v7-perf-stat</code></li>
+                <li class="fragment"><code>make profile-v7-flamegraph-decode</code></li>
+                <li class="fragment">Read your own <code>flamegraph_manifest.json</code></li>
+                <li class="fragment">What does your flamegraph show?</li>
+            </ul>
+        </div>
+    </div>
+    <p style="margin-top: 14px;" class="muted" style="font-size:0.7em;">C-Kernel-Engine v7 · Performance Profiling · github.com/antshiv/C-Kernel-Engine</p>
+
+    <aside class="notes">
+Let me close with a strong three-part call to action.
+
+What we proved today: we ran the full profiling workflow on real hardware. perf stat gave us the counter fingerprint — LLC miss 38.6% is the headline, and it tells us the decode path is memory-bound. FlameGraph gave us the hotspot shape — vec_dot_avx at 69% of decode, gemm_nt_avx2 at 84% of prefill. Different functions, different bottleneck types, same root cause: GEMV versus GEMM. VTune confirmed the bottleneck classification — Back-End Bound 45%, Memory Bound 21%, Core Bound 24% — with hardware counter evidence. Advisor would show the roofline position — vec_dot in the memory-bound region, gemm_nt closer to compute-bound. And we found the hardware ceiling — no AVX-512 on this Alderlake-P machine. Everything is AVX2 256-bit.
+
+What is coming in the next episode: we are going to patch vec_dot_q8_0_q8_0_avx. The specific optimization target is cache blocking — restructuring the dot product kernel so it works on weight tiles that fit in L2 cache rather than streaming the entire weight matrix from DRAM sequentially. The goal is to reduce the LLC miss rate from 38.6% toward below 20%, which should translate to a meaningful improvement in decode tok/s. We will rerun the full toolchain — perf stat, flamegraph, VTune, gate — on the patched binary and show the before-versus-after flamegraph side by side. Same machine, same model, same prompt, same token count. Let the data decide.
+
+For you, the viewer: you can try this today. Clone the C-Kernel-Engine repository, run Step 8 with the Qwen3 GGUF source, then run make profile-v7-perf-stat. What does your LLC miss rate show? What does your flamegraph look like on your hardware? If you are on a machine with AVX-512 — Sapphire Rapids, Icelake, or newer — you will see different function suffixes in the profile and potentially different throughput numbers. If you are on AMD with Zen 4, the SIMD architecture and cache sizes are different and the flamegraph profile will look different again.
+
+I genuinely want to see what different hardware shows. Leave your top flamegraph function and your LLC miss rate in the comments. The repository, the runbook, and the profiling scripts are all linked in the description.
+    </aside>
+</section>
+
+</div>
+</div>
+
+<script src="../reveal.js/dist/reveal.js"></script>
+<script src="../reveal.js/plugin/notes/notes.js"></script>
+<script src="../reveal.js/plugin/zoom/zoom.js"></script>
+<script src="../reveal.js/plugin/markdown/markdown.js"></script>
+<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+<script src="https://unpkg.com/gsap@3/dist/gsap.min.js"></script>
+
+<script>
+    Reveal.initialize({
+        hash: true,
+        controls: true,
+        progress: true,
+        slideNumber: true,
+        transition: 'slide',
+        plugins: [ RevealZoom, RevealMarkdown, RevealHighlight, RevealNotes ]
+    });
+
+    function animateCurrentSlide(slide) {
+        if (!slide) return;
+
+        const items = slide.querySelectorAll('.gsap-item');
+        const bars = slide.querySelectorAll('.metric-bar-fill');
+
+        gsap.set(items, { opacity: 0, y: 20 });
+        gsap.set(bars, { scaleX: 0, transformOrigin: 'left center' });
+
+        const tl = gsap.timeline();
+
+        if (items.length > 0) {
+            tl.to(items, {
+                opacity: 1,
+                y: 0,
+                duration: 0.38,
+                stagger: 0.08,
+                ease: 'power2.out'
+            });
+        }
+
+        if (bars.length > 0) {
+            tl.to(bars, {
+                scaleX: 1,
+                duration: 0.62,
+                stagger: 0.1,
+                ease: 'power2.out'
+            }, items.length > 0 ? '-=0.15' : 0);
+        }
+    }
+
+    Reveal.on('ready', event => animateCurrentSlide(event.currentSlide));
+    Reveal.on('slidechanged', event => animateCurrentSlide(event.currentSlide));
+</script>
+</body>
+</html>
