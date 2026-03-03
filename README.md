@@ -3,6 +3,9 @@
 ## Description
 This repository contains presentations that are shown at the [Antshiv Robotics](https://www.youtube.com/channel/UCTHcIBTO5_Ly3GXAk_UccTQ) youtube channel. 
 
+## Live Presentations
+Public URL: [https://antshiv.github.io/Presentations/](https://antshiv.github.io/Presentations/)
+
 ## How the presentations are created
 The presentations are created using [Reveal.js](https://revealjs.com/). The presentations are written in HTML and CSS.
 Animations present are made using html5 canvas and javascript. 
@@ -24,9 +27,9 @@ This repository uses a small script to generate a root `index.html` that lists a
 5. Select your default branch (usually `main`) and folder `/ (root)`.
 6. Save and wait for deployment.
 
-Your public URL will be:
+Current public URL:
 
-`https://<your-github-username>.github.io/<your-repo-name>/`
+`https://antshiv.github.io/Presentations/`
 
 From that page, users can click any presentation and open it directly.
 
