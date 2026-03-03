@@ -5,35 +5,137 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Presentations</title>
   <style>
-    body { font-family: sans-serif; max-width: 900px; margin: 32px auto; padding: 0 16px; }
-    h1 { margin-bottom: 8px; }
-    p { color: #444; }
-    ul { padding-left: 20px; }
-    li { margin: 8px 0; }
-    a { text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: #fff;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(66, 175, 250, 0.20), transparent 38%),
+        radial-gradient(circle at 100% 100%, rgba(255, 45, 96, 0.12), transparent 35%),
+        #191919;
+      font-family: "Source Sans Pro", Helvetica, sans-serif;
+    }
+    .hub {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 48px 20px 64px;
+    }
+    .title {
+      margin: 0;
+      font-size: clamp(2.1rem, 4vw, 3rem);
+      letter-spacing: 0.02em;
+    }
+    .subtitle {
+      margin: 10px 0 26px;
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 1.1rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.04);
+    }
+    thead th {
+      text-align: left;
+      padding: 12px 14px;
+      background: rgba(66, 175, 250, 0.20);
+      color: #dff3ff;
+      font-size: 0.95rem;
+      letter-spacing: 0.03em;
+    }
+    tbody td {
+      padding: 12px 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      vertical-align: top;
+    }
+    tbody tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .deck {
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .open-link {
+      color: #79d0ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .open-link:hover,
+    .open-link:focus-visible {
+      text-decoration: underline;
+      outline: none;
+    }
+    .entry-file {
+      color: rgba(255, 255, 255, 0.72);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+    }
+    .description {
+      color: rgba(255, 255, 255, 0.88);
+      line-height: 1.35;
+    }
+    @media (max-width: 860px) {
+      table, thead, tbody, tr, th, td {
+        display: block;
+      }
+      thead {
+        display: none;
+      }
+      tbody tr {
+        margin-bottom: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      tbody td {
+        border-top: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      tbody td:last-child {
+        border-bottom: none;
+      }
+    }
+    .count {
+      margin-top: 18px;
+      color: rgba(255, 255, 255, 0.66);
+      font-size: 0.95rem;
+    }
   </style>
 </head>
 <body>
-  <h1>Presentations</h1>
-  <p>Direct links to all presentation decks in this repository.</p>
-  <ul>
-    <li><a href="./08%20-%20hetrogenous/index.html">08 - hetrogenous</a></li>
-    <li><a href="./09%20-%20A.I_training/index.html">09 - A.I_training</a></li>
-    <li><a href="./10%20-%20LLM_memory_layout/index.html">10 - LLM_memory_layout</a></li>
-    <li><a href="./15%20-%20Attention/index.html">15 - Attention</a></li>
-    <li><a href="./16%20-%20MLP_Inference/index.html">16 - MLP_Inference</a></li>
-    <li><a href="./17%20-%20GPT-2%20Backprop/index.html">17 - GPT-2 Backprop</a></li>
-    <li><a href="./18%20-%20GPT2%20What%20I%20learnt/index.html">18 - GPT2 What I learnt</a></li>
-    <li><a href="./19%20-%20C-Kernel-Engine/index.html">19 - C-Kernel-Engine</a></li>
-    <li><a href="./20%20-%20Qwen_Optimization/index.html">20 - Qwen_Optimization</a></li>
-    <li><a href="./21%20-%20V7_Performance_Profiling/index.html">21 - V7_Performance_Profiling</a></li>
-    <li><a href="./22%20-%20V7_SVG_Training_Runbook/index.html">22 - V7_SVG_Training_Runbook</a></li>
-    <li><a href="./Climb_Descent/index.html">Climb_Descent</a></li>
-    <li><a href="./Hover/index.html">Hover</a></li>
-    <li><a href="./ProfilePower/index.html">ProfilePower</a></li>
-    <li><a href="./intro_zephyr/index.html">intro_zephyr</a></li>
-    <li><a href="./modelling_quadcopter/index.html">modelling_quadcopter</a></li>
-  </ul>
+  <main class="hub">
+  <h1 class="title">Presentations 08-22</h1>
+  <p class="subtitle">Direct links plus a short explanation of what each deck covers.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Presentation</th>
+        <th>What It Covers</th>
+        <th>Open</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="deck">08 - hetrogenous</td><td class="description">Explains heterogeneous execution and how splitting work across compute units improves throughput.</td><td><a class="open-link" href="./08%20-%20hetrogenous/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">09 - A.I_training</td><td class="description">Walks through LLM training flow: pretraining, supervised fine-tuning, and reinforcement learning stages.</td><td><a class="open-link" href="./09%20-%20A.I_training/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">10 - LLM_memory_layout</td><td class="description">Covers memory layout decisions, cache behavior, and why layout affects token throughput.</td><td><a class="open-link" href="./10%20-%20LLM_memory_layout/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">11 - LLM_parallel_memory</td><td class="description">Shows parallel memory access patterns and alignment strategies for model inference.</td><td><a class="open-link" href="./11%20-%20LLM_parallel_memory/demo.html">Open</a><br><span class="entry-file">demo.html</span></td></tr>
+      <tr><td class="deck">12 - AdvancedMemory</td><td class="description">Dives into advanced memory topics including NUMA, prefetching, and practical optimization tradeoffs.</td><td><a class="open-link" href="./12%20-%20AdvancedMemory/demo.html">Open</a><br><span class="entry-file">demo.html</span></td></tr>
+      <tr><td class="deck">13 - GEMM</td><td class="description">Breaks down GEMM fundamentals and optimization ideas like tiling, blocking, and vectorization.</td><td><a class="open-link" href="./13%20-%20GEMM/demo.html">Open</a><br><span class="entry-file">demo.html</span></td></tr>
+      <tr><td class="deck">14 - LayerNorm</td><td class="description">Explains LayerNorm math, where it sits in transformers, and implementation-level performance considerations.</td><td><a class="open-link" href="./14%20-%20LayerNorm/comprehensive_layernorm_v2.html">Open</a><br><span class="entry-file">comprehensive_layernorm_v2.html</span></td></tr>
+      <tr><td class="deck">15 - Attention</td><td class="description">Presents attention mechanism internals from intuition to matrix math and dataflow behavior.</td><td><a class="open-link" href="./15%20-%20Attention/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">16 - MLP_Inference</td><td class="description">Focuses on MLP inference path, GELU behavior, and compute vs memory bottlenecks.</td><td><a class="open-link" href="./16%20-%20MLP_Inference/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">17 - GPT-2 Backprop</td><td class="description">Step-by-step walkthrough of GPT-2 backpropagation and gradient flow across layers.</td><td><a class="open-link" href="./17%20-%20GPT-2%20Backprop/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">18 - GPT2 What I learnt</td><td class="description">Summarizes practical lessons learned from building and studying GPT-2 style models.</td><td><a class="open-link" href="./18%20-%20GPT2%20What%20I%20learnt/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">19 - C-Kernel-Engine</td><td class="description">Introduces C-Kernel-Engine architecture and how core kernels map to model operations.</td><td><a class="open-link" href="./19%20-%20C-Kernel-Engine/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">20 - Qwen_Optimization</td><td class="description">Details optimizations applied to Qwen-style model inference and runtime efficiency.</td><td><a class="open-link" href="./20%20-%20Qwen_Optimization/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">21 - V7_Performance_Profiling</td><td class="description">Profiling runbook for v7: measuring hotspots, interpreting traces, and prioritizing fixes.</td><td><a class="open-link" href="./21%20-%20V7_Performance_Profiling/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+      <tr><td class="deck">22 - V7_SVG_Training_Runbook</td><td class="description">Operational runbook for v7 SVG training: setup, execution flow, and validation checkpoints.</td><td><a class="open-link" href="./22%20-%20V7_SVG_Training_Runbook/index.html">Open</a><br><span class="entry-file">index.html</span></td></tr>
+    </tbody>
+  </table>
+  <p class="count">Total presentations linked: 15</p>
+  </main>
 </body>
 </html>
