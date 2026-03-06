@@ -1,0 +1,628 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>v7 SVG Training Runbook - What We Actually Learned</title>
+
+    <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+    <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+    <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+    <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+    <link rel="stylesheet" href="../css/styles.css">
+
+    <style>
+        :root {
+            --r-main-font-size: 24px;
+            --bg-card: rgba(255, 255, 255, 0.06);
+            --accent-blue: #60a5fa;
+            --accent-green: #4ade80;
+            --accent-yellow: #fbbf24;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --muted: #94a3b8;
+        }
+
+        .reveal .slides section {
+            font-size: 1em;
+            text-align: center;
+            padding: 20px !important;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 44px 44px;
+        }
+
+        .title-slide {
+            background-image:
+                radial-gradient(ellipse 60% 60% at 50% 45%, rgba(96,165,250,0.08) 0%, transparent 72%),
+                radial-gradient(ellipse 32% 32% at 20% 80%, rgba(74,222,128,0.06) 0%, transparent 62%),
+                radial-gradient(ellipse 28% 28% at 82% 18%, rgba(245,158,11,0.06) 0%, transparent 60%),
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: auto, auto, auto, 44px 44px, 44px 44px;
+        }
+
+        .gradient {
+            background: linear-gradient(135deg, #60a5fa 0%, #2dd4bf 35%, #4ade80 70%, #fbbf24 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            background-size: 260% 260%;
+            animation: gradient-pan 8s ease-in-out infinite;
+        }
+
+        @keyframes gradient-pan {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .title-divider {
+            width: 120px;
+            height: 2px;
+            background: linear-gradient(90deg, #60a5fa, #22d3ee, #4ade80, #fbbf24);
+            margin: 10px auto 16px;
+            border-radius: 2px;
+            opacity: 0.9;
+        }
+
+        .title-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .title-badge {
+            font-size: 0.62em;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 999px;
+            padding: 0.25rem 0.7rem;
+            letter-spacing: 0.03em;
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .three-col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.16);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: left;
+        }
+
+        .card h4 {
+            margin: 0 0 8px;
+            font-size: 0.9em;
+        }
+
+        .card p,
+        .card li,
+        .card td,
+        .card th {
+            font-size: 0.72em;
+            line-height: 1.45;
+        }
+
+        .card ul,
+        .card ol {
+            margin: 0.2rem 0 0.2rem 1.1rem;
+        }
+
+        .card.info { border-left: 4px solid var(--accent-blue); }
+        .card.good { border-left: 4px solid var(--accent-green); }
+        .card.warn { border-left: 4px solid var(--accent-yellow); }
+        .card.orange { border-left: 4px solid var(--accent-orange); }
+        .card.bad { border-left: 4px solid var(--accent-red); }
+
+        .flow {
+            display: grid;
+            grid-template-columns: repeat(13, auto);
+            justify-content: center;
+            align-items: center;
+            gap: 7px;
+            margin-top: 10px;
+            font-size: 0.62em;
+        }
+
+        .step {
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 999px;
+            padding: 0.25rem 0.62rem;
+            color: #dbeafe;
+            background: rgba(30,41,59,0.8);
+        }
+
+        .arrow { color: #64748b; font-size: 1.1em; }
+
+        .cmd-title {
+            text-align: left;
+            font-size: 0.65em;
+            color: var(--muted);
+            margin-bottom: 0.28rem;
+        }
+
+        .reveal pre {
+            width: 100%;
+            margin: 0;
+            border-radius: 10px;
+            font-size: 0.56em;
+            max-height: 350px;
+            overflow: auto;
+        }
+
+        .reveal code { line-height: 1.35; }
+
+        .small {
+            font-size: 0.67em;
+            line-height: 1.42;
+            color: var(--muted);
+        }
+
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .map-item {
+            border: 1px solid rgba(255,255,255,0.17);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: left;
+            background: rgba(15,23,42,0.62);
+        }
+
+        .map-item h5 {
+            margin: 0 0 5px;
+            font-size: 0.66em;
+            color: #fde68a;
+        }
+
+        .map-item p {
+            margin: 0;
+            font-size: 0.58em;
+            line-height: 1.35;
+            color: #cbd5e1;
+        }
+
+        .table-mini {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        .table-mini th,
+        .table-mini td {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        .table-mini th {
+            color: #fde68a;
+            font-size: 0.64em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .img-frame {
+            border: 1px solid rgba(255,255,255,0.16);
+            border-radius: 14px;
+            overflow: hidden;
+            background: rgba(15,23,42,0.75);
+            box-shadow: 0 18px 50px rgba(0,0,0,0.28);
+        }
+
+        .img-frame img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 0.15rem 0.45rem;
+            border-radius: 999px;
+            font-size: 0.58em;
+            margin-right: 0.28rem;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(15,23,42,0.72);
+        }
+
+        .pill.good { color: #bbf7d0; border-color: rgba(74,222,128,0.35); }
+        .pill.warn { color: #fde68a; border-color: rgba(245,158,11,0.35); }
+        .pill.bad { color: #fecaca; border-color: rgba(239,68,68,0.35); }
+        .pill.info { color: #bfdbfe; border-color: rgba(96,165,250,0.35); }
+
+        @media (max-width: 900px) {
+            .two-col, .three-col, .map-grid { grid-template-columns: 1fr; }
+            .flow { grid-template-columns: 1fr; }
+            .arrow { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<section class="title-slide">
+    <p style="font-size:0.62em; letter-spacing:0.16em; text-transform:uppercase; color:#60a5fa; margin-bottom:12px;">CPU LLM Season 2</p>
+    <h1 class="gradient" style="font-size:1.82em; margin:0;">C-Kernel-Engine v7 Can Now Train</h1>
+    <div class="title-divider"></div>
+    <h3 style="margin:0;">From GPT-3 data discipline to A/B/C/D/E/F parity, Qwen3 train stitching, and the SVG case study</h3>
+    <p class="small" style="text-align:center; margin-top:10px; max-width:900px; margin-left:auto; margin-right:auto;">The opening claim is not that the tiny SVG model is finished. The opening claim is that v7 now has a credible train path: generated C forward/backward, optimizer updates, checkpoint lineage, parity gates, and a dashboard that makes the whole training story inspectable.</p>
+    <div class="title-badges">
+        <span class="title-badge">C-Kernel-Engine v7</span>
+        <span class="title-badge">Training + Parity + IR Visualizer</span>
+        <span class="title-badge">SVG Case Study</span>
+    </div>
+    <aside class="notes">
+The milestone here is not that the tiny SVG model is finished. The milestone is that C-Kernel-Engine v7 can now train in a way that is numerically defensible and operationally inspectable. The SVG run is the case study that exposed what still breaks.
+    </aside>
+</section>
+
+<section>
+    <h2>The Real Milestone: v7 Crossed From Inference Into Training</h2>
+    <div class="three-col">
+        <div class="card good">
+            <h4>Generated train runtime</h4>
+            <ul>
+                <li>generated C forward + backward</li>
+                <li>optimizer update path</li>
+                <li>checkpoint lineage and replay hooks</li>
+            </ul>
+        </div>
+        <div class="card info">
+            <h4>Math trust layer</h4>
+            <ul>
+                <li>A/B/C/D/E/F parity ladder</li>
+                <li>stitched runtime checks</li>
+                <li>determinism and drift guards</li>
+            </ul>
+        </div>
+        <div class="card warn">
+            <h4>Operator surface</h4>
+            <ul>
+                <li>runbook + one-command flow</li>
+                <li>IR Visualizer training tabs</li>
+                <li>report cards for honest status</li>
+            </ul>
+        </div>
+    </div>
+    <aside class="notes">
+What matters is not only lower loss on a tiny dataset. What matters is that the engine now has the pieces required to train and audit itself end to end: generated train runtime, parity gates, checkpoints, and operator dashboards.
+    </aside>
+</section>
+
+<section>
+    <h2>Why This Story Starts With GPT-3, Not With SVG</h2>
+    <div class="three-col">
+        <div class="card info">
+            <h4>Data mixture matters</h4>
+            <p>GPT-3 was not just a bigger loss curve. It separated data preparation, mixture quality, dedupe, and evaluation into explicit disciplines.</p>
+        </div>
+        <div class="card warn">
+            <h4>Loss is not the whole story</h4>
+            <p>Descending loss can coexist with worse behavior. Prefix drift, continuation corruption, and weak instruction following require separate probes.</p>
+        </div>
+        <div class="card orange">
+            <h4>That is our framing</h4>
+            <p>We use a tiny SVG corpus as the case study, but the lesson is broader: training only becomes credible once data, math, and evaluation are all explicit.</p>
+        </div>
+    </div>
+    <aside class="notes">
+GPT-3 matters here because it teaches discipline, not because it is big. The lesson is that data mixture, deduping, and evaluation have to be explicit. The SVG run forced us to confront exactly those issues.
+    </aside>
+</section>
+
+<section>
+    <h2>A/B/C/D/E/F Numerical Parity Had To Come First</h2>
+    <div class="two-col">
+        <div class="card good">
+            <h4>What the ladder means</h4>
+            <ul>
+                <li><strong>A</strong>: baseline forward/backward/update math</li>
+                <li><strong>B</strong>: grad accumulation correctness</li>
+                <li><strong>C</strong>: longer-horizon stability sweeps</li>
+                <li><strong>D/E/F</strong>: generated runtime stitch, replay, and accum trust</li>
+            </ul>
+        </div>
+        <div class="card warn">
+            <h4>Why it matters</h4>
+            <p>Before we trust any training loss curve, we need to trust that the runtime actually computes the same math as the reference path. Otherwise the engine can appear to train while silently drifting.</p>
+        </div>
+    </div>
+    <div class="img-frame" style="margin-top:14px;">
+        <img src="assets/v7_svg_parity_ladder.png" alt="v7 parity ladder screenshot">
+    </div>
+    <aside class="notes">
+This is the parity vocabulary. A, B, and C protect the numerical core. D, E, and F protect the generated runtime that actually trains. Without this ladder, the training story would not be credible.
+    </aside>
+</section>
+
+<section>
+    <h2>Qwen3 Stitching Showed The Engine Could Be Configured To Train</h2>
+    <div class="two-col">
+        <div class="card info">
+            <h4>What the runbook now gives you</h4>
+            <ul>
+                <li>dataset entry points and stage activation</li>
+                <li>train config wired to dims, heads, vocab, context</li>
+                <li>pipeline designer from pretrain to SFT</li>
+                <li>quick launch into the IR Hub and report surfaces</li>
+            </ul>
+            <p style="margin-top:10px;"><a href="https://antshiv.github.io/C-Kernel-Engine/v7-runbook.html" target="_blank" rel="noopener" style="color:#7fd6ff; font-weight:700; text-decoration:none;">Open public v7 runbook</a></p>
+        </div>
+        <div class="card good">
+            <h4>Why Qwen3 matters here</h4>
+            <p>Qwen3 was not just an inference demo. It was the skeleton that proved the train path can be stitched end to end: IR, generated C, checkpoints, and operator dashboards.</p>
+        </div>
+    </div>
+    <div class="img-frame" style="margin-top:14px;">
+        <img src="assets/v7_training_runbook_config.png" alt="v7 training runbook configuration screenshot">
+    </div>
+    <aside class="notes">
+This is the bridge from abstract parity to real operator workflow. The runbook shows that training is now a configurable path inside the engine, not just a pile of disconnected experiments.
+    </aside>
+</section>
+
+<section>
+    <h2>Dataset Reality: Strong Gates, Not Just More Rows</h2>
+    <div class="two-col">
+        <div class="card good">
+            <h4>Hard facts from <code>dataset_qc.json</code></h4>
+            <ul>
+                <li><strong>Dataset:</strong> <code>spec02_sft7_mix_instruction_train.txt</code></li>
+                <li><strong>Total rows:</strong> 60,000</li>
+                <li><strong>Total bytes:</strong> 28.2 MB</li>
+                <li><strong>ASCII violations:</strong> 0</li>
+                <li><strong>SVG violations:</strong> 0</li>
+            </ul>
+        </div>
+        <div class="card warn">
+            <h4>What <code>dataset_profile.json</code> taught us</h4>
+            <ul>
+                <li><strong>Average row length:</strong> 469 chars</li>
+                <li><strong>Max row length:</strong> 1330 chars</li>
+                <li><strong>Duplicate unique rows:</strong> 5,146</li>
+                <li><strong>Total duplicate rows:</strong> 10,888</li>
+            </ul>
+        </div>
+    </div>
+    <p class="small" style="text-align:center; margin-top:10px;">The corpus was clean structurally, but it was not necessarily diverse enough behaviorally.</p>
+    <aside class="notes">
+This is an important lesson. Structural cleanliness is necessary, but it is not sufficient. We proved that the rows are valid ASCII SVG examples, but that does not automatically mean the model learns clean instruction following.
+    </aside>
+</section>
+
+<section>
+    <h2>How The GPT-3 Lesson Showed Up In Our SVG Corpus</h2>
+    <div class="three-col">
+        <div class="card info">
+            <h4>Mixture pressure was visible</h4>
+            <p>The corpus was structurally clean, but duplicate pressure and primitive bias still showed up. That is exactly the kind of data-mixture problem GPT-3 warns you to take seriously.</p>
+        </div>
+        <div class="card warn">
+            <h4>Eval lagged behind telemetry</h4>
+            <p>Training loss and tok/s looked healthy long before behavior quality was healthy. The SVG run forced us to separate “the runtime trains” from “the model follows the intended spec.”</p>
+        </div>
+        <div class="card orange">
+            <h4>Target distribution still wins</h4>
+            <p>The shipped infographic assets remained richer than the training set. That mismatch is why later slides focus on asset-derived pretrain and stronger render-level probes.</p>
+        </div>
+    </div>
+    <aside class="notes">
+This is how the GPT-3 lesson showed up concretely in our own run. The data was clean, but the mixture was still narrow, the target distribution was richer than the corpus, and evaluation lagged behind telemetry.
+    </aside>
+</section>
+
+<section>
+    <h2>Run Progression: The Curriculum Actually Happened</h2>
+    <table class="table-mini">
+        <thead>
+            <tr>
+                <th>Pass</th>
+                <th>Run ID</th>
+                <th>Dataset</th>
+                <th>Loss first</th>
+                <th>Loss final</th>
+                <th>Loss min</th>
+                <th>Steps</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>Pretrain</td><td>20260228_181208</td><td>stage_a_plus_bridge</td><td>6.98</td><td>1.17</td><td>0.97</td><td>2048</td></tr>
+            <tr><td>Midtrain</td><td>20260228_210719</td><td>stage_b</td><td>3.35</td><td>1.12</td><td>0.87</td><td>2048</td></tr>
+            <tr><td>SFT-1</td><td>20260228_220504</td><td>stage_b_syn_instruction</td><td>0.96</td><td>0.79</td><td>0.74</td><td>2048</td></tr>
+            <tr><td>SFT-3</td><td>20260301_064948</td><td>sft_mix_overnight_v1</td><td>1.67</td><td>0.59</td><td>0.49</td><td>32768</td></tr>
+            <tr><td>SFT-6</td><td>20260302_152840</td><td>spec02_sft_v2_instruction</td><td>6.05</td><td>0.34</td><td>0.22</td><td>18430</td></tr>
+            <tr><td>SFT-7</td><td>20260305_143301</td><td>spec02_sft7_mix_instruction</td><td>2.45</td><td>0.70</td><td>0.33</td><td>1536</td></tr>
+        </tbody>
+    </table>
+    <p class="small" style="text-align:center; margin-top:10px;">The run is currently in <strong>SFT active</strong>. The story is not a single monolithic training pass; it is a chain of curriculum experiments.</p>
+    <aside class="notes">
+This table shows that the runbook really evolved. The run id and stage pass matter. Loss improved dramatically across several passes, but different data mixes changed behavior in different ways.
+    </aside>
+</section>
+
+<section>
+    <h2>Latest Run: Fast to Train, Not Yet Good Enough to Trust</h2>
+    <div class="two-col">
+        <div class="card info">
+            <h4>Latest SFT-7 telemetry</h4>
+            <ul>
+                <li><strong>Steps:</strong> 1536</li>
+                <li><strong>Processed tokens:</strong> 786,432</li>
+                <li><strong>Train tok/s:</strong> 136.5</li>
+                <li><strong>Average step time:</strong> 3750 ms</li>
+                <li><strong>Checkpoint:</strong> final @ step 1536</li>
+            </ul>
+        </div>
+        <div class="card bad">
+            <h4>But the output story is still weak</h4>
+            <ul>
+                <li><code>post_train_eval.json</code> says <strong>skipped_non_svg_corpus</strong></li>
+                <li><strong>valid_svg_rate:</strong> 0.0</li>
+                <li>Observed behavior: prefix drift / continuation corruption</li>
+                <li>Meaning: behavior evaluation is still behind training telemetry</li>
+            </ul>
+        </div>
+    </div>
+    <aside class="notes">
+This point has to be explicit. We are not claiming output quality that the artifacts do not support. Telemetry is solid, but behavioral evaluation is still incomplete and the model still drifts.
+    </aside>
+</section>
+
+<section>
+    <h2>In The SVG Run, What Actually Passed</h2>
+    <div class="three-col">
+        <div class="card good">
+            <h4>Clean passes</h4>
+            <p><span class="pill good">A1</span><span class="pill good">A4</span><span class="pill good">D1</span><span class="pill good">D2</span><span class="pill good">E1</span><span class="pill good">F1</span></p>
+            <ul>
+                <li>forward/backward/optimizer sentinel</li>
+                <li>strict AdamW toy parity</li>
+                <li>stitch runtime checks</li>
+                <li>replay determinism</li>
+            </ul>
+        </div>
+        <div class="card warn">
+            <h4>Important investigation, not failure theater</h4>
+            <p><span class="pill warn">B2/B4/B8</span><span class="pill warn">C1/C2/C3</span></p>
+            <ul>
+                <li>grad-accum and stability sweeps exposed AdamW epsilon amplification</li>
+                <li>max param diff spiked, mean param diff stayed far smaller</li>
+                <li>this changed how we interpret “parity fail”</li>
+            </ul>
+        </div>
+        <div class="card info">
+            <h4>Key lesson</h4>
+            <p>We needed a stronger vocabulary than just pass/fail. Some red flags were real bugs. Others were expected optimizer dynamics that still needed to be explained and bounded.</p>
+        </div>
+    </div>
+    <aside class="notes">
+This was a major lesson. The parity framework got stronger because it stopped pretending that every diff meant the same thing. Some diffs were real bugs. Others were expected optimizer dynamics that still had to be explained and bounded.
+    </aside>
+</section>
+
+<section>
+    <h2>The Dashboard Became the Training Surface</h2>
+    <div class="img-frame">
+        <img src="assets/v7_svg_data_lab.png" alt="IR Visualizer Data Lab screenshot">
+    </div>
+    <p class="small" style="text-align:center; margin-top:10px;">The Data Lab tab now exposes stage progression, parity stage-by-stage, dataset quality, and training plan/progress in one run-scoped surface.</p>
+    <div class="card info" style="margin-top:14px; text-align:left;">
+        <h4>Open live during the talk</h4>
+        <p style="margin:0 0 8px 0;">Use the screenshot in the slide as orientation, then open the full interactive report to navigate the real tabs live.</p>
+        <p style="margin:0;"><a href="assets/v7_svg_ir_report.html" target="_blank" rel="noopener" style="color:#7fd6ff; font-weight:700; text-decoration:none;">v7_svg_ir_report.html</a></p>
+    </div>
+    <aside class="notes">
+This is where the project changed. The IR visualizer stopped being inference-only and became an operator dashboard for training as well. I can use the screenshot for orientation, and then open the live report page to navigate Data Lab, training parity, checkpoint policy, and coverage directly.
+    </aside>
+</section>
+
+<section>
+    <h2>The Report Card Became The Real Story</h2>
+    <div class="two-col">
+        <div class="card good">
+            <h4>What it finally exposed</h4>
+            <ul>
+                <li>best practical checkpoint was <code>pretrain_1</code>, not the latest SFT</li>
+                <li>valid SVG stayed high while instruction adherence regressed</li>
+                <li>dataset-to-target asset mismatch was visible, not guessed</li>
+                <li>next run priorities became concrete: richer assets, cleaner spec contract, better eval</li>
+            </ul>
+        </div>
+        <div class="card warn">
+            <h4>Live artifact during the talk</h4>
+            <p>I will open the actual report page live instead of shrinking it into the deck. The slide only needs to tell the audience what to look for once that page is on screen.</p>
+            <div class="cmd-title">Open during presentation</div>
+            <p style="margin:8px 0 0 0;"><a href="assets/svg_training_report_card.html" target="_blank" rel="noopener" style="color:#7fd6ff; font-weight:700; text-decoration:none;">svg_training_report_card.html</a></p>
+        </div>
+    </div>
+    <div class="card info" style="margin-top:14px; text-align:left;">
+        <h4>What to point at on the live page</h4>
+        <ol>
+            <li><strong>Stage Scoreboard</strong>: pretrain_1 was the best practical checkpoint even though later SFT runs reached lower loss</li>
+            <li><strong>Prompt-by-Stage Output Matrix</strong>: behavior quality and adherence regressed while syntax stayed valid</li>
+            <li><strong>Dataset vs Target Asset Gap</strong>: shipped infographic primitives like <code>g</code>, <code>path</code>, <code>marker</code>, <code>filter</code>, and <code>title</code> were still underrepresented</li>
+            <li><strong>Next Clean Run</strong>: richer asset-derived pretrain, tighter spec-to-SVG SFT, and stronger render-level eval</li>
+        </ol>
+    </div>
+    <p class="small" style="text-align:center; margin-top:10px;">The deck stays clean; the full report card becomes the live walkthrough surface.</p>
+    <aside class="notes">
+The claim on this slide is simple. The report card finally told us what the model learned, what regressed, and what to change next. After that, I can open the actual report card in the browser and walk through the evidence live.
+    </aside>
+</section>
+
+<section>
+    <h2>One-Command Operator Story</h2>
+    <div class="cmd-title">Environment + runtime + artifacts + profiling</div>
+<pre><code class="language-bash">make v7-init
+make v7-profile-dashboard V7_MODEL=hf://Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf
+
+# For an existing run directory, the visualizer profiling tab now shows
+# exactly what the one-command flow captures and which host tools are missing.</code></pre>
+    <div class="img-frame" style="margin-top:10px;">
+        <img src="assets/v7_svg_training_dashboard.png" alt="IR Visualizer training dashboard screenshot">
+    </div>
+    <aside class="notes">
+This is the operator landing point. The command path is now simpler, and the dashboard itself explains the missing artifacts instead of forcing the user to infer them command by command.
+    </aside>
+</section>
+
+<section class="title-slide">
+    <h2 class="gradient" style="margin-bottom:6px;">Evidence Before Claims</h2>
+    <div class="title-divider"></div>
+    <p class="small" style="text-align:center; max-width:820px; margin:0 auto;">
+        The real accomplishment here is the training instrumentation stack: clean data gates, staged run history, parity discipline, replay checks, checkpoints, and a dashboard that makes the failures visible instead of hiding them.
+    </p>
+    <div class="title-badges">
+        <span class="title-badge">Dataset Integrity</span>
+        <span class="title-badge">Parity Discipline</span>
+        <span class="title-badge">Behavior Evaluation Next</span>
+    </div>
+    <aside class="notes">
+The closing claim is that we now have a real training surface and a clear map of what still needs work. The accomplishment is the discipline: data gates, parity, checkpoints, and dashboards that make failures visible instead of hiding them.
+    </aside>
+</section>
+
+</div>
+</div>
+
+<script src="../reveal.js/dist/reveal.js"></script>
+<script src="../reveal.js/plugin/notes/notes.js"></script>
+<script src="../reveal.js/plugin/zoom/zoom.js"></script>
+<script src="../reveal.js/plugin/markdown/markdown.js"></script>
+<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+<script>
+Reveal.initialize({
+    hash: true,
+    slideNumber: true,
+    transition: 'slide',
+    transitionSpeed: 'default',
+    controls: true,
+    progress: true,
+    center: true,
+    plugins: [ RevealMarkdown, RevealHighlight, RevealNotes, RevealZoom ]
+});
+</script>
+</body>
+</html>
