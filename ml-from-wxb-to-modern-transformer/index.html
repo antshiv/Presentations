@@ -223,13 +223,47 @@
       background: rgba(255, 255, 255, 0.96);
       border-radius: 22px;
       box-shadow: 0 26px 72px rgba(0,0,0,0.36);
+      cursor: zoom-in;
       display: block;
       max-height: 430px;
       max-width: 100%;
       padding: 16px;
+      transition: transform 0.2s ease;
     }
 
+    .img-card:hover { transform: scale(1.02); }
     .img-card.tall { max-height: 520px; }
+
+    /* ── zoom lightbox ── */
+    .zoom-overlay {
+      align-items: center;
+      background: rgba(0, 0, 0, 0.92);
+      cursor: zoom-out;
+      display: none;
+      inset: 0;
+      justify-content: center;
+      position: fixed;
+      z-index: 9999;
+    }
+    .zoom-overlay.active { display: flex; }
+    .zoom-overlay img {
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 18px;
+      box-shadow: 0 40px 120px rgba(0,0,0,0.6);
+      max-height: 92vh;
+      max-width: 92vw;
+      object-fit: contain;
+      padding: 12px;
+      transition: transform 0.3s ease;
+    }
+    .zoom-overlay .zoom-hint {
+      bottom: 24px;
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      left: 50%;
+      position: absolute;
+      transform: translateX(-50%);
+    }
 
     .timeline {
       display: grid;
@@ -1546,6 +1580,11 @@ param = param - lr * weight_decay * param;</code></pre>
 </div>
 </div>
 
+<div class="zoom-overlay" id="zoomOverlay">
+  <img id="zoomImg" src="" alt="Zoomed image">
+  <span class="zoom-hint">Click or press Escape to close</span>
+</div>
+
 <script src="../reveal.js/dist/reveal.js"></script>
 <script src="../reveal.js/plugin/notes/notes.js"></script>
 <script src="../reveal.js/plugin/highlight/highlight.js"></script>
@@ -1557,6 +1596,32 @@ param = param - lr * weight_decay * param;</code></pre>
     backgroundTransition: 'fade',
     plugins: [ RevealNotes, RevealHighlight ]
   });
+
+  // Image zoom lightbox
+  (function() {
+    var overlay = document.getElementById('zoomOverlay');
+    var zoomImg = document.getElementById('zoomImg');
+
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('img-card') && e.target.tagName === 'IMG') {
+        zoomImg.src = e.target.src;
+        zoomImg.alt = e.target.alt;
+        overlay.classList.add('active');
+        e.stopPropagation();
+      }
+    });
+
+    overlay.addEventListener('click', function() {
+      overlay.classList.remove('active');
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && overlay.classList.contains('active')) {
+        overlay.classList.remove('active');
+        e.stopPropagation();
+      }
+    });
+  })();
 </script>
 </body>
 </html>
