@@ -1,0 +1,1562 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ML From wx+b To Modern Transformers</title>
+
+  <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+  <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+  <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+  <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+
+    :root {
+      --bg: #090b10;
+      --panel: rgba(16, 24, 39, 0.88);
+      --panel-2: rgba(28, 38, 56, 0.92);
+      --line: rgba(255, 255, 255, 0.14);
+      --muted: #a8b3c2;
+      --ink: #f8fafc;
+      --cyan: #67e8f9;
+      --blue: #82aaff;
+      --yellow: #ffd166;
+      --green: #71f79f;
+      --rose: #fb7185;
+      --orange: #f97316;
+      --purple: #c792ea;
+      --r-main-font-size: 25px;
+      --r-heading-text-transform: none;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background:
+        radial-gradient(circle at 14% 12%, rgba(103, 232, 249, 0.18), transparent 30%),
+        radial-gradient(circle at 86% 20%, rgba(251, 113, 133, 0.15), transparent 28%),
+        radial-gradient(circle at 70% 84%, rgba(113, 247, 159, 0.10), transparent 34%),
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+        var(--bg);
+      background-size: auto, auto, auto, 42px 42px, 42px 42px, auto;
+    }
+
+    .reveal {
+      color: var(--ink);
+      font-family: "Space Grotesk", "DejaVu Sans", Arial, sans-serif;
+    }
+
+    .reveal .slides { text-align: left; }
+    .reveal .slides section { padding: 28px !important; }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      font-family: "Space Grotesk", "DejaVu Sans", sans-serif;
+      letter-spacing: -0.045em;
+      line-height: 0.96;
+      margin-bottom: 0.28em;
+    }
+
+    .reveal h1 { font-size: 2.62em; }
+    .reveal h2 { font-size: 1.95em; }
+    .reveal h3 {
+      color: var(--cyan);
+      font-size: 0.82em;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .reveal p,
+    .reveal li {
+      color: #e5e7eb;
+      line-height: 1.38;
+    }
+
+    .reveal ul { display: block; margin-left: 1.1em; }
+
+    .reveal pre {
+      border: 1px solid rgba(103, 232, 249, 0.22);
+      border-radius: 18px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+      margin: 0;
+      width: 100%;
+    }
+
+    .reveal code {
+      font-family: "IBM Plex Mono", "DejaVu Sans Mono", monospace;
+      line-height: 1.35;
+    }
+
+    .kicker {
+      color: var(--yellow);
+      font-size: 0.58em;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      margin-bottom: 0.7rem;
+      text-transform: uppercase;
+    }
+
+    .muted { color: var(--muted) !important; }
+    .cyan { color: var(--cyan); }
+    .yellow { color: var(--yellow); }
+    .green { color: var(--green); }
+    .rose { color: var(--rose); }
+    .purple { color: var(--purple); }
+
+    .title-card {
+      background:
+        radial-gradient(circle at 12% 5%, rgba(103, 232, 249, 0.18), transparent 42%),
+        radial-gradient(circle at 88% 18%, rgba(255, 209, 102, 0.13), transparent 36%),
+        linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(31, 41, 55, 0.90));
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      box-shadow: 0 34px 100px rgba(0,0,0,0.45);
+      overflow: hidden;
+      padding: 42px;
+      position: relative;
+    }
+
+    .title-card::after {
+      background:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 36px 36px;
+      content: "";
+      inset: 0;
+      opacity: 0.45;
+      pointer-events: none;
+      position: absolute;
+    }
+
+    .title-card > * { position: relative; z-index: 1; }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #f8fafc 0%, #67e8f9 35%, #ffd166 67%, #71f79f 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .grid-2 {
+      align-items: stretch;
+      display: grid;
+      gap: 22px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      align-items: stretch;
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: 0 22px 60px rgba(0,0,0,0.30);
+      padding: 22px;
+    }
+
+    .card h3 { margin: 0 0 0.65rem; }
+    .card p,
+    .card li { font-size: 0.72em; }
+
+    .big-claim {
+      border-left: 7px solid var(--yellow);
+      font-size: 1.14em;
+      line-height: 1.28;
+      padding-left: 24px;
+    }
+
+    .flow {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin: 26px 0;
+    }
+
+    .node {
+      background: rgba(103, 232, 249, 0.09);
+      border: 2px solid rgba(103, 232, 249, 0.58);
+      border-radius: 16px;
+      color: #fff;
+      font-size: 0.72em;
+      font-weight: 850;
+      padding: 12px 16px;
+      text-align: center;
+    }
+
+    .node.yellow { background: rgba(255, 209, 102, 0.11); border-color: rgba(255, 209, 102, 0.58); }
+    .node.green { background: rgba(113, 247, 159, 0.10); border-color: rgba(113, 247, 159, 0.54); }
+    .node.rose { background: rgba(251, 113, 133, 0.10); border-color: rgba(251, 113, 133, 0.54); }
+    .arrow { color: var(--yellow); font-size: 1.1em; font-weight: 900; }
+
+    .formula {
+      background: #020617;
+      border: 1px solid rgba(103, 232, 249, 0.30);
+      border-radius: 20px;
+      color: #f8fafc;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 1.25em;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      padding: 22px;
+      text-align: center;
+    }
+
+    .small-formula {
+      color: #e2e8f0;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.76em;
+      line-height: 1.5;
+    }
+
+    .img-card {
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 22px;
+      box-shadow: 0 26px 72px rgba(0,0,0,0.36);
+      display: block;
+      max-height: 430px;
+      max-width: 100%;
+      padding: 16px;
+    }
+
+    .img-card.tall { max-height: 520px; }
+
+    .timeline {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin-top: 24px;
+    }
+
+    .step {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 18px;
+      min-height: 138px;
+      padding: 16px;
+    }
+
+    .step strong {
+      color: var(--yellow);
+      display: block;
+      font-size: 0.62em;
+      letter-spacing: 0.10em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .step span {
+      color: #e5e7eb;
+      display: block;
+      font-size: 0.68em;
+      line-height: 1.28;
+    }
+
+    .split {
+      align-items: center;
+      display: grid;
+      gap: 28px;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    }
+
+    .caption {
+      color: var(--muted);
+      font-size: 0.55em;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .pill {
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 999px;
+      color: #dbeafe;
+      font-size: 0.56em;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      padding: 8px 14px;
+      text-transform: uppercase;
+    }
+
+    .reveal table {
+      border-collapse: collapse;
+      font-size: 0.62em;
+      width: 100%;
+    }
+
+    .reveal th,
+    .reveal td {
+      border: 1px solid rgba(255,255,255,0.14);
+      padding: 0.62rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .reveal th {
+      background: rgba(103, 232, 249, 0.09);
+      color: var(--cyan);
+      font-weight: 900;
+    }
+
+    a { color: var(--cyan); }
+  </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<section>
+  <div class="title-card">
+    <div class="kicker">Video spine | ShivasNotes + C-Kernel-Engine</div>
+    <h1><span class="gradient-text">Basics of ML</span><br>from wx+b to modern transformer models</h1>
+    <p class="muted fragment">A grounded path from tiny changes, to linear layers, to probabilities, nonlinearities, normalization, attention, full backpropagation, and optimizer updates.</p>
+    <div class="pill-row">
+      <span class="pill fragment">derivatives</span>
+      <span class="pill fragment">wx+b</span>
+      <span class="pill fragment">softmax</span>
+      <span class="pill fragment">activations</span>
+      <span class="pill fragment">LayerNorm/RMSNorm</span>
+      <span class="pill fragment">skip connections</span>
+      <span class="pill fragment">tokenization</span>
+      <span class="pill fragment">embeddings</span>
+      <span class="pill fragment">MLP block</span>
+      <span class="pill fragment">positional encoding</span>
+      <span class="pill fragment">attention</span>
+      <span class="pill fragment">full backprop</span>
+      <span class="pill fragment">AdamW</span>
+    </div>
+  </div>
+  <aside class="notes">
+    In this video, I want to build a clean mental map of machine learning from the smallest possible equation, wx plus b, all the way toward modern transformer-style models.
+    I am not going to present models as magic.
+    I want to show that the machinery is mostly a small number of repeatable operations: derivatives, matrix multiplication, softmax, activations, and normalization.
+    Once those pieces are clear, a transformer feels much less mysterious.
+    It becomes a system of operators that we can derive, implement in C, plot, test, and eventually optimize.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">The point of the series</div>
+  <h2>Models are built from a small number of repeatable operations</h2>
+  <p class="big-claim fragment">The path from a scalar training loop to a GPT-style transformer is not one huge jump. It is the same few mathematical contracts repeated at scale.</p>
+  <div class="flow">
+    <div class="node fragment">change</div><div class="arrow fragment">-></div>
+    <div class="node fragment">linear map</div><div class="arrow fragment">-></div>
+    <div class="node fragment">probability</div><div class="arrow fragment">-></div>
+    <div class="node fragment">nonlinearity</div><div class="arrow fragment">-></div>
+    <div class="node fragment">normalization</div><div class="arrow fragment">-></div>
+    <div class="node green fragment">transformer block</div>
+  </div>
+  <aside class="notes">
+    The main argument of this series is that machine learning models are not built from unlimited concepts.
+    They are built from a small set of contracts that repeat at different scales.
+    First we need to understand change, because training is about changing parameters.
+    Then we need linear maps, because most layers are matrix multiplication plus bias.
+    Then we need probability, because models often output scores that must become probabilities.
+    Then we need nonlinearities, because linear layers alone cannot model complex behavior.
+    Finally we need normalization, because deep models need stable signal flow.
+    When those pieces are combined, we are already very close to the transformer block.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Learning map</div>
+  <h2>The complete sequence</h2>
+  <div class="timeline" style="grid-template-columns: repeat(7, minmax(0, 1fr));">
+    <div class="step fragment"><strong>01</strong><span>Derivatives: what does tiny change mean?</span></div>
+    <div class="step fragment"><strong>02</strong><span>Scalar wx+b: the smallest trainable model.</span></div>
+    <div class="step fragment"><strong>03</strong><span>Matrix Wx+b: one operator becomes a layer.</span></div>
+    <div class="step fragment"><strong>04</strong><span>Softmax: logits become probabilities.</span></div>
+    <div class="step fragment"><strong>05</strong><span>Activations: linear stacks get expressive.</span></div>
+    <div class="step fragment"><strong>06</strong><span>LayerNorm / RMSNorm: keep signals stable.</span></div>
+    <div class="step fragment"><strong>07</strong><span>Skip connections: gradient highways.</span></div>
+    <div class="step fragment"><strong>08</strong><span>Tokenization: text becomes numbers.</span></div>
+    <div class="step fragment"><strong>09</strong><span>Embeddings: numbers become vectors.</span></div>
+    <div class="step fragment"><strong>10</strong><span>MLP block: per-token nonlinear transform.</span></div>
+    <div class="step fragment"><strong>11</strong><span>Positional encoding: inject token order.</span></div>
+    <div class="step fragment"><strong>12</strong><span>Attention: tokens read other tokens.</span></div>
+    <div class="step fragment"><strong>13</strong><span>Full backprop: gradients stitch the model.</span></div>
+    <div class="step fragment"><strong>14</strong><span>AdamW: parameters actually move.</span></div>
+  </div>
+  <aside class="notes">
+    This is the path I want to follow.
+    We start with derivatives, because a derivative is the simplest way to describe how one quantity changes when another quantity changes.
+    Then we use that idea inside wx plus b, which is the smallest useful trainable model.
+    After that, we scale wx plus b into matrix multiplication, because real neural networks process many inputs and many features at once.
+    Then we move to softmax, which converts raw model scores into probabilities.
+    Then we look at activation functions, because they are what make stacked layers expressive.
+    After that, we now continue into positional structure, attention, the full backward pass, and AdamW.
+    This means the talk no longer stops at isolated operators.
+    It now reaches the point where the operators stitch together into a real training loop.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 1</div>
+  <h2>Derivatives are the language of tiny changes</h2>
+  <div class="grid-2">
+    <div class="card fragment">
+      <h3>What changes?</h3>
+      <p>The model output changes when weights, inputs, or intermediate values change.</p>
+    </div>
+    <div class="card fragment">
+      <h3>Why it matters</h3>
+      <p>Training is repeated adjustment. Without derivatives, we do not know which direction to adjust.</p>
+    </div>
+  </div>
+  <div class="formula fragment">slope = change in output / change in input</div>
+  <aside class="notes">
+    The first thing we need is the idea of a derivative.
+    A derivative answers a very practical question: if I change this input by a tiny amount, how much does the output change?
+    In machine learning, the input we change is often not the data itself.
+    It is usually a weight, a bias, or an intermediate value inside the model.
+    So the derivative tells us how sensitive the loss is to that specific value.
+    If the derivative is positive, increasing the value may increase the loss.
+    If the derivative is negative, increasing the value may decrease the loss.
+    This is the basic signal that lets training move in a useful direction.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chain rule</div>
+  <h2>Backprop is bookkeeping for dependent changes</h2>
+  <div class="flow">
+    <div class="node fragment">x</div><div class="arrow fragment">-></div>
+    <div class="node fragment">u = wx+b</div><div class="arrow fragment">-></div>
+    <div class="node fragment">y_hat</div><div class="arrow fragment">-></div>
+    <div class="node rose fragment">loss</div>
+  </div>
+  <p class="muted fragment">If loss depends on y_hat, and y_hat depends on w, the chain rule tells us how w affected the loss.</p>
+  <aside class="notes">
+    The next idea is the chain rule.
+    The chain rule is important because models are not one isolated operation.
+    The input flows into wx plus b, the result becomes a prediction, and the prediction is compared against the target to produce a loss.
+    So when the loss changes, we need to trace that effect backward through the dependency chain.
+    If the loss depends on the prediction, and the prediction depends on the weight, then the loss also depends on the weight.
+    Backpropagation is basically organized bookkeeping for this dependency graph.
+    It tells us how every parameter contributed to the final error.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 2</div>
+  <h2>The smallest training loop: wx+b</h2>
+  <div class="split">
+    <div>
+      <div class="formula fragment">y_hat = w*x + b</div>
+      <p class="muted fragment">One weight, one bias, one prediction, one loss. This is the cleanest place to understand gradient descent.</p>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/18-backprop-wxplusb-carousel/drafts/blog/assets/data-and-guess.png" alt="Data and guess plot">
+      <div class="caption fragment">Existing blog asset: data, line, and prediction error.</div>
+    </div>
+  </div>
+  <aside class="notes">
+    Now we can place those ideas inside the smallest useful model: y hat equals w times x plus b.
+    Here w is the weight, b is the bias, x is the input, and y hat is the prediction.
+    This equation is simple enough that we can understand every piece of it, but it is not a toy in the wrong sense.
+    It is the scalar version of what neural networks do at much larger scale.
+    The model makes a prediction, the prediction has an error, and the training loop adjusts w and b to reduce that error.
+    This is why wx plus b is such a good starting point.
+    It lets us understand training without hiding the process behind a huge model.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Training loop</div>
+  <h2>Forward, loss, backward, update</h2>
+  <div class="flow">
+    <div class="node fragment">predict</div><div class="arrow fragment">-></div>
+    <div class="node fragment">measure error</div><div class="arrow fragment">-></div>
+    <div class="node fragment">compute gradient</div><div class="arrow fragment">-></div>
+    <div class="node yellow fragment">update w,b</div><div class="arrow fragment">-></div>
+    <div class="node green fragment">repeat</div>
+  </div>
+  <pre class="fragment"><code class="language-python">y_hat = w * x + b
+loss = mean((y_hat - y) ** 2)
+
+dw = dloss_dw(...)
+db = dloss_db(...)
+
+w -= lr * dw
+b -= lr * db</code></pre>
+  <aside class="notes">
+    The training loop has four main parts.
+    First, the model predicts.
+    Second, we measure the error with a loss function.
+    Third, we compute gradients so we know how each parameter affected the loss.
+    Fourth, we update the parameters in the direction that should reduce the loss.
+    Then we repeat the loop.
+    This code is deliberately small, but the structure does not disappear when we move to transformers.
+    The tensors get bigger, the kernels get faster, and the model has many more parameters, but the basic loop is still forward pass, loss, backward pass, and update.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 3</div>
+  <h2>Matrix Wx+b is the same idea, scaled to layers</h2>
+  <div class="split">
+    <div>
+      <p class="big-claim fragment">A neural network layer is many wx+b operations organized as matrix multiplication.</p>
+      <div class="small-formula fragment">X [T x D] * W [D x H] + b [H] = Y [T x H]</div>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/25-matrix-wxb-transformers-carousel/drafts/blog/assets/dimension-rule.png" alt="Matrix dimension rule">
+    </div>
+  </div>
+  <aside class="notes">
+    Once wx plus b makes sense for one input, the next step is to scale it into matrices.
+    Instead of one input value, we now have many tokens or many rows.
+    Instead of one weight, we now have a weight matrix.
+    The equation is still the same idea: input times weight plus bias.
+    But now the shape contract matters.
+    If X has shape T by D, and W has shape D by H, then the inner D dimensions match, and the output has shape T by H.
+    This is why tensor shapes are not just notation.
+    Shapes tell us whether the computation is even legal.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Transformer view</div>
+  <h2>The same GEMM shows up everywhere</h2>
+  <div class="grid-3">
+    <div class="card fragment"><h3>Q/K/V</h3><p>Linear projections that prepare tokens for attention.</p></div>
+    <div class="card fragment"><h3>Output projection</h3><p>Another linear map after attention mixing.</p></div>
+    <div class="card fragment"><h3>MLP</h3><p>Expansion and compression through more matrix multiplies.</p></div>
+  </div>
+  <p class="muted fragment">Once you see Wx+b as GEMM plus bias, transformer blocks become less mysterious.</p>
+  <aside class="notes">
+    This is where the transformer starts to become less intimidating.
+    A transformer block contains several linear projections.
+    The Q, K, and V matrices are created with linear maps.
+    The output projection after attention is another linear map.
+    The MLP block is also built from matrix multiplies, often expanding the feature dimension and then compressing it back down.
+    So when people talk about a transformer, a lot of the computation is still repeated matrix multiplication.
+    From the C-Kernel-Engine perspective, this means GEMM is not just a math symbol.
+    GEMM is a kernel contract with memory layout, tiling, cache behavior, and vectorization.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 4</div>
+  <h2>Softmax turns scores into probabilities</h2>
+  <div class="split">
+    <div>
+      <div class="formula fragment">p_i = exp(z_i) / sum_j exp(z_j)</div>
+      <p class="muted fragment">Softmax keeps the relative ordering of scores but forces the outputs to sum to 1.</p>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/26-softmax-attention-carousel/drafts/blog/assets/softmax-basic.png" alt="Softmax basic plot">
+    </div>
+  </div>
+  <aside class="notes">
+    After linear layers produce scores, we often need to turn those scores into probabilities.
+    That is the job of softmax.
+    Softmax takes a list of logits, exponentiates them, and divides each value by the total sum.
+    The result is a probability distribution.
+    The values are all positive, and they sum to one.
+    This operator appears in the final layer of classifiers, and it also appears inside attention.
+    For this part of the talk, I want to focus on softmax as an operator.
+    Attention will come later, but attention depends heavily on understanding this probability step.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Softmax backward</div>
+  <h2>The full Jacobian exists, but kernels use the efficient form</h2>
+  <div class="grid-2">
+    <div class="card fragment">
+      <h3>Math view</h3>
+      <p class="small-formula">J_ij = p_i * (delta_ij - p_j)</p>
+      <p>Each output probability is coupled to every input logit.</p>
+    </div>
+    <div class="card fragment">
+      <h3>Kernel view</h3>
+      <p class="small-formula">dx = p * (g - dot(p, g))</p>
+      <p>Same gradient, but computed in O(N) without materializing the matrix.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    Softmax is also a good example of the difference between the mathematical derivation and the efficient implementation.
+    Mathematically, the derivative of softmax is a full Jacobian matrix.
+    Each output probability depends on every input logit, so the gradient is coupled.
+    But in code, we usually do not want to materialize that full matrix.
+    We can compute the same result with a more efficient expression: p times g minus the dot product of p and g.
+    This is the pattern I want to keep using throughout the series.
+    First derive the real math.
+    Then implement the version that is efficient enough to run.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 5</div>
+  <h2>Activations make stacked linear layers useful</h2>
+  <div class="split">
+    <div>
+      <p class="big-claim fragment">Without nonlinear activations, stacking many linear layers collapses into one linear map.</p>
+      <p class="muted fragment">ReLU, sigmoid, tanh, GELU, Swish, and SwiGLU each change the signal in a different way.</p>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/27-activation-functions-carousel/drafts/blog/assets/all-activations.png" alt="Activation functions">
+    </div>
+  </div>
+  <aside class="notes">
+    If we only stack linear layers, the whole stack can collapse into one larger linear map.
+    That means depth alone is not enough.
+    We need nonlinear activation functions to let the model represent more complex relationships.
+    Different activations shape the signal differently.
+    Sigmoid and tanh squash values into a bounded range.
+    ReLU passes positive values and clips negative values.
+    GELU and Swish are smoother functions that show up in many modern neural networks.
+    SwiGLU adds a gating structure that is common in transformer MLP blocks.
+    So activations are not decorations.
+    They are one of the reasons the model can represent nonlinear behavior.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Activation gradients</div>
+  <h2>Forward shape controls backward flow</h2>
+  <div class="grid-3">
+    <div class="card fragment"><h3>Sigmoid/tanh</h3><p>Saturate. Gradients can get small.</p></div>
+    <div class="card fragment"><h3>ReLU</h3><p>Cheap and sparse, but can die below zero.</p></div>
+    <div class="card fragment"><h3>GELU/SwiGLU</h3><p>Smoother gating behavior used in many transformer-style MLPs.</p></div>
+  </div>
+  <aside class="notes">
+    The activation function also controls how gradients flow backward.
+    Sigmoid and tanh can saturate, which means the derivative becomes very small when the input is far from the center.
+    ReLU is simple and fast, but if a unit stays below zero, its gradient can become zero.
+    GELU and SwiGLU are smoother, and they often work better in transformer-style MLPs because they gate information in a less abrupt way.
+    So when we choose an activation, we are choosing both a forward transformation and a backward gradient behavior.
+    That is why this topic belongs in the training story, not just the inference story.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 6</div>
+  <h2>LayerNorm and RMSNorm stabilize the signal</h2>
+  <div class="split">
+    <div>
+      <p class="big-claim fragment">As layers stack, signal scale can drift. Normalization gives each block a more predictable input distribution.</p>
+      <div class="small-formula fragment">LayerNorm: normalize by mean and variance<br>RMSNorm: normalize by root mean square</div>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/28-layernorm-rmsnorm-carousel/drafts/blog/assets/05_layernorm_vs_rmsnorm.png" alt="LayerNorm versus RMSNorm">
+    </div>
+  </div>
+  <aside class="notes">
+    As models get deeper, the scale of the signal can drift from layer to layer.
+    One block might produce values that are too large.
+    Another block might produce values that are too small.
+    If this keeps happening across many layers, training becomes harder.
+    LayerNorm and RMSNorm help stabilize the signal.
+    LayerNorm subtracts the mean and divides by the standard deviation.
+    RMSNorm skips the mean subtraction and normalizes by the root mean square.
+    The exact formulas differ, but the purpose is similar: give the next block a more predictable input scale.
+    This is one of the reasons modern transformer stacks can be very deep.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Pre-LN vs Post-LN</div>
+  <h2>Where the norm sits changes training behavior</h2>
+  <div class="split">
+    <div>
+      <img class="img-card tall fragment" src="../../antsand.com/workspace/contentCreation/28-layernorm-rmsnorm-carousel/drafts/blog/assets/04_pre_vs_post_ln.png" alt="Pre-LN versus Post-LN">
+    </div>
+    <div>
+      <div class="card fragment">
+        <h3>Practical takeaway</h3>
+        <p>Modern transformer stacks often prefer normalization before the sublayer because it gives gradients a cleaner highway through the residual path.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    Normalization is not only about the formula.
+    Placement also matters.
+    In a Post-LN block, the normalization happens after the sublayer and residual connection.
+    In a Pre-LN block, the normalization happens before the attention or MLP sublayer.
+    Modern transformer stacks often prefer Pre-LN style designs because the residual path gives gradients a cleaner route backward through the network.
+    I like to think of this as a gradient highway.
+    If the residual path stays clean, the model can train more reliably as we add more layers.
+    This is the point where we move from isolated math operators into real architecture decisions.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 7</div>
+  <h2>Skip connections are gradient highways</h2>
+  <div class="split">
+    <div>
+      <p class="big-claim fragment">Without skip connections, gradients must pass through every sublayer. Deep networks starve.</p>
+      <div class="formula fragment">output = sublayer(x) + x</div>
+      <p class="muted fragment">The residual path gives gradients a clean highway from loss to input, regardless of depth.</p>
+    </div>
+    <div>
+      <div class="card fragment">
+        <h3>Why the clean path matters</h3>
+        <p>In backprop, the + operator copies the gradient to both branches. One branch always carries dL/dx directly — no matrix multiply, no activation derivative, no norm scaling. This is why 100+ layer networks can train.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    Skip connections, also called residual connections, are one of the most important architectural innovations in deep learning.
+    Without them, gradients must pass through every sublayer during backpropagation.
+    Each sublayer multiplies the gradient by its local Jacobian, and over many layers, those multiplications can shrink the gradient exponentially.
+    This is the vanishing gradient problem.
+    The skip connection fixes this by adding the input directly to the sublayer output.
+    During the backward pass, the addition operator copies the gradient to both branches.
+    One branch goes through the sublayer backward.
+    The other branch passes the gradient directly through — no matrix multiply, no activation derivative, nothing.
+    This creates a clean gradient highway that lets the loss signal reach early layers without degradation.
+    This is why modern transformers can stack 80, 100, or even 200 layers and still train stably.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Pre-Norm residual</div>
+  <h2>The clean path cannot be polluted</h2>
+  <div class="grid-2">
+    <div class="card fragment">
+      <h3>❌ Post-LN encapsulates the skip</h3>
+      <p class="small-formula">x + Norm(sublayer(x))</p>
+      <p>The norm wraps the residual. Gradient must flow through the norm to reach the highway.</p>
+    </div>
+    <div class="card fragment">
+      <h3>✓ Pre-LN keeps the highway clean</h3>
+      <p class="small-formula">x + sublayer(Norm(x))</p>
+      <p>The norm is inside the sublayer branch. The residual path is a direct identity addition.</p>
+    </div>
+  </div>
+  <p class="muted fragment">This is the difference between the 1986 backprop paper and deep transformer stacks. The clean residual path is a critical recipe for training stability.</p>
+  <div class="pill-row fragment">
+    <span class="pill">📺 Deeper dive: <a href="https://youtube.com/@shivasnotes" style="color:var(--cyan)">@shivasnotes</a></span>
+  </div>
+  <aside class="notes">
+    This slide makes the key architectural point about skip connections.
+    The clean residual path cannot be encapsulated or polluted.
+    In a post-LN design, the normalization wraps the residual addition.
+    That means the gradient highway passes through the norm's backward computation, which can attenuate or distort the signal.
+    In a pre-LN design, the normalization sits inside the sublayer branch.
+    The residual path is a direct identity addition — the gradient flows through unchanged.
+    This seems like a small architectural choice, but it made the difference between training stability and training collapse in deep networks.
+    It is one of the critical recipes that enabled the jump from shallow networks to very deep transformer stacks.
+    This is also the difference between the 1986 backpropagation paper's practical depth limitations and today's 100-plus-layer models.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 8</div>
+  <h2>Tokenization: text becomes numbers</h2>
+  <div class="split">
+    <div>
+      <p class="big-claim fragment">A language model never sees text. It sees integer token IDs. Tokenization is the translation layer.</p>
+      <div class="flow">
+        <div class="node fragment">"Hello world"</div><div class="arrow fragment">-></div>
+        <div class="node yellow fragment">tokenizer</div><div class="arrow fragment">-></div>
+        <div class="node green fragment">[15496, 995]</div>
+      </div>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/30-tokenization-carousel/drafts/blog/assets/01_tokenization_overview.png" alt="Tokenization overview">
+    </div>
+  </div>
+  <aside class="notes">
+    Before anything else happens in a language model, text must become numbers.
+    The model never sees characters or words directly.
+    It sees integer token IDs that index into a vocabulary.
+    Tokenization is the translation layer that converts raw text into these IDs.
+    The quality of this translation matters more than most people realize.
+    If the tokenizer splits a common word into too many pieces, the model wastes capacity reassembling it.
+    If the vocabulary is too small, rare words get fragmented.
+    If the vocabulary is too large, the embedding table becomes enormous.
+    So tokenization is not just preprocessing — it is a design decision that affects model capacity, training efficiency, and inference cost.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Tokenization methods</div>
+  <h2>From WordPiece to BPE to SentencePiece</h2>
+  <div class="split">
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/30-tokenization-carousel/drafts/blog/assets/02_bpe_merges.png" alt="BPE merge steps">
+    </div>
+    <div>
+      <div class="card fragment">
+        <h3>BPE (GPT-2, GPT-4)</h3>
+        <p>Start with characters, greedily merge the most frequent pair. Repeat until vocabulary size is reached.</p>
+      </div>
+      <div class="card fragment">
+        <h3>WordPiece (BERT)</h3>
+        <p>Similar to BPE but selects merges by likelihood gain, not raw frequency.</p>
+      </div>
+      <div class="card fragment">
+        <h3>SentencePiece (LLaMA, Qwen)</h3>
+        <p>Language-agnostic, operates on raw bytes. No pre-tokenization rules needed.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    The three main tokenization methods each solve the same problem differently.
+    BPE, which is what GPT-2 and GPT-4 use, starts with individual characters and greedily merges the most frequent adjacent pair.
+    After enough merges, common words become single tokens and rare words stay as subword pieces.
+    WordPiece, used in BERT, is similar but selects merges based on likelihood gain rather than raw frequency.
+    SentencePiece, used in LLaMA and Qwen, operates directly on raw bytes and does not need language-specific pre-tokenization rules.
+    I implemented a WordPiece tokenizer in C for BERT models during my work at BC Gov, and that experience later informed the tokenization approach in C-Kernel-Engine.
+    The key lesson is that tokenization is deterministic — no trainable parameters — but the vocabulary design deeply affects everything downstream.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">When to skip standard tokenization</div>
+  <h2>Sometimes custom tokens are the right answer</h2>
+  <div class="split">
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/30-tokenization-carousel/drafts/blog/assets/06_custom_tokens.png" alt="Custom tokenization">
+    </div>
+    <div>
+      <p class="big-claim fragment">For SVG training in C-Kernel-Engine, BPE was unnecessary. Custom tokens mapped SVG commands directly to vocabulary IDs.</p>
+      <p class="muted fragment">The decision depends on whether natural language statistics match your domain. For structured formats, custom tokenization can outperform general-purpose BPE.</p>
+      <div class="pill-row fragment">
+        <span class="pill">📺 <a href="https://youtube.com/@shivasnotes" style="color:var(--cyan)">Deep dive on @shivasnotes</a></span>
+        <span class="pill">📝 <a href="https://www.shivasnotes.com/blog/5893/Training-SVGs-With-C-Kernel-Engine:-A-Research-Report" style="color:var(--cyan)">SVG Training Report</a></span>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    This is an important practical lesson from C-Kernel-Engine.
+    When training on SVG data, we found that BPE and SentencePiece were not the right tools.
+    SVG is a structured format with known commands like M, L, C, Z, and numeric coordinates.
+    Using a standard text tokenizer would fragment these commands into arbitrary subword pieces that have no meaning in the SVG domain.
+    Instead, we created custom tokens that mapped SVG path commands and coordinate ranges directly to vocabulary IDs.
+    This gave the model a vocabulary that matched the structure of the data, which improved both training convergence and generation quality.
+    The broader lesson is: tokenization is a design decision, not just a preprocessing step.
+    If your data is natural language, BPE or SentencePiece is usually the right choice.
+    If your data is structured, custom tokenization can be significantly better.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 9</div>
+  <h2>Embeddings: token IDs become dense vectors</h2>
+  <div class="split">
+    <div>
+      <div class="formula fragment">embedding[token_id] → vector ∈ ℝ^d</div>
+      <p class="muted fragment">A learned lookup table. Each token ID indexes a row in the embedding matrix. No multiplication — just a table read.</p>
+      <div class="small-formula fragment">
+        Token 15496 → [0.12, -0.34, 0.87, ...] (d_model values)<br>
+        Token 995 → [-0.45, 0.22, 0.01, ...] (d_model values)
+      </div>
+    </div>
+    <div>
+      <div class="card fragment">
+        <h3>Why not one-hot?</h3>
+        <p>A one-hot vector for a 50K vocabulary would be 50,000 dimensions — almost entirely zeros. Dense embeddings compress meaning into d_model ≈ 768–4096 dimensions.</p>
+      </div>
+      <div class="card fragment">
+        <h3>Backward pass</h3>
+        <p>The gradient for embeddings is a scatter-add: accumulate dL/d(embedding) into the rows that were used by the input tokens.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    After tokenization converts text into integer IDs, the model needs continuous vectors to compute with.
+    The embedding layer is a learned lookup table.
+    Each token ID indexes a row in the embedding matrix, and that row is the token's dense vector representation.
+    There is no matrix multiplication here — just a table read.
+    The reason we use dense embeddings instead of one-hot vectors is dimensionality.
+    A one-hot vector for a 50,000-token vocabulary would have 50,000 dimensions, almost entirely zeros.
+    Dense embeddings compress meaning into a much smaller space, typically 768 to 4096 dimensions.
+    During training, the backward pass for embeddings is a scatter-add operation.
+    We accumulate the gradient from the loss into the specific embedding rows that were used by the input tokens.
+    Only those rows get updated — the rest of the table stays unchanged for that training step.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 10</div>
+  <h2>The MLP block: per-token nonlinear processing</h2>
+  <div class="split">
+    <div>
+      <div class="flow">
+        <div class="node fragment">x</div><div class="arrow fragment">-></div>
+        <div class="node fragment">W₁x + b₁</div><div class="arrow fragment">-></div>
+        <div class="node yellow fragment">activation</div><div class="arrow fragment">-></div>
+        <div class="node fragment">W₂(·) + b₂</div><div class="arrow fragment">-></div>
+        <div class="node green fragment">output</div>
+      </div>
+      <p class="muted fragment">The MLP expands the feature dimension (often 4×), applies a nonlinearity, then compresses back down. Each token is processed independently.</p>
+    </div>
+    <div>
+      <div class="card fragment">
+        <h3>Shape flow</h3>
+        <p class="small-formula">x [T × d] → W₁ [d × 4d] → act → W₂ [4d × d] → out [T × d]</p>
+        <p>Two GEMM operations plus activation. This is where most of the model's parameters live.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    The MLP block is the other major component of a transformer layer, alongside attention.
+    It processes each token independently through a two-layer feedforward network.
+    The first linear layer expands the feature dimension, typically by a factor of four.
+    Then a nonlinear activation function is applied — in modern transformers this is usually SwiGLU or GELU.
+    Then the second linear layer compresses the dimension back down to the model dimension.
+    So the MLP is expand, activate, compress.
+    The key insight is that the MLP operates per-token.
+    Attention mixes information between tokens.
+    The MLP transforms each token's representation independently.
+    Together, they give the transformer its power: attention routes information, and the MLP processes it.
+    The MLP is also where most of the model's parameters live, because the 4x expansion creates large weight matrices.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">SwiGLU MLP</div>
+  <h2>Modern transformers gate the MLP path</h2>
+  <div class="grid-2">
+    <div class="card fragment">
+      <h3>Classic MLP</h3>
+      <p class="small-formula">h = activation(xW₁ + b₁)<br>out = hW₂ + b₂</p>
+      <p>Simple expand → activate → compress. Used in GPT-2.</p>
+    </div>
+    <div class="card fragment">
+      <h3>SwiGLU MLP</h3>
+      <p class="small-formula">gate = swish(xW_gate)<br>up = xW_up<br>h = gate ⊙ up<br>out = hW_down</p>
+      <p>Two parallel projections: one gates, one carries. Used in LLaMA, Qwen, Mistral.</p>
+    </div>
+  </div>
+  <p class="muted fragment">The gating mechanism lets the model learn which features to pass and which to suppress — a learned information filter per token.</p>
+  <aside class="notes">
+    Modern transformers use a gated MLP variant called SwiGLU.
+    In the classic MLP, there is one expansion matrix, one activation, and one compression matrix.
+    SwiGLU changes this by using two parallel projections: a gate projection and an up projection.
+    The gate projection goes through a swish activation.
+    The up projection passes the values directly.
+    Then the two are multiplied elementwise.
+    This means the gate controls which features in the up projection are allowed through.
+    It is a learned information filter.
+    The result goes through a down projection to compress back to the model dimension.
+    This is three matrix multiplies instead of two, but the gating behavior gives the model more control over information flow.
+    In C-Kernel-Engine, SwiGLU has a paired backward kernel because the elementwise gate multiplication requires both the gate output and the up output to compute gradients.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">What this already explains</div>
+  <h2>A transformer block is now fully approachable</h2>
+  <div class="flow">
+    <div class="node fragment">text</div><div class="arrow fragment">-></div>
+    <div class="node fragment">tokenize</div><div class="arrow fragment">-></div>
+    <div class="node fragment">embed</div><div class="arrow fragment">-></div>
+    <div class="node yellow fragment">norm</div><div class="arrow fragment">-></div>
+    <div class="node fragment">Q/K/V Wx+b</div><div class="arrow fragment">-></div>
+    <div class="node fragment">RoPE</div><div class="arrow fragment">-></div>
+    <div class="node fragment">softmax</div><div class="arrow fragment">-></div>
+    <div class="node fragment">skip +</div><div class="arrow fragment">-></div>
+    <div class="node fragment">MLP + SwiGLU</div><div class="arrow fragment">-></div>
+    <div class="node fragment">skip +</div><div class="arrow fragment">-></div>
+    <div class="node green fragment">next tokens</div>
+  </div>
+  <p class="muted fragment">Every piece of this pipeline — tokenization, embeddings, norms, projections, attention, residuals, MLP, activations — has now been derived individually.</p>
+  <aside class="notes">
+    At this point, we can already understand a large part of a transformer block at the operator level.
+    Tokens enter the block.
+    The signal is normalized.
+    Linear projections create Q, K, and V.
+    Softmax is used to turn attention scores into weights.
+    The MLP uses more matrix multiplication and activation functions.
+    Then the block produces updated token representations.
+    Now we can fully derive attention, because the main pieces are no longer foreign.
+    The score matrix is built from matrix multiplication.
+    The weights are produced by softmax.
+    The value mixing is another matrix multiplication.
+    The output projection is wx plus b again.
+    That is the reason this learning path works: attention looks complex, but it is composed from operators we already studied one by one.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Engineering lens</div>
+  <h2>Every operator becomes a kernel contract</h2>
+  <table class="fragment">
+    <thead>
+      <tr><th>Math object</th><th>Runtime question</th><th>Why C-Kernel-Engine matters</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Wx+b</td><td>How is GEMM tiled, cached, and vectorized?</td><td>Performance lives in memory layout and loops.</td></tr>
+      <tr><td>Softmax</td><td>How do we avoid overflow and avoid materializing Jacobians?</td><td>Stable kernels preserve the math efficiently.</td></tr>
+      <tr><td>Activations</td><td>How expensive is exp/tanh/erf approximation?</td><td>Forward and backward kernels must match.</td></tr>
+      <tr><td>Norms</td><td>How do reductions and broadcasts behave on CPU?</td><td>Mean/RMS, variance, scale, and residuals are memory-sensitive.</td></tr>
+    </tbody>
+  </table>
+  <aside class="notes">
+    This is also where I want to connect the math to engineering.
+    Every mathematical operator becomes a runtime contract.
+    Matrix multiplication becomes questions about tiling, memory layout, and vectorization.
+    Softmax becomes questions about numerical stability and efficient reductions.
+    Activations become questions about approximation cost and backward-pass correctness.
+    Normalization becomes questions about reductions, broadcasts, cache behavior, and residual connections.
+    This is why I keep connecting the blog series to C-Kernel-Engine.
+    The goal is not only to explain the math.
+    The goal is to understand what the model is actually doing at the kernel level.
+  </aside>
+</section>
+
+
+<section>
+  <div class="kicker">Chapter 11</div>
+  <h2>Positional encoding tells attention where tokens are</h2>
+  <div class="split">
+    <div>
+      <p class="big-claim fragment">Self-attention can compare tokens, but token order must be injected into the representation.</p>
+      <div class="small-formula fragment">token meaning = embedding + position signal<br>modern path: RoPE rotates Q and K by position</div>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/29-positional-encoding-carousel/drafts/blog/assets/04_rope_rotation.png" alt="RoPE rotation diagram">
+    </div>
+  </div>
+  <aside class="notes">
+    Before we derive attention, we need one more idea: position.
+    A transformer sees a sequence of token vectors, but plain self-attention does not automatically know whether a token came first, last, or somewhere in the middle.
+    If we only give the model token embeddings, then the content is present, but the order is under-specified.
+    Positional encoding fixes this.
+    In older transformers, this could be sinusoidal position vectors or learned position embeddings.
+    In many modern transformer-style models, the important idea is RoPE, or rotary positional embedding.
+    RoPE does not simply add a position vector to the token.
+    It rotates the query and key vectors according to position.
+    That means the dot product between Q and K can carry relative position information.
+    So when we move into attention, remember that Q and K are not just content vectors.
+    They can also carry position through this rotation step.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 12</div>
+  <h2>Attention is token-to-token routing</h2>
+  <div class="split">
+    <div>
+      <p class="big-claim fragment">Each token asks: which previous tokens should influence my next representation?</p>
+      <div class="flow">
+        <div class="node fragment">Q</div><div class="arrow fragment">·</div>
+        <div class="node fragment">K^T</div><div class="arrow fragment">-></div>
+        <div class="node yellow fragment">scores</div><div class="arrow fragment">-></div>
+        <div class="node green fragment">weights</div><div class="arrow fragment">-></div>
+        <div class="node fragment">mix V</div>
+      </div>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/31-attention-mechanism-carousel/drafts/blog/assets/01_attention_overview.png" alt="Attention overview">
+    </div>
+  </div>
+  <aside class="notes">
+    Now we can explain attention directly.
+    Attention is token-to-token routing.
+    For each token, the model asks: which other tokens should influence this token's next representation?
+    The query vector is the question that the current token asks.
+    The key vector is what each token offers for matching.
+    The value vector is the information that will actually be copied or mixed if the attention weight is high.
+    The score matrix comes from Q times K transpose.
+    Then we scale the scores, apply the causal mask if this is a decoder, and run softmax.
+    The softmax output gives us attention weights.
+    Finally, those weights multiply V, which produces the mixed representation.
+    So attention is not one magical operation.
+    It is a pipeline: project Q K V, compare Q and K, normalize scores into weights, and use those weights to mix V.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Multi-head attention</div>
+  <h2>Many heads, many perspectives</h2>
+  <div class="split">
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/31-attention-mechanism-carousel/drafts/blog/assets/03_multihead_split.png" alt="Multi-head split">
+    </div>
+    <div>
+      <div class="card fragment">
+        <h3>Why multiple heads?</h3>
+        <p>Each head operates in a smaller subspace (d_model / n_heads). Different heads can learn different attention patterns — syntax in one, semantics in another, positional in a third.</p>
+      </div>
+      <div class="card fragment">
+        <h3>Grouped Query Attention (GQA)</h3>
+        <p>Share K/V across groups of Q heads. Reduces KV-cache memory during inference without significant quality loss. Used in LLaMA 2+, Qwen, Mistral.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    Multi-head attention splits the model dimension into multiple heads, each operating in a smaller subspace.
+    If the model dimension is 4096 and we have 32 heads, each head works with 128 dimensions.
+    This is important because different heads can learn different kinds of attention patterns.
+    Some heads may focus on syntactic relationships, others on semantic similarity, and others on positional proximity.
+    Grouped Query Attention is an optimization where multiple query heads share the same key and value heads.
+    This reduces the KV-cache memory during inference — which matters a lot for serving long-context models — without significant quality loss.
+    GQA is used in LLaMA 2, Qwen, and Mistral.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Attention forward pass</div>
+  <h2>The complete forward path is a sequence of known operators</h2>
+  <div class="flow">
+    <div class="node fragment">X</div><div class="arrow fragment">-></div>
+    <div class="node fragment">Q/K/V projections</div><div class="arrow fragment">-></div>
+    <div class="node fragment">split heads</div><div class="arrow fragment">-></div>
+    <div class="node fragment">RoPE</div><div class="arrow fragment">-></div>
+    <div class="node yellow fragment">QK^T / sqrt(d)</div><div class="arrow fragment">-></div>
+    <div class="node rose fragment">mask</div><div class="arrow fragment">-></div>
+    <div class="node green fragment">softmax</div><div class="arrow fragment">-></div>
+    <div class="node fragment">weights V</div><div class="arrow fragment">-></div>
+    <div class="node fragment">W_O</div>
+  </div>
+  <aside class="notes">
+    This slide is the complete attention forward pass at the operator level.
+    We start with X, the token representations entering the block.
+    We create Q, K, and V using three learned linear projections.
+    Then we split those projections into heads, because each head gets its own lower-dimensional attention space.
+    If the model uses RoPE, we rotate Q and K by position.
+    Then we compute Q times K transpose, divided by the square root of the head dimension.
+    The division by square root d keeps the scores from becoming too large as the head dimension grows.
+    In a decoder, we apply the causal mask so each token cannot look into the future.
+    Then softmax converts the masked scores into attention weights.
+    Those weights multiply V, producing the per-head output.
+    Finally, we concatenate the heads and apply the output projection W O.
+    Every part of this forward pass is something we can map back to a blog topic and a kernel: GEMM, RoPE, masking, softmax, value mixing, and projection.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Why attention gets expensive</div>
+  <h2>The score matrix grows with context length squared</h2>
+  <div class="grid-2">
+    <div class="card fragment">
+      <h3>Shape pressure</h3>
+      <p class="small-formula">scores = Q [T x d] * K^T [d x T] = [T x T]</p>
+      <p>Long context makes the attention matrix huge.</p>
+    </div>
+    <div class="card fragment">
+      <h3>Kernel pressure</h3>
+      <p>Materializing scores and softmax weights can dominate memory, especially during training when backward needs saved values.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    The main reason attention becomes expensive is the score matrix.
+    If the sequence length is T, then Q times K transpose produces a T by T matrix for each head.
+    That means the memory and compute pressure grows with context length squared.
+    For short sequences, this is manageable.
+    For very long sequences, it becomes the bottleneck.
+    This is why attention kernels matter so much.
+    It is also why modern models keep inventing attention variants: grouped query attention, sliding window attention, compressed attention, sparse attention, and flash attention.
+    The goal is usually the same: preserve the useful behavior of attention while avoiding the cost of fully materializing enormous T by T matrices.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Flash Attention intuition</div>
+  <h2>Do the same math without storing the whole matrix</h2>
+  <div class="split">
+    <div>
+      <p class="big-claim fragment">Flash Attention is not a different model idea. It is a better implementation strategy for exact attention.</p>
+      <p class="muted fragment">Tile Q, K, and V. Stream blocks through cache. Keep an online softmax state. Avoid writing the full attention matrix to memory.</p>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/31-attention-mechanism-carousel/drafts/blog/assets/08_flash_attention.png" alt="Flash Attention tiling">
+    </div>
+  </div>
+  <aside class="notes">
+    Flash Attention is important because it separates the mathematical model from the implementation strategy.
+    The model is still doing attention.
+    The output is still based on Q, K, V, softmax, and value mixing.
+    The difference is that the kernel avoids writing the full attention matrix to memory.
+    Instead, it processes Q, K, and V in tiles.
+    It keeps track of the softmax normalization online, so it can stream through blocks and still get the correct result.
+    This is exactly the kind of idea I want to understand in C-Kernel-Engine terms.
+    The math says attention.
+    The kernel asks: what must be stored, what can be recomputed, what can stay in cache, and what must be saved for backward?
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 13</div>
+  <h2>The loss starts the backward pass with p minus one-hot</h2>
+  <div class="split">
+    <div>
+      <div class="formula fragment">dlogits = p - one_hot(target)</div>
+      <p class="muted fragment">Softmax plus cross entropy collapses into a clean gradient at the output row.</p>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/33-full-backprop-carousel/drafts/blog/assets/loss_gradient_flow.png" alt="Loss gradient flow">
+    </div>
+  </div>
+  <aside class="notes">
+    Now we move from forward inference into training.
+    At the output of the model, we have logits over the vocabulary.
+    Softmax turns those logits into probabilities.
+    Cross entropy compares those probabilities against the target token.
+    The beautiful result is that the gradient with respect to the logits becomes p minus one hot of the target.
+    This is one of the most important shortcuts in neural network training.
+    We do not need to separately build the full softmax Jacobian and then multiply by the cross entropy derivative.
+    The combined operator gives us a clean row of gradients.
+    The correct target logit receives probability minus one.
+    Every other logit receives its predicted probability.
+    That row is the starting signal for the full backward pass through the language model.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Full backward pass</div>
+  <h2>Backprop reverses the whole model graph</h2>
+  <div class="flow">
+    <div class="node rose fragment">loss</div><div class="arrow fragment">-></div>
+    <div class="node fragment">LM head</div><div class="arrow fragment">-></div>
+    <div class="node fragment">final norm</div><div class="arrow fragment">-></div>
+    <div class="node yellow fragment">decoder layers reversed</div><div class="arrow fragment">-></div>
+    <div class="node fragment">embedding scatter-add</div>
+  </div>
+  <aside class="notes">
+    The full backward pass is the chain rule applied to the entire model graph in reverse.
+    We start from the loss gradient at the logits.
+    Then we go backward through the LM head, which is usually a matrix multiplication against the vocabulary weights.
+    Then we pass backward through the final normalization.
+    After that, we walk through the decoder layers in reverse order.
+    Inside each decoder layer, we reverse the residual additions, the MLP, the attention block, the Q K V projections, RoPE, softmax, and value mixing.
+    Finally, when the gradient reaches the token embeddings, we scatter-add gradients into the embedding table rows that were used by the input tokens.
+    This is why backprop is not one formula.
+    It is a stitched sequence of local gradient rules.
+    Each operator has a backward rule, and the training engine has to connect those rules in the correct order.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Decoder layer backward</div>
+  <h2>Residual paths split and recombine gradients</h2>
+  <div class="split">
+    <div>
+      <img class="img-card tall fragment" src="../../antsand.com/workspace/contentCreation/33-full-backprop-carousel/drafts/blog/assets/decoder_layer_backward.png" alt="Decoder layer backward">
+    </div>
+    <div>
+      <div class="card fragment">
+        <h3>The key idea</h3>
+        <p>The residual path sends gradient directly backward, while attention and MLP paths compute their own parameter and input gradients.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    A decoder layer backward pass is where the bookkeeping becomes more serious.
+    In the forward pass, residual connections add sublayer outputs back into the main stream.
+    In the backward pass, that addition becomes a gradient split.
+    Part of the gradient flows directly through the residual path.
+    Part flows into the sublayer that created the added output.
+    For the MLP, that means reversing the second projection, the activation or gate, and the first projection.
+    For attention, that means reversing the output projection, head concatenation, value mixing, softmax, score computation, RoPE, and Q K V projections.
+    The important point is that every branch must contribute back to dX.
+    The final input gradient for the layer is the sum of the residual gradient and the gradients from the attention and MLP paths.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Saved tensors</div>
+  <h2>Backward needs evidence from forward</h2>
+  <div class="grid-3">
+    <div class="card fragment"><h3>Attention</h3><p>May need Q, K, V, weights, masks, or enough state to recompute them.</p></div>
+    <div class="card fragment"><h3>Norms</h3><p>Need normalized input, scale, RMS or variance state.</p></div>
+    <div class="card fragment"><h3>Activations</h3><p>Need input or output values to compute local derivatives.</p></div>
+  </div>
+  <aside class="notes">
+    One of the practical lessons from implementing training is that backward needs evidence from forward.
+    The backward rule for an operator often depends on values that were computed during the forward pass.
+    Attention may need Q, K, V, masks, softmax weights, or enough state to recompute them safely.
+    Normalization may need the input, the normalized value, the scale parameter, and the RMS or variance state.
+    Activation backward often needs either the original input or the activation output.
+    This is why training memory is harder than inference memory.
+    In inference, we mostly care about producing the next output.
+    In training, we also need to preserve or recompute the information required to differentiate every operator.
+    C-Kernel-Engine's save-for-backward rules make this explicit instead of hiding it inside a runtime autograd graph.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Static IR vs autograd</div>
+  <h2>The difference is stitching, not magic</h2>
+  <div class="grid-2">
+    <div class="card fragment">
+      <h3>PyTorch style</h3>
+      <p>Build a dynamic graph at runtime, then walk that graph backward.</p>
+    </div>
+    <div class="card fragment">
+      <h3>C-Kernel-Engine style</h3>
+      <p>Declare forward ops and grad rules, derive saved tensors, and generate the training path.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    This is a point I want to say carefully.
+    PyTorch is not magic, and C-Kernel-Engine is not trying to avoid the math.
+    Both systems need forward kernels and backward kernels.
+    Both systems need correct local gradient rules.
+    The difference is how the pieces are stitched together.
+    PyTorch usually builds a graph dynamically while the program runs, and autograd walks that graph backward.
+    C-Kernel-Engine is more static.
+    The IR declares the forward operations, the grad rules declare the backward contract, and the builder can derive which tensors must be saved for backward.
+    So the difference is not that one system needs gradients and the other does not.
+    The difference is whether the stitching is mostly runtime graph walking or compile-time generation from explicit contracts.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Chapter 14</div>
+  <h2>Optimizers decide how parameters move</h2>
+  <div class="split">
+    <div>
+      <p class="big-claim fragment">Gradients tell us direction. The optimizer decides the actual step.</p>
+      <div class="flow">
+        <div class="node fragment">gradient</div><div class="arrow fragment">-></div>
+        <div class="node fragment">state</div><div class="arrow fragment">-></div>
+        <div class="node yellow fragment">update rule</div><div class="arrow fragment">-></div>
+        <div class="node green fragment">new weights</div>
+      </div>
+    </div>
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/34-optimizers-carousel/drafts/blog/assets/optimizer_progression.png" alt="Optimizer progression">
+    </div>
+  </div>
+  <aside class="notes">
+    Once backprop has computed gradients, the model still has not learned yet.
+    Learning happens when the optimizer updates the parameters.
+    The gradient tells us a direction, but the optimizer decides the actual step.
+    Plain SGD takes a direct step opposite the gradient.
+    Momentum adds velocity, so the optimizer can smooth noisy gradients and keep moving through shallow regions.
+    Adam keeps moving averages of both the gradient and the squared gradient, which creates an adaptive step size per parameter.
+    AdamW changes how weight decay is applied, decoupling it from the gradient update.
+    So the optimizer is the bridge between gradient information and actual parameter movement.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">SGD to AdamW</div>
+  <h2>Each optimizer fixes a specific failure mode</h2>
+  <table class="fragment">
+    <thead>
+      <tr><th>Optimizer</th><th>What it adds</th><th>Why it matters</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>SGD</td><td>Step opposite gradient</td><td>Simple, but noisy and sensitive to learning rate.</td></tr>
+      <tr><td>Momentum</td><td>Velocity state</td><td>Smooths noise and helps push through flat regions.</td></tr>
+      <tr><td>Adam</td><td>First and second moments</td><td>Adapts step size per parameter.</td></tr>
+      <tr><td>AdamW</td><td>Decoupled weight decay</td><td>Separates regularization from gradient scaling.</td></tr>
+    </tbody>
+  </table>
+  <aside class="notes">
+    I want to present optimizers as a sequence of fixes, not as a list of names.
+    SGD is the simplest rule: move weights opposite the gradient.
+    The problem is that raw gradients can be noisy, and the same learning rate may not work well for every direction.
+    Momentum adds a velocity state, which smooths the path and helps the update keep moving through flat or noisy regions.
+    Adam adds two moving averages: the first moment tracks the gradient direction, and the second moment tracks the scale of recent squared gradients.
+    That lets Adam adapt the step size for each parameter.
+    AdamW fixes a subtle but important issue: weight decay should not be entangled with Adam's adaptive gradient scaling.
+    By decoupling weight decay, AdamW gives a cleaner regularization behavior and is widely used in transformer training.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">AdamW kernel view</div>
+  <h2>The update is also a performance-critical kernel</h2>
+  <pre class="fragment"><code class="language-c">m = beta1 * m + (1 - beta1) * grad;
+v = beta2 * v + (1 - beta2) * grad * grad;
+update = m_hat / (sqrt(v_hat) + eps);
+param = param - lr * update;
+param = param - lr * weight_decay * param;</code></pre>
+  <aside class="notes">
+    AdamW also matters as a kernel.
+    For every trainable parameter, the optimizer reads the parameter, the gradient, the first moment, and the second moment.
+    It updates the moving averages, applies bias correction or an equivalent corrected learning rate, computes the normalized update, applies the parameter step, and applies decoupled weight decay.
+    That is a lot of memory traffic.
+    For large models, optimizer state can be much larger than the raw parameter tensor.
+    This is why fused optimizer kernels matter.
+    If we can combine gradient clipping, moment updates, parameter updates, and weight decay into one pass, we reduce memory traffic and improve throughput.
+    Again, the math is one part of the story.
+    The memory movement is the other part.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">The complete loop</div>
+  <h2>Now the whole training system is visible</h2>
+  <div class="split">
+    <div>
+      <img class="img-card fragment" src="../../antsand.com/workspace/contentCreation/33-full-backprop-carousel/drafts/blog/assets/training_loop.png" alt="Training loop phases">
+    </div>
+    <div>
+      <div class="card fragment">
+        <h3>One loop</h3>
+        <p>Tokenize, embed, run decoder layers, compute logits, compute loss, backpropagate, update weights, repeat.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    At this point, the full training system is visible.
+    We start with text and tokenize it.
+    We look up embeddings and add position information.
+    We run the tokens through decoder layers made of normalization, attention, residual paths, and MLPs.
+    We project to vocabulary logits.
+    We compute softmax cross entropy loss.
+    The backward pass sends gradients from the loss through the LM head, final norm, decoder layers, attention, MLP, and embeddings.
+    Then the optimizer updates the parameters.
+    And the whole loop repeats.
+    This is the bridge from basic machine learning to actual language model training.
+    The pieces are still the same: linear maps, softmax, activations, norms, attention, gradients, and optimizer updates.
+    The difference is scale, memory layout, kernel implementation, and the discipline required to make every step correct.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">What this enables next</div>
+  <h2>Now modern papers become readable</h2>
+  <div class="grid-3">
+    <div class="card fragment"><h3>DeltaNet</h3><p>Compare attention alternatives because the baseline attention path is clear.</p></div>
+    <div class="card fragment"><h3>DeepSeek CSA/HCA</h3><p>Understand compressed and sparse attention as changes to the expensive attention matrix.</p></div>
+    <div class="card fragment"><h3>mHC</h3><p>Understand residual highways as changes to gradient and information flow.</p></div>
+    <div class="card fragment"><h3>Muon</h3><p>Study optimizer changes after AdamW is grounded.</p></div>
+    <div class="card fragment"><h3>KV cache</h3><p>Analyze inference memory once Q/K/V and attention are clear.</p></div>
+    <div class="card fragment"><h3>Kernel design</h3><p>Map every paper feature back to tensors, saved state, and kernels.</p></div>
+  </div>
+  <aside class="notes">
+    This is why I wanted to build the foundation this way.
+    Once attention, backpropagation, and AdamW are grounded, modern papers become more readable.
+    DeltaNet can be studied as an alternative to attention-style sequence mixing.
+    DeepSeek's CSA and HCA can be studied as changes to the expensive attention matrix and long-context memory pattern.
+    Manifold-constrained hyper-connections can be studied as changes to residual highways and gradient flow.
+    Muon can be studied as an optimizer change, because we already understand the role of AdamW.
+    KV cache can be studied as an inference memory structure, because Q, K, and V are no longer abstract.
+    The goal is to map each new paper feature back to tensors, saved state, kernels, and training behavior.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Roadmap after this foundation</div>
+  <h2>Where the series should continue next</h2>
+  <div class="grid-3">
+    <div class="card fragment"><h3>DeepSeek V4</h3><p>CSA, HCA, mHC, MoE routing, and long-context training behavior.</p></div>
+    <div class="card fragment"><h3>DeltaNet/Qwen</h3><p>Alternative sequence mixing and when attention is not the only path.</p></div>
+    <div class="card fragment"><h3>KV cache</h3><p>Prefill, decode, batching, and memory bandwidth during inference.</p></div>
+    <div class="card fragment"><h3>FP8/FP4 kernels</h3><p>Quantization, scaling, accumulation, and numerical stability.</p></div>
+    <div class="card fragment"><h3>Pretraining recipe</h3><p>Data mixture, curriculum, memorization, generalization, and evaluation.</p></div>
+    <div class="card fragment"><h3>Robotics bridge</h3><p>Use the same method for Kalman filters, PID, ESCs, and flight control.</p></div>
+  </div>
+  <aside class="notes">
+    Now that attention, full backpropagation, and AdamW are in the deck, the next step is to use this foundation to read modern papers.
+    DeepSeek V4 is a good target because it introduces attention compression, hyper-connections, MoE routing, and optimizer changes.
+    Qwen and DeltaNet are also useful because they show that sequence modeling is still an active algorithm design space.
+    Then we can move into inference details like KV cache, prefill, decode, batching, and memory bandwidth.
+    After that, we can study FP8 and FP4 kernels, because numerical formats are now part of model architecture and training cost.
+    We should also keep a pretraining track, because architecture only works when the data mixture and training recipe support it.
+    Finally, I want to reuse this exact method outside LLMs: Kalman filters, PID control, ESCs, MOSFETs, and flight controllers can also be explained from math to code to measurements.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Content loop</div>
+  <h2>Video, carousel, blog, code</h2>
+  <div class="flow">
+    <div class="node fragment">YouTube video</div><div class="arrow fragment">-></div>
+    <div class="node yellow fragment">carousel summary</div><div class="arrow fragment">-></div>
+    <div class="node fragment">long blog</div><div class="arrow fragment">-></div>
+    <div class="node green fragment">C code / plots</div><div class="arrow fragment">-></div>
+    <div class="node rose fragment">next topic</div>
+  </div>
+  <p class="muted fragment">The key is that each artifact reinforces the others. The deck becomes the video spine, the blog becomes the deep reference, and the code keeps the math honest.</p>
+  <aside class="notes">
+    This is also the workflow I want to use for the series.
+    The YouTube video gives the narrative.
+    The carousel gives a short visual summary.
+    The blog gives the long-form derivation and explanation.
+    The plots and C code keep the math grounded.
+    Then each topic becomes the foundation for the next topic.
+    This is why I am building the material this way.
+    I do not want isolated posts.
+    I want a connected learning path where each artifact reinforces the others.
+  </aside>
+</section>
+
+<section>
+  <div class="kicker">Reference links</div>
+  <h2>The full reading and viewing path</h2>
+  <div class="grid-2">
+    <div class="card fragment">
+      <h3>📺 YouTube Channel</h3>
+      <ul>
+        <li><a href="https://youtube.com/@shivasnotes">youtube.com/@shivasnotes</a></li>
+        <li>Video walkthroughs for each chapter</li>
+        <li>C-Kernel-Engine deep dives</li>
+        <li>Training experiments and profiling</li>
+      </ul>
+    </div>
+    <div class="card fragment">
+      <h3>📝 Blog Series</h3>
+      <ul>
+        <li><a href="https://www.shivasnotes.com/blog/5895/Derivatives-And-The-Chain-Rule:-The-Math-Of-Tiny-Changes">Derivatives & Chain Rule</a></li>
+        <li><a href="https://www.shivasnotes.com/blog/5896/Backpropagation-From-wx+b:-The-Smallest-Training-Loop">Backprop from wx+b</a></li>
+        <li><a href="https://www.shivasnotes.com/blog/5893/Training-SVGs-With-C-Kernel-Engine:-A-Research-Report">SVG Training Report</a></li>
+        <li>Matrix Wx+b, Softmax, Activations, LayerNorm, Skip Connections, Tokenization, Attention, Full Backprop, Optimizers — add links as each post publishes</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid-2 fragment" style="margin-top:18px;">
+    <div class="card">
+      <h3>🔧 C-Kernel-Engine</h3>
+      <ul>
+        <li><a href="https://c-kernel-engine.github.io/C-Kernel-Engine/concepts.html">CK-Engine Concepts</a></li>
+        <li>Forward + backward kernel pairs</li>
+        <li>grad_rules_v7.json contract</li>
+        <li>Generated training runtimes</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🎯 Key references</h3>
+      <ul>
+        <li>Vaswani et al. — "Attention Is All You Need" (2017)</li>
+        <li>Su et al. — RoPE (2021)</li>
+        <li>Loshchilov & Hutter — AdamW (2019)</li>
+        <li>Dao et al. — Flash Attention (2022)</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    If you want to read the full version of these ideas, I am linking the public reading path here.
+    The derivatives and chain rule post explains the foundation of tiny changes.
+    The wx plus b post explains the smallest training loop.
+    As the matrix wx plus b, softmax, activation, normalization, positional encoding, tokenization, attention, full backpropagation, and optimizer posts go live, I will add those links as well.
+    The goal is to make the video useful on its own, but also give viewers a deeper path if they want to study the details.
+  </aside>
+</section>
+
+</div>
+</div>
+
+<script src="../reveal.js/dist/reveal.js"></script>
+<script src="../reveal.js/plugin/notes/notes.js"></script>
+<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: true,
+    transition: 'slide',
+    backgroundTransition: 'fade',
+    plugins: [ RevealNotes, RevealHighlight ]
+  });
+</script>
+</body>
+</html>
