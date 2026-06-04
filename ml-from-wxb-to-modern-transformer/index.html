@@ -15,18 +15,22 @@
 
     :root {
       --bg: #090b10;
-      --panel: rgba(16, 24, 39, 0.88);
-      --panel-2: rgba(28, 38, 56, 0.92);
-      --line: rgba(255, 255, 255, 0.14);
-      --muted: #a8b3c2;
+      --panel: rgba(12, 28, 25, 0.88);
+      --panel-2: rgba(20, 40, 36, 0.92);
+      --line: rgba(255, 255, 255, 0.12);
+      --muted: #94a3b8;
       --ink: #f8fafc;
-      --cyan: #67e8f9;
-      --blue: #82aaff;
+      --teal: #2dd4a8;
+      --teal-deep: #0f766e;
+      --orange: #f15b2a;
       --yellow: #ffd166;
       --green: #71f79f;
-      --rose: #fb7185;
-      --orange: #f97316;
-      --purple: #c792ea;
+      --rose: #f15b2a;
+      --amber: #f59e0b;
+      --purple: #a78bfa;
+      /* aliases for existing class names */
+      --cyan: #2dd4a8;
+      --blue: #2dd4a8;
       --r-main-font-size: 25px;
       --r-heading-text-transform: none;
     }
@@ -35,11 +39,11 @@
 
     body {
       background:
-        radial-gradient(circle at 14% 12%, rgba(103, 232, 249, 0.18), transparent 30%),
-        radial-gradient(circle at 86% 20%, rgba(251, 113, 133, 0.15), transparent 28%),
-        radial-gradient(circle at 70% 84%, rgba(113, 247, 159, 0.10), transparent 34%),
-        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+        radial-gradient(circle at 14% 12%, rgba(15, 118, 110, 0.22), transparent 30%),
+        radial-gradient(circle at 86% 20%, rgba(241, 91, 42, 0.16), transparent 28%),
+        radial-gradient(circle at 70% 84%, rgba(255, 209, 102, 0.10), transparent 34%),
+        linear-gradient(rgba(255,255,255,0.020) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.020) 1px, transparent 1px),
         var(--bg);
       background-size: auto, auto, auto, 42px 42px, 42px 42px, auto;
     }
@@ -64,7 +68,7 @@
     .reveal h1 { font-size: 2.62em; }
     .reveal h2 { font-size: 1.95em; }
     .reveal h3 {
-      color: var(--cyan);
+      color: var(--teal);
       font-size: 0.82em;
       letter-spacing: 0.12em;
       text-transform: uppercase;
@@ -79,7 +83,7 @@
     .reveal ul { display: block; margin-left: 1.1em; }
 
     .reveal pre {
-      border: 1px solid rgba(103, 232, 249, 0.22);
+      border: 1px solid rgba(15, 118, 110, 0.30);
       border-radius: 18px;
       box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
       margin: 0;
@@ -92,7 +96,7 @@
     }
 
     .kicker {
-      color: var(--yellow);
+      color: var(--orange);
       font-size: 0.58em;
       font-weight: 900;
       letter-spacing: 0.16em;
@@ -109,9 +113,9 @@
 
     .title-card {
       background:
-        radial-gradient(circle at 12% 5%, rgba(103, 232, 249, 0.18), transparent 42%),
-        radial-gradient(circle at 88% 18%, rgba(255, 209, 102, 0.13), transparent 36%),
-        linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(31, 41, 55, 0.90));
+        radial-gradient(circle at 12% 5%, rgba(15, 118, 110, 0.22), transparent 42%),
+        radial-gradient(circle at 88% 18%, rgba(241, 91, 42, 0.16), transparent 36%),
+        linear-gradient(135deg, rgba(8, 18, 16, 0.96), rgba(15, 30, 28, 0.90));
       border: 1px solid var(--line);
       border-radius: 34px;
       box-shadow: 0 34px 100px rgba(0,0,0,0.45);
@@ -135,7 +139,7 @@
     .title-card > * { position: relative; z-index: 1; }
 
     .gradient-text {
-      background: linear-gradient(135deg, #f8fafc 0%, #67e8f9 35%, #ffd166 67%, #71f79f 100%);
+      background: linear-gradient(135deg, #f8fafc 0%, #2dd4a8 30%, #f15b2a 60%, #ffd166 100%);
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
@@ -157,7 +161,7 @@
 
     .card {
       background: var(--panel);
-      border: 1px solid var(--line);
+      border: 1px solid rgba(45, 212, 168, 0.12);
       border-radius: 22px;
       box-shadow: 0 22px 60px rgba(0,0,0,0.30);
       padding: 22px;
@@ -168,7 +172,7 @@
     .card li { font-size: 0.72em; }
 
     .big-claim {
-      border-left: 7px solid var(--yellow);
+      border-left: 7px solid var(--orange);
       font-size: 1.14em;
       line-height: 1.28;
       padding-left: 24px;
@@ -184,8 +188,8 @@
     }
 
     .node {
-      background: rgba(103, 232, 249, 0.09);
-      border: 2px solid rgba(103, 232, 249, 0.58);
+      background: rgba(15, 118, 110, 0.12);
+      border: 2px solid rgba(45, 212, 168, 0.55);
       border-radius: 16px;
       color: #fff;
       font-size: 0.72em;
@@ -194,14 +198,14 @@
       text-align: center;
     }
 
-    .node.yellow { background: rgba(255, 209, 102, 0.11); border-color: rgba(255, 209, 102, 0.58); }
-    .node.green { background: rgba(113, 247, 159, 0.10); border-color: rgba(113, 247, 159, 0.54); }
-    .node.rose { background: rgba(251, 113, 133, 0.10); border-color: rgba(251, 113, 133, 0.54); }
-    .arrow { color: var(--yellow); font-size: 1.1em; font-weight: 900; }
+    .node.yellow { background: rgba(241, 91, 42, 0.12); border-color: rgba(241, 91, 42, 0.58); }
+    .node.green { background: rgba(45, 212, 168, 0.12); border-color: rgba(45, 212, 168, 0.60); }
+    .node.rose { background: rgba(241, 91, 42, 0.10); border-color: rgba(241, 91, 42, 0.54); }
+    .arrow { color: var(--orange); font-size: 1.1em; font-weight: 900; }
 
     .formula {
       background: #020617;
-      border: 1px solid rgba(103, 232, 249, 0.30);
+      border: 1px solid rgba(15, 118, 110, 0.35);
       border-radius: 20px;
       color: #f8fafc;
       font-family: "IBM Plex Mono", monospace;
@@ -281,7 +285,7 @@
     }
 
     .step strong {
-      color: var(--yellow);
+      color: var(--orange);
       display: block;
       font-size: 0.62em;
       letter-spacing: 0.10em;
@@ -318,9 +322,9 @@
     }
 
     .pill {
-      border: 1px solid rgba(255,255,255,0.16);
+      border: 1px solid rgba(45, 212, 168, 0.22);
       border-radius: 999px;
-      color: #dbeafe;
+      color: #d1fae5;
       font-size: 0.56em;
       font-weight: 900;
       letter-spacing: 0.08em;
@@ -343,12 +347,12 @@
     }
 
     .reveal th {
-      background: rgba(103, 232, 249, 0.09);
-      color: var(--cyan);
+      background: rgba(15, 118, 110, 0.12);
+      color: var(--teal);
       font-weight: 900;
     }
 
-    a { color: var(--cyan); }
+    a { color: var(--teal); }
   </style>
 </head>
 <body>
@@ -357,7 +361,7 @@
 
 <section>
   <div class="title-card">
-    <div class="kicker">Video spine | ShivasNotes + C-Kernel-Engine</div>
+    <div class="kicker">Antshiv Robotics · ShivasNotes · C-Kernel-Engine</div>
     <h1><span class="gradient-text">Basics of ML</span><br>from wx+b to modern transformer models</h1>
     <p class="muted fragment">A grounded path from tiny changes, to linear layers, to probabilities, nonlinearities, normalization, attention, full backpropagation, and optimizer updates.</p>
     <div class="pill-row">
