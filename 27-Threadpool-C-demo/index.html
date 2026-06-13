@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Threadpools From First Principles</title>
+  <link rel="stylesheet" href="../reveal.js/dist/reset.css">
+  <link rel="stylesheet" href="../reveal.js/dist/reveal.css">
+  <link rel="stylesheet" href="../reveal.js/dist/theme/black.css" id="theme">
+  <link rel="stylesheet" href="../reveal.js/plugin/highlight/monokai.css">
+  <style>
+    @font-face { font-family: Artifakt; src: url('../../antsand.com/public/fonts/ArtifaktElement/ArtifaktElement-Regular.woff2') format('woff2'); font-weight: 400; }
+    @font-face { font-family: Artifakt; src: url('../../antsand.com/public/fonts/ArtifaktElement/ArtifaktElement-Bold.woff2') format('woff2'); font-weight: 800; }
+    @font-face { font-family: Schmal; src: url('../../antsand.com/public/fonts/SchmalfetteCP/SchmalfetteCP.woff2') format('woff2'); font-weight: 900; }
+    :root {
+      --bg: #080b10; --panel: rgba(12, 28, 25, 0.90); --panel2: rgba(20, 40, 36, 0.92);
+      --line: rgba(255,255,255,.12); --muted: #94a3b8; --ink: #f8fafc;
+      --teal: #2dd4a8; --orange: #f15b2a; --yellow: #ffd166; --rose: #fb7185;
+      --r-main-font-size: 25px; --r-heading-text-transform: none;
+    }
+    body { background: radial-gradient(circle at 12% 10%, rgba(15,118,110,.26), transparent 32%), radial-gradient(circle at 88% 18%, rgba(241,91,42,.16), transparent 30%), linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px), var(--bg); background-size: auto, auto, 42px 42px, 42px 42px, auto; }
+    .reveal { color: var(--ink); font-family: Artifakt, Avenir, sans-serif; }
+    .reveal .slides { text-align: left; }
+    .reveal .slides section { padding: 28px !important; }
+    .reveal h1, .reveal h2 { font-family: Artifakt, sans-serif; letter-spacing: -0.055em; line-height: .94; }
+    .reveal h1 { font-size: 2.85em; }
+    .reveal h2 { color: var(--teal); font-size: 2.0em; }
+    .reveal h3 { color: var(--orange); font-size: .64em; letter-spacing: .18em; text-transform: uppercase; }
+    .reveal p, .reveal li { color: #e5e7eb; line-height: 1.35; }
+    .reveal pre { border: 1px solid rgba(45,212,168,.24); border-radius: 18px; box-shadow: 0 24px 70px rgba(0,0,0,.34); margin: 0; width: 100%; }
+    .reveal code { font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace; line-height: 1.28; }
+    .title-card { background: radial-gradient(circle at 10% 8%, rgba(45,212,168,.2), transparent 40%), radial-gradient(circle at 90% 20%, rgba(241,91,42,.15), transparent 38%), linear-gradient(135deg, rgba(8,18,16,.96), rgba(15,30,28,.91)); border: 1px solid var(--line); border-radius: 34px; box-shadow: 0 34px 100px rgba(0,0,0,.45); padding: 42px; position: relative; overflow: hidden; }
+    .title-card::after { content:""; position:absolute; inset:0; background:linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size:36px 36px; opacity:.45; pointer-events:none; }
+    .title-card > * { position: relative; z-index: 1; }
+    .gradient-text { background: linear-gradient(135deg, #f8fafc 0%, #2dd4a8 32%, #f15b2a 67%, #ffd166 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .kicker { color: var(--orange); font-weight: 900; letter-spacing: .16em; text-transform: uppercase; font-size: .58em; margin-bottom: .8rem; }
+    .grid-2 { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 22px; }
+    .grid-3 { display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+    .card { background: var(--panel); border: 1px solid rgba(45,212,168,.14); border-radius: 22px; box-shadow: 0 22px 60px rgba(0,0,0,.30); padding: 22px; }
+    .card h3 { margin: 0 0 .65rem; }
+    .card p, .card li { font-size: .72em; }
+    .mono { font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace; }
+    .muted { color: var(--muted) !important; }
+    .orange { color: var(--orange); } .teal { color: var(--teal); } .yellow { color: var(--yellow); }
+    .step { font-family: Schmal, Artifakt, sans-serif; font-size: 3.4em; letter-spacing: .02em; color: rgba(255,255,255,.08); position: absolute; right: 36px; bottom: 18px; }
+    .cmd { background:#020617; border:1px solid rgba(255,255,255,.12); border-radius:18px; padding:18px; font-family:"JetBrains Mono", monospace; color:#d1fae5; }
+  </style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<section><div class="title-card">
+  <div class="kicker">C-Kernel-Engine Runtime</div>
+  <h1><span class="gradient-text">Threadpools</span><br>From First Principles</h1>
+  <p>A small C curriculum: raw pthreads → runtime structures → persistent workers → reusable dispatch → dummy GEMV workload.</p>
+</div><aside class="notes">Today I want to build threadpools from first principles. The hook is simple: a fast CPU kernel is not enough if the runtime keeps creating threads, allocating memory, or hiding scheduling decisions. I want to start with pthreads, then define the structures, then create the pool, then add dispatch, and finally connect it to a small matrix-vector workload. The point is to show how a C kernel becomes part of a reusable runtime.</aside></section>
+
+<section><h2>The Presentation Flow</h2><div class="grid-2">
+  <div class="card fragment"><h3>The problem</h3><p>Thread creation in the hot path can erase the benefit of a fast kernel.</p></div>
+  <div class="card fragment"><h3>The hook</h3><p>The pthread API surface is small: create, join, mutex, condition variable.</p></div>
+  <div class="card fragment"><h3>The build</h3><p>We assemble the runtime in five tiny C files instead of jumping to a large file.</p></div>
+  <div class="card fragment"><h3>The payoff</h3><p>Compile each stage, run it, observe it, then connect it to GEMV/GEMM dispatch.</p></div>
+</div><aside class="notes">The presentation flow should feel natural. Start with the real problem: thread creation in the hot path is a runtime tax. Then show that the pthread API we need is smaller than it looks. Then build the threadpool in small files. Finally compile and run each stage so the audience sees the behavior and understands why it matters for AI kernels.</aside></section>
+
+<section><h2>Why This Matters</h2><div class="grid-3">
+  <div class="card fragment"><h3>Kernel</h3><p>Computes math over pointers.</p></div>
+  <div class="card fragment"><h3>Threadpool</h3><p>Owns work scheduling and barriers.</p></div>
+  <div class="card fragment"><h3>Runtime Contract</h3><p>Keeps thread creation outside the hot path.</p></div>
+</div><p class="fragment">A CPU AI runtime needs the kernel and the dispatch contract.</p><aside class="notes">The big picture is that a kernel alone is not a model runner. A kernel computes math. A threadpool decides which worker owns which rows or tokens, how workers sleep, and how the caller waits for completion. Today I am keeping the focus on the threadpool contract.</aside></section>
+
+<section><h2>Why Not Just Use OpenMP?</h2><div class="grid-2">
+  <div class="card fragment"><h3>OpenMP fork/join</h3><p>Easy to write, but every parallel region can pay scheduling, wakeup, and barrier overhead.</p></div>
+  <div class="card fragment"><h3>Threadpool dispatch</h3><p>Create workers once, reuse them thousands of times, and send small kernel jobs quickly.</p></div>
+</div><pre class="fragment"><code class="language-text">LLM decode loop:
+  token 0:
+    RMSNorm dispatch
+    QKV GEMM dispatch
+    attention dispatch
+    MLP GEMM dispatch
+    optimizer/training dispatch ...
+
+If each small op forks a new team, overhead becomes the workload.</code></pre><aside class="notes">This is not an attack on OpenMP. OpenMP is useful. The problem is using fork-join parallel regions inside a tight AI runtime loop where hundreds of small kernels run per token or per training step. If every little operation wakes or creates a team and then joins it again, the overhead can dominate. A persistent threadpool pays the worker creation cost once, then dispatches small jobs repeatedly.</aside></section>
+
+<section><h2>Live Coding Roadmap</h2><ol>
+  <li class="fragment"><code>01_pthreads_minimal.c</code> — one raw worker thread.</li>
+  <li class="fragment"><code>02_structures.c</code> — name the runtime state.</li>
+  <li class="fragment"><code>03_pool_create.c</code> — create persistent workers.</li>
+  <li class="fragment"><code>04_dispatch_minimal.c</code> — reusable dispatch and barrier.</li>
+  <li class="fragment"><code>threadpool_demo.c</code> — Integration: row-partitioned dummy GEMV.</li>
+</ol><div class="step">01</div><aside class="notes">This is the structure I want to follow. First raw pthreads. Then the structures. Then creating the pool. Then dispatch. Then the final larger file. Each file has comments explaining what it tests, what to observe, and why it matters. This lets the audience see the bigger code as something assembled from smaller ideas, then connect it to AI runtime dispatch.</aside></section>
+
+<section><h2>Compile The Curriculum</h2><pre><code class="language-bash">cd ~/Workspace/Presentations/threadpools-c-demo
+make clean
+make all
+make run-stage1
+make run-stage2
+make run-stage3
+make run-stage4
+make run-final</code></pre><p class="fragment">The demo is not just slides. Each stage compiles and runs independently.</p><aside class="notes">This is the demo rhythm. I can compile everything first, then run each stage in order. If I am live coding, I can type the file and then use the matching make target. The point is that each stage is testable by itself.</aside></section>
+
+<section><h2>Use The Man Pages</h2><div class="grid-2">
+  <div class="card fragment"><h3>Install C references</h3><div class="cmd">sudo apt install manpages-dev manpages-posix-dev<br>sudo mandb</div></div>
+  <div class="card fragment"><h3>Search first</h3><div class="cmd">man -k pthread<br>man -k pthread_create<br>man -k readdir</div></div>
+</div><pre class="fragment"><code class="language-bash">man 7 pthreads             # overview page
+man 3 pthread_create       # glibc/Linux C function page
+man 3posix pthread_create  # POSIX function page, if installed there
+man 3 pthread_join
+man 3 pthread_mutex_lock
+man 3 pthread_cond_wait</code></pre><aside class="notes">Before writing the thread pool, I want to show how I use Linux documentation. The man page is not just trivia. Section three is the C library API documentation. Section 3posix is where some POSIX function pages may live. Section seven is overview documentation. On this machine, man 7 pthreads exists, but man 3 pthread_create did not exist until the development manpage packages were installed. So the practical workflow is install manpages-dev and manpages-posix-dev, run sudo mandb, search with man -k, then open either man 3 pthread_create or man 3posix pthread_create depending on where the page is installed.</aside></section>
+
+<section><h2>Pthread API Map</h2><div class="grid-3">
+  <div class="card fragment"><h3>Thread identity</h3><p><code>pthread_t</code><br>opaque handle for one POSIX thread.</p></div>
+  <div class="card fragment"><h3>Create / join</h3><p><code>pthread_create</code><br><code>pthread_join</code><br>start work, then wait for completion.</p></div>
+  <div class="card fragment"><h3>Coordination</h3><p><code>pthread_mutex_t</code><br><code>pthread_cond_t</code><br>protect state and sleep until work arrives.</p></div>
+</div><p class="fragment">A threadpool is mostly these APIs assembled into a reusable runtime contract.</p><aside class="notes">The pthread API surface we need is small. pthread_t identifies a worker. pthread_create starts it. pthread_join waits at shutdown. Mutexes protect shared pool state. Condition variables let workers sleep without busy waiting. A thread pool is mostly these pieces assembled into a reusable scheduling contract.</aside></section>
+
+<section><h2><code>pthread_create</code> Contract</h2><pre><code class="language-c">int pthread_create(pthread_t *thread,
+                   const pthread_attr_t *attr,
+                   void *(*start_routine)(void *),
+                   void *arg);</code></pre><ul>
+  <li class="fragment"><code>thread</code>: where the OS stores the new worker handle.</li>
+  <li class="fragment"><code>attr</code>: usually <code>NULL</code> for default attributes.</li>
+  <li class="fragment"><code>start_routine</code>: worker entry function.</li>
+  <li class="fragment"><code>arg</code>: one pointer passed into that worker.</li>
+</ul><aside class="notes">This is the signature I care about from the man page. The start routine must be a function that takes void star and returns void star. The arg is one pointer. That is why real code usually creates a small worker argument struct containing the pool pointer and the worker index.</aside></section>
+
+<section><h2>Condition Variable Pattern</h2><pre><code class="language-c">pthread_mutex_lock(&p->mu);
+while (my_generation == p->generation && !p->stop) {
+    pthread_cond_wait(&p->has_work, &p->mu);
+}
+pthread_mutex_unlock(&p->mu);</code></pre><p class="fragment">The loop matters: condition variables can wake spuriously.</p><p class="fragment">The mutex protects the predicate; the condition variable only sleeps and wakes.</p><aside class="notes">This is the key synchronization pattern. A condition variable is not the state. The state is the predicate, in this case generation changed or stop requested. The mutex protects that predicate. pthread_cond_wait atomically unlocks the mutex and sleeps. When it wakes, it locks again. The while loop matters because wakeups can be spurious and because multiple workers wake at once.</aside></section>
+
+<section><h2>What Each File Proves</h2><div class="grid-2">
+  <div class="card fragment"><h3><code>01</code></h3><p>Can we start one thread, pass one argument, and join it?</p></div>
+  <div class="card fragment"><h3><code>02</code></h3><p>Can we name the state a real threadpool must own?</p></div>
+  <div class="card fragment"><h3><code>03</code></h3><p>Can workers live once and sleep instead of being recreated?</p></div>
+  <div class="card fragment"><h3><code>04</code></h3><p>Can the same workers receive two dispatches and complete a barrier?</p></div>
+</div><p class="fragment"><code>threadpool_demo.c</code> connects the contract to row-partitioned compute.</p><aside class="notes">Before showing the code, I want to make the test objective explicit. Stage one proves raw thread creation. Stage two proves the structure. Stage three proves persistent workers. Stage four proves reusable dispatch. The final file connects that to row-partitioned compute, which is how many CPU kernels are scheduled.</aside></section>
+
+<section><h2>1. Raw Pthreads</h2><pre><code class="language-c">pthread_t thread;
+int id = 1;
+
+pthread_create(&thread, NULL, worker_main, &id);
+printf("hello from main thread 0\n");
+pthread_join(thread, NULL);</code></pre><p class="fragment">Create one worker, pass one argument, wait for completion.</p><p class="fragment muted">Read the top comment: what this file proves, what to observe, why it matters.</p><aside class="notes">The first idea is extremely small. pthread_create starts a worker function. pthread_join waits for the worker to finish. This is not a threadpool yet. It is just one raw thread. But this is the foundation. I should point to the file header comment because it tells the audience the test objective and expected behavior.</aside></section>
+
+<section><h2>Run Stage 1</h2><div class="cmd">make run-stage1</div><pre><code class="language-text">hello from main thread 0
+hello from worker thread 1</code></pre><aside class="notes">When I run make run-stage1, I expect to see main thread zero and worker thread one. The order may vary because scheduling is nondeterministic. That itself is a good point: once threads exist, output order is not guaranteed.</aside></section>
+
+<section><h2>2. Create The Structures</h2><div class="cmd">make run-stage2</div><pre><code class="language-c">typedef void (*work_fn_t)(int ith, int nth, void *arg);
+
+typedef struct {
+    pthread_t *threads;
+    int nthreads;
+    pthread_mutex_t mu;
+    pthread_cond_t has_work;
+    pthread_cond_t done;
+    work_fn_t fn;
+    void *arg;
+    int generation;
+    int completed;
+    int stop;
+} threadpool_t;</code></pre><aside class="notes">Now we create the runtime structure. The pool needs worker handles, synchronization objects, the function pointer, the opaque argument pointer, a generation counter, completion counter, and stop flag. This is the minimal state for dispatching work repeatedly. This file intentionally does not create threads yet; it makes the runtime state visible first.</aside></section>
+
+<section><h2>3. Create Workers Once</h2><div class="cmd">make run-stage3</div><pre><code class="language-c">for (int i = 1; i < nthreads; ++i) {
+    args[i - 1].pool = p;
+    args[i - 1].ith = i;
+    pthread_create(&threads[i - 1], NULL,
+                   worker_main, &args[i - 1]);
+}</code></pre><p class="fragment">Thread <code>0</code> is the main thread.</p><p class="fragment">Workers are <code>1..nthreads-1</code>.</p><aside class="notes">A key design choice is that thread zero is the main thread. We create n minus one worker threads. The main thread should not just dispatch and sleep. It should also do its share of work during dispatch.</aside></section>
+
+<section><h2>4. Dispatch Logic</h2><div class="cmd">make run-stage4</div><pre><code class="language-c">p->fn = fn;
+p->arg = arg;
+p->completed = 0;
+p->generation++;
+pthread_cond_broadcast(&p->has_work);
+
+fn(0, p->nthreads, arg); // main thread works too</code></pre><p class="fragment">Workers wake when generation changes.</p><aside class="notes">Dispatch writes the function and argument, resets completion, increments generation, and wakes workers. Then the main thread immediately runs the same work function as thread zero. This is the core of the reusable dispatch idea.</aside></section>
+
+<section><h2>Run Stage 4</h2><div class="cmd">make run-stage4</div><pre><code class="language-text">thread 0/4 received dispatch
+thread 3/4 received dispatch
+thread 2/4 received dispatch
+thread 1/4 received dispatch
+...
+second dispatch reuses the same pool</code></pre><aside class="notes">Stage four proves dispatch. Every thread receives work. Then the second dispatch happens without creating new threads. This is the central threadpool behavior.</aside></section>
+
+<section><h2>5. Dummy GEMV Workload</h2><div class="cmd">make run-final</div><pre><code class="language-c">int r0 = (ith * rows) / nth;
+int r1 = ((ith + 1) * rows) / nth;
+
+for (int r = r0; r < r1; ++r) {
+    float sum = 0.0f;
+    for (int c = 0; c < cols; ++c)
+        sum += w[r * cols + c] * x[c];
+    out[r] = sum;
+}</code></pre><aside class="notes">The final workload is a tiny GEMV shape. Each thread owns a row range. This maps directly to how many CPU kernels are partitioned: split output rows, make each thread write its own range, then wait at the barrier.</aside></section>
+
+<section><h2>Final Demo</h2><div class="cmd">make run-final</div><pre><code class="language-text">dispatch 1: matrix-vector dummy workload
+thread 0/4 owns rows [0, 3)
+thread 1/4 owns rows [3, 6)
+thread 2/4 owns rows [6, 9)
+thread 3/4 owns rows [9, 12)
+
+dispatch 2: same workers, same pool, no thread creation</code></pre><aside class="notes">The final demo shows rows being split across four threads. The exact print order can vary, but the row ownership should be clear. The second dispatch shows the same workers being reused.</aside></section>
+
+<section><h2>From Demo GEMV To AI Kernels</h2><div class="grid-2">
+  <div class="card fragment"><h3>Demo</h3><p><code>matvec_work()</code> splits output rows across workers.</p></div>
+  <div class="card fragment"><h3>Real runtime</h3><p>GEMV/GEMM/RMSNorm/attention kernels split rows, tokens, heads, or tiles.</p></div>
+  <div class="card fragment"><h3>Same contract</h3><p><code>fn(ith, nth, arg)</code> gives every worker its worker id and total workers.</p></div>
+  <div class="card fragment"><h3>Same barrier</h3><p>The caller waits until all worker-owned ranges finish.</p></div>
+</div><aside class="notes">This is where I connect the toy demo to the AI runtime. The demo uses matrix-vector multiplication because it is easy to see. But the runtime idea is the same for GEMV, GEMM, RMSNorm, attention, softmax, and optimizer kernels. Each dispatch gives every worker an id, total worker count, and payload. The kernel decides what range or tile belongs to that worker. Then the runtime waits at a barrier.</aside></section>
+
+<section><h2>How GEMM Dispatch Maps To Cores</h2><pre><code class="language-c">// Runtime dispatch shape:
+threadpool_dispatch(pool, gemm_work, &job);
+
+// Worker range shape:
+int row0 = (ith * M) / nth;
+int row1 = ((ith + 1) * M) / nth;
+
+// Each worker computes C[row0:row1, :]</code></pre><p class="fragment">For bigger kernels, the same idea becomes block/tile ownership instead of only row ownership.</p><aside class="notes">For GEMM, the simplest mental model is row partitioning. Worker zero owns one row range, worker one owns another row range, and so on. For high-performance GEMM, this becomes tiled ownership because cache reuse matters. But the scheduling idea is the same: assign independent output regions to cores, keep writes separate, and synchronize after the dispatch.</aside></section>
+
+<section><h2>LLM Runtime View</h2><div class="grid-2">
+  <div class="card fragment"><h3>One model layer</h3><p>RMSNorm → QKV GEMM → attention → output GEMM → MLP GEMM.</p></div>
+  <div class="card fragment"><h3>Many dispatches</h3><p>Each operation becomes one or more threadpool dispatches.</p></div>
+  <div class="card fragment"><h3>Core ownership</h3><p>Workers own rows, tokens, heads, blocks, or expert groups.</p></div>
+  <div class="card fragment"><h3>Runtime discipline</h3><p>No hidden thread creation inside the kernel hot path.</p></div>
+</div><aside class="notes">In a real LLM runtime, one layer is not one operation. It is a chain of dispatches: normalization, QKV projection, attention, output projection, MLP projection, activation, and another projection. The threadpool is the execution substrate. Kernels should not secretly create new threads. The runtime owns the workers and dispatches each operation across cores.</aside></section>
+
+<section><h2>Oversubscription</h2><div class="grid-2">
+  <div class="card fragment"><h3>Good</h3><p>One runnable worker per physical core, predictable affinity, enough work per dispatch.</p></div>
+  <div class="card fragment"><h3>Bad</h3><p>Too many workers, nested OpenMP, allocator locks, cache-line fights.</p></div>
+</div><p class="fragment">More threads can make performance worse.</p><aside class="notes">Oversubscription means creating more runnable threads than the hardware can use effectively. More threads do not automatically mean more speed. If each library secretly creates its own threads, the system can oversubscribe, fight over cores, and lose performance.</aside></section>
+
+<section><h2>Show Cores In <code>top</code></h2><div class="grid-2">
+  <div class="card fragment"><h3>Terminal 1</h3><div class="cmd">make run-burn-1<br>make run-burn-4</div></div>
+  <div class="card fragment"><h3>Terminal 2</h3><div class="cmd">htop<br># or after PID prints:<br>top -H -p &lt;pid&gt;</div></div>
+</div><pre class="fragment"><code class="language-text">worker 0 finished on cpu 7 after ... iterations
+worker 1 finished on cpu 3 after ... iterations
+worker 2 finished on cpu 5 after ... iterations
+worker 3 finished on cpu 1 after ... iterations</code></pre><aside class="notes">This is the live visual proof slide. I can run make run-burn-1 and show roughly one busy core. Then I can run make run-burn-4 and show multiple busy cores. The program prints the CPU id each worker finished on using sched_getcpu, so we can connect the code to what top or htop shows. This is intentionally a CPU burn demo, not useful math; it exists to make multithreading visible.</aside></section>
+
+<section><h2>What The Demo Is Showing</h2><img src="assets/threadpool-core-burn.svg" alt="Threadpool core burn diagram" style="width:100%; max-height:620px; object-fit:contain; border-radius:24px; box-shadow:0 24px 70px rgba(0,0,0,.34);"><aside class="notes">This diagram is the explanation before or after the live top demo. Terminal one runs the burn program. Terminal two watches top or htop. The same C file uses pthread_create to start workers. With one worker, usually one logical CPU becomes busy. With four workers, Linux can schedule those workers across multiple logical CPUs. The important teaching point is not the burn math. The important point is that the threadpool contract turns one function into work distributed across cores.</aside></section>
+
+<section><h2>Threadpool Design Rules</h2><ul>
+  <li class="fragment">Create workers once; dispatch many times.</li>
+  <li class="fragment">Keep the hot path allocation-free.</li>
+  <li class="fragment">Use a generation counter so workers do not repeat stale work.</li>
+  <li class="fragment">Make thread 0 participate instead of only coordinating.</li>
+  <li class="fragment">Use half-open ranges like <code>[r0, r1)</code> so partitions are exact.</li>
+</ul><aside class="notes">These are the design rules I want the audience to keep. Create workers once. Dispatch many times. Keep the hot path allocation-free. Use a generation counter to identify fresh work. Make thread zero participate. Use half-open ranges so every row or token belongs to exactly one worker.</aside></section>
+
+<section><h2>C-Kernel-Engine Connection</h2><ul>
+  <li class="fragment"><code>ck_threadpool.h</code> — persistent pthread worker model.</li>
+  <li class="fragment">GEMM/GEMV dispatch — split output rows, tiles, or token ranges across cores.</li>
+  <li class="fragment"><code>src/kernels/README.md</code> — no hidden OpenMP inside kernel code.</li>
+  <li class="fragment"><code>system_topology.h</code> — NUMA, affinity, and core-placement contracts.</li>
+</ul><aside class="notes">This is not just a toy exercise. It connects directly to C-Kernel-Engine. The production direction is persistent pthread workers, explicit orchestration, no hidden OpenMP inside kernels, and topology-aware execution. The basic demo teaches the dispatch contract; the advanced use case is running model kernels across CPU cores predictably.</aside></section>
+
+<section><h2>Reference The Real CKE Files</h2><div class="grid-2">
+  <div class="card fragment"><h3>Site doc</h3><p><code>docs/site/_pages/threadpool.html</code><br>plain-English CK threadpool deep dive.</p></div>
+  <div class="card fragment"><h3>Public API</h3><p><code>include/ck_threadpool.h</code><br><code>ck_work_fn_t</code>, dispatch, barrier, pause/resume.</p></div>
+  <div class="card fragment"><h3>Implementation</h3><p><code>src/ck_threadpool.c</code><br>atomic dispatch counter, spin barrier, condvar fallback.</p></div>
+  <div class="card fragment"><h3>Real usage</h3><p><code>src/ck_parallel_train.c</code><br><code>src/kernels/gemm_kernels_q4k_q8k.c</code><br><code>src/kernels/optimizer_kernels.c</code></p></div>
+</div><aside class="notes">If someone asks whether this is only a toy demo, the answer is no. C-Kernel-Engine has a threading strategy document, a public threadpool header, a real implementation, and kernel/training call sites. The demo teaches the concept. The site page explains it for humans. The source shows the production direction: persistent workers, atomic dispatch, spin barriers, condition variable fallback, and explicit dispatch from GEMM and optimizer paths.</aside></section>
+
+<section><div class="title-card"><div class="kicker">Takeaway</div><h1><span class="gradient-text">Own The Work.</span><br>Then Own The Runtime.</h1><p>A CPU AI runtime becomes serious when dispatch, barriers, and kernels are explicit contracts.</p></div><aside class="notes">The final takeaway is this: own the work, then own the runtime. A CPU AI runtime becomes serious when dispatch, barriers, and kernels are explicit contracts. That is how we go from a C function to a repeatable model runner.</aside></section>
+
+</div></div>
+<script src="../reveal.js/dist/reveal.js"></script>
+<script src="../reveal.js/plugin/notes/notes.js"></script>
+<script src="../reveal.js/plugin/highlight/highlight.js"></script>
+<script>Reveal.initialize({ hash: true, slideNumber: true, plugins: [RevealNotes, RevealHighlight] });</script>
+</body>
+</html>

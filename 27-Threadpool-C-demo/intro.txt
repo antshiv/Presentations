@@ -1,0 +1,35 @@
+Thread pools matter because modern CPU performance is not just about writing one fast function.
+
+A fast kernel is only useful if the runtime can feed it work efficiently. If I have a GEMM kernel, an RMSNorm kernel, an attention kernel, or an optimizer kernel, those functions still need to be scheduled across CPU cores. That scheduling layer is where a thread pool becomes important.
+
+The simple idea is this: creating threads is expensive, but using already-created threads is cheap.
+
+So instead of creating and destroying worker threads every time I need to do a small piece of work, I create the workers once. Then for each kernel call, I dispatch work to those same workers.
+
+Thread zero, which is usually the main thread, also participates. Each worker gets an id, the total number of workers, and a pointer to the job arguments. From that, each worker can decide which rows, columns, tokens, heads, or tiles it owns.
+
+This is exactly why C-Kernel-Engine relies on this concept for CPU inference and training.
+
+In an LLM runtime, a single token is not one operation. It is many operations: normalization, QKV projection, attention, output projection, MLP projection, activation, another projection, and sometimes optimizer or backward-pass work.
+
+If every one of those operations creates a new parallel region, wakes a new team, or uses hidden threading inside the kernel, then the overhead becomes part of the model runtime. The CPU spends too much time coordinating and not enough time computing.
+
+OpenMP is useful, but it is not always the right abstraction for a tight inference loop. The dangerous pattern is nested or repeated fork-join parallelism.
+
+You put OpenMP inside a GEMM, then call that GEMM from a higher-level loop that is also parallel, and suddenly the program has too many runnable threads, too many barriers, too much scheduling overhead, and too much cache thrashing. More parallelism can actually make the system slower.
+
+A thread pool gives us a stricter contract.
+
+The runtime owns the workers. Kernels do not secretly create their own thread teams. The orchestrator decides how many workers are active, what range each worker owns, and when the barrier is complete.
+
+That gives us predictable CPU behavior, which is what we need for C systems programming and for CPU AI runtimes.
+
+And this idea is not only for LLMs. It is universal systems programming.
+
+In embedded systems, robotics, flight controllers, sensor processing, computer vision, simulation, and servers, the same principle appears again and again: create expensive resources once, reuse them carefully, avoid hidden dynamic behavior in the hot path, and make scheduling explicit.
+
+So in this walkthrough, I am not just showing pthread syntax.
+
+I am showing the runtime contract behind serious CPU software.
+
+First we create one thread. Then we name the state. Then we create persistent workers. Then we dispatch work. Then we connect that to a small GEMV-style workload, and finally to how C-Kernel-Engine thinks about AI kernels running across CPU cores.

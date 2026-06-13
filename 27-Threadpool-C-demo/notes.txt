@@ -1,0 +1,154 @@
+Threadpools From First Principles - Presenter Notes
+
+Opening hook
+A fast CPU kernel is not enough if the runtime keeps creating threads, allocating memory, or hiding scheduling decisions. Today I am building the threadpool contract from first principles, using small C files that each prove one behavior. After the basic demo, I will connect the same dispatch idea to C-Kernel-Engine, GEMM/GEMV kernels, LLM layers, and CPU core ownership.
+
+Presentation flow
+Start with the problem: thread creation in the hot path can erase the benefit of a fast kernel.
+Build curiosity: the pthread API surface we need is small: create, join, mutex, condition variable.
+Make it concrete: build the runtime in five tiny files instead of starting with one large file.
+Move to action: compile and run every stage so the audience sees the behavior directly.
+
+Roadmap
+1. 01_pthreads_minimal.c - start one raw worker thread, pass one argument, join it.
+2. 02_structures.c - name the runtime state before adding behavior.
+3. 03_pool_create.c - create persistent workers once and shut them down cleanly.
+4. 04_dispatch_minimal.c - dispatch reusable work twice using the same workers.
+5. threadpool_demo.c - connect dispatch to a row-partitioned dummy GEMV workload.
+
+Man page setup
+Use this to install useful C API documentation:
+  sudo apt install manpages-dev manpages-posix-dev
+  sudo mandb
+
+Search and open references:
+  man -k pthread
+  man -k pthread_create
+  man -k readdir
+  man 7 pthreads
+  man 3 pthread_create
+  man 3posix pthread_create
+  man 3 pthread_join
+  man 3 pthread_mutex_lock
+  man 3 pthread_cond_wait
+
+If man 3 pthread_create does not exist, the development man pages are probably missing. On some installs the POSIX page is under section 3posix.
+
+Compile rhythm
+  cd ~/Workspace/Presentations/threadpools-c-demo
+  make clean
+  make all
+  make run-stage1
+  make run-stage2
+  make run-stage3
+  make run-stage4
+  make run-final
+
+Stage 1 notes - 01_pthreads_minimal.c
+This file is the attention stage. It proves the absolute minimum pthread contract: create one worker, pass one pointer argument, wait with join. The print order may vary, and that is the first concurrency lesson. Scheduling is nondeterministic.
+
+Point out:
+- pthread_create starts worker_main.
+- worker_main must match void *(*)(void *).
+- pthread_join is the simplest barrier.
+- -pthread matters at compile and link time.
+
+Stage 2 notes - 02_structures.c
+This file is the interest stage. No workers yet. We are naming the runtime state: pthread handles, mutex, condition variables, function pointer, argument pointer, generation, completed count, stop flag.
+
+Point out:
+- The kernel should not own scheduling.
+- The runtime owns scheduling state.
+- work_fn_t gives every dispatched job the same shape: ith, nth, arg.
+
+Stage 3 notes - 03_pool_create.c
+This file demonstrates persistent workers. The workers are created once, then they wait on a condition variable. There is no real work dispatch yet. Destroy sets stop, broadcasts, and joins.
+
+Point out:
+- Thread 0 is main.
+- Workers are 1 through nthreads minus 1.
+- pthread_cond_wait unlocks the mutex while sleeping and locks it again after waking.
+- Broadcast is needed because all sleeping workers must wake for shutdown.
+
+Stage 4 notes - 04_dispatch_minimal.c
+This file is the action stage. It dispatches work twice to the same worker pool. The generation counter prevents stale or repeated work. The completed counter plus done condition variable acts as a barrier.
+
+Point out:
+- Dispatch stores fn and arg.
+- generation++ marks fresh work.
+- pthread_cond_broadcast wakes workers.
+- Main thread runs fn(0, nth, arg), so it participates.
+- completed counts only background workers, so the target is nthreads - 1.
+
+Final demo notes - threadpool_demo.c
+This file connects the threadpool to a dummy GEMV. Each worker owns rows [r0, r1). Every row should be covered exactly once. The second dispatch reuses the same worker threads. This is the bridge from pthread mechanics to AI runtime scheduling.
+
+Point out:
+- Row partition formula: r0 = ith * rows / nth, r1 = (ith + 1) * rows / nth.
+- This maps to CPU kernels where each thread writes its own output range.
+- Print order may vary, but coverage should be deterministic.
+
+From demo GEMV to AI kernels
+The demo uses matrix-vector multiplication because it is simple to see. But the runtime idea is the same for GEMV, GEMM, RMSNorm, attention, softmax, and optimizer kernels. Each dispatch gives every worker an id, total worker count, and payload. The kernel decides what row range, token range, head range, or tile belongs to that worker. Then the runtime waits at a barrier.
+
+GEMM dispatch mental model
+A simple GEMM dispatch can split output rows across workers:
+  row0 = ith * M / nth
+  row1 = (ith + 1) * M / nth
+Each worker computes C[row0:row1, :]. For higher performance, this becomes tile ownership instead of plain row ownership, but the runtime contract is still the same.
+
+LLM runtime connection
+One transformer layer becomes many dispatches: RMSNorm, QKV GEMM, attention, output GEMM, MLP GEMM, activation, and final projection. The threadpool is the execution substrate. Kernels should not secretly create new threads. The runtime owns the workers and dispatches each operation across cores.
+
+Design rules
+Create workers once; dispatch many times.
+Keep the hot path allocation-free.
+Use a generation counter to identify fresh work.
+Make thread 0 participate.
+Use half-open ranges [r0, r1) for exact partitioning.
+Avoid hidden nested threadpools or hidden OpenMP inside kernels.
+
+C-Kernel-Engine connection
+The same runtime idea applies to C-Kernel-Engine. A kernel computes math. The runtime decides worker ownership, dispatch, synchronization, NUMA policy, affinity, and shutdown. The basic demo teaches fn(ith, nth, arg). The advanced runtime uses that idea for GEMM/GEMV dispatch, token ranges, attention heads, tiles, and eventually NUMA-aware placement. This is how a C function becomes part of a repeatable model runner.
+
+CKE file references
+If someone asks whether this is only a toy demo, point to these files:
+- docs/site/_pages/threadpool.html: human-facing generated/site page for the CK threadpool. This is the first reference to show.
+- docs/site/threadpool.html: rendered site output if you are serving the built docs.
+- include/ck_threadpool.h: public API with ck_work_fn_t, ck_threadpool_dispatch, dispatch_n, barrier, pause, resume.
+- src/ck_threadpool.c: implementation with atomics, cache-line alignment, spin-wait barrier, condition-variable fallback, and thread 0 as main.
+- src/ck_parallel_train.c: training GEMM dispatch using ck_threadpool_global and ck_threadpool_dispatch_n.
+- src/kernels/gemm_kernels_q4k_q8k.c and src/kernels/gemm_kernels_q4k_q8k_vnni.c: quantized GEMM/GEMV paths using the CK threadpool.
+- src/kernels/optimizer_kernels.c: optimizer and gradient utility kernels using threadpool dispatch.
+
+Threadpool site doc note
+For the presentation, prefer the HTML site page over the markdown source: docs/site/_pages/threadpool.html. It already has sections on what a pool is, why not OpenMP, anatomy, lifecycle, dispatch, spin vs sleep, atomics, cache lines, barriers, real numbers, and per-kernel parallelization.
+
+Core-burn visual demo
+Use 05_core_burn.c only as a visual proof that pthread workers can keep multiple CPU cores busy. It intentionally burns CPU. It is not useful math.
+
+Terminal flow:
+  Terminal 1: make run-burn-1
+  Terminal 2: htop, or use top -H -p <pid> after the program prints its PID.
+  Terminal 1: make run-burn-4
+
+What to say:
+With one worker, we expect one core to be busy. With four workers, we expect more cores to become busy. The program prints sched_getcpu() for each worker at the end, so we can show that Linux scheduled workers onto CPU cores. This connects pthread code to visible CPU behavior.
+
+Core-burn diagram slide
+The image at assets/threadpool-core-burn.svg explains the live demo visually. Use it to say: Terminal 1 runs the pthread burn workload. Terminal 2 watches htop or top. The code path is pthread_create -> burn_worker -> sched_getcpu. One worker usually makes one logical CPU busy. Four workers can make several logical CPUs busy. The real lesson is that this is the same mental model as CKE dispatch: a worker id, a total worker count, and a function body that owns a slice of work.
+
+Talking-head intro script
+Thread pools matter because modern CPU performance is not just about writing one fast function. A fast kernel is only useful if the runtime can feed it work efficiently. If I have a GEMM kernel, an RMSNorm kernel, an attention kernel, or an optimizer kernel, those functions still need to be scheduled across CPU cores. That scheduling layer is where a thread pool becomes important.
+
+The simple idea is this: creating threads is expensive, but using already-created threads is cheap. So instead of creating and destroying worker threads every time I need to do a small piece of work, I create the workers once. Then for each kernel call, I dispatch work to those same workers. Thread zero, which is usually the main thread, also participates. Each worker gets an id, the total number of workers, and a pointer to the job arguments. From that, each worker can decide which rows, columns, tokens, heads, or tiles it owns.
+
+This is exactly why C-Kernel-Engine relies on this concept for CPU inference and training. In an LLM runtime, a single token is not one operation. It is many operations: normalization, QKV projection, attention, output projection, MLP projection, activation, another projection, and sometimes optimizer or backward-pass work. If every one of those operations creates a new parallel region or wakes a new team in an uncontrolled way, the overhead becomes part of the model runtime. The CPU spends too much time coordinating and not enough time computing.
+
+OpenMP is useful, but it is not always the right abstraction for a tight inference loop. The dangerous pattern is nested or repeated fork-join parallelism. You put OpenMP inside a GEMM, then call that GEMM from a higher-level loop that is also parallel, and suddenly the program has too many runnable threads, too many barriers, too much scheduling overhead, and too much cache thrashing. More parallelism can make the system slower.
+
+A thread pool gives us a stricter contract. The runtime owns the workers. Kernels do not secretly create their own thread teams. The orchestrator decides how many workers are active, what range each worker owns, and when the barrier is complete. That gives us predictable CPU behavior, which is what we need for C systems programming and for CPU AI runtimes.
+
+This idea is not only for LLMs. It is universal systems programming. In embedded systems, robotics, flight controllers, sensor processing, computer vision, simulation, and servers, the same principle appears again and again: create expensive resources once, reuse them carefully, avoid hidden dynamic behavior in the hot path, and make scheduling explicit. Thread pools are one of the cleanest examples of that principle.
+
+So in this walkthrough, I am not just showing pthread syntax. I am showing the runtime contract behind serious CPU software. First we create one thread. Then we name the state. Then we create persistent workers. Then we dispatch work. Then we connect that to a small GEMV-style workload, and finally to how C-Kernel-Engine thinks about AI kernels running across CPU cores.
